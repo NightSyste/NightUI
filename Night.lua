@@ -507,7 +507,7 @@ function Library:MakeWindow(WindowConfig)
 				Font = Enum.Font.FredokaOne,
 				ClipsDescendants = true
 			}), "Text"),
-			SetProps(MakeElement("Label", "discord.gg/DjvzXcqd5m ", 12), {
+			SetProps(MakeElement("Label", ".gg/DjvzXcqd5m ", 12), {
 				Size = UDim2.new(1,-60,0,12),
 				Position = UDim2.new(0,50,1,-25),
 				Visible = not WindowConfig.HidePremium,
