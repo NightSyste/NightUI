@@ -470,7 +470,6 @@ function Library:MakeWindow(WindowConfig)
 		}), "Text")
 	})
 
-
 	local DragPoint = SetProps(MakeElement("TFrame"), {Size = UDim2.new(1, 0, 0, 50)})
 
 	local WindowStuff = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 10), {
@@ -490,7 +489,8 @@ function Library:MakeWindow(WindowConfig)
 				Position = UDim2.new(0,10,0.5,0),
 				BackgroundTransparency = 0.2
 			}), {
-			SetProps(MakeElement("Image", "https://www.roblox.com/headshot-thumbnail/image?userId="..(LocalPlayer and LocalPlayer.UserId or 0).."&width=420&height=420&format=png"), {Size = UDim2.new(1,0,1,0)}),				AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://4031889928"), {Size = UDim2.new(1,0,1,0)}), "Second"),
+				SetProps(MakeElement("Image", "https://www.roblox.com/headshot-thumbnail/image?userId="..(LocalPlayer and LocalPlayer.UserId or 0).."&width=420&height=420&format=png"), {Size = UDim2.new(1,0,1,0)}),
+				AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://4031889928"), {Size = UDim2.new(1,0,1,0)}), "Second"),
 				MakeElement("Corner", 1)
 			}), "Divider"),
 			SetChildren(SetProps(MakeElement("TFrame"), {
@@ -614,36 +614,378 @@ function Library:MakeWindow(WindowConfig)
 		Minimized = not Minimized
 	end)
 
+	-- =============================================
+	-- NEUER LOADER (ersetzt die alte LoadSequence)
+	-- =============================================
 	local function LoadSequence()
 		MainWindow.Visible = false
-		local LoadSequenceLogo = SetProps(MakeElement("Image", WindowConfig.IntroIcon), {
+
+		-- Dunkler Vollbild-Hintergrund
+		local LoadBG = Create("Frame", {
 			Parent = Container,
-			AnchorPoint = Vector2.new(0.5,0.5),
-			Position = UDim2.new(0.5,0,0.4,0),
-			Size = UDim2.new(0,28,0,28),
-			ImageColor3 = Color3.fromRGB(255,255,255),
-			ImageTransparency = 1
+			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.new(0, 0, 0, 0),
+			BackgroundColor3 = Color3.fromRGB(10, 10, 12),
+			BorderSizePixel = 0,
+			ZIndex = 100
 		})
-		local LoadSequenceText = SetProps(MakeElement("Label", WindowConfig.IntroText, 14), {
-			Parent = Container,
-			Size = UDim2.new(1,0,1,0),
-			AnchorPoint = Vector2.new(0.5,0.5),
-			Position = UDim2.new(0.5,19,0.5,0),
+
+		-- Subtiles Punkte-Grid
+		local GridFrame = Create("Frame", {
+			Parent = LoadBG,
+			Size = UDim2.new(1, 0, 1, 0),
+			BackgroundTransparency = 1,
+			ZIndex = 101
+		})
+		for row = 0, 20 do
+			for col = 0, 35 do
+				local dot = Create("Frame", {
+					Parent = GridFrame,
+					Size = UDim2.new(0, 1, 0, 1),
+					Position = UDim2.new(0, col * 38, 0, row * 38),
+					BackgroundColor3 = Color3.fromRGB(135, 206, 250),
+					BackgroundTransparency = 0.92,
+					BorderSizePixel = 0,
+					ZIndex = 101
+				})
+			end
+		end
+
+		-- Äußerer Ring (langsam, CW)
+		local Ring1 = Create("Frame", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 110, 0, 110),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, -90),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			ZIndex = 102
+		})
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Ring1})
+		Create("UIStroke", {
+			Parent = Ring1,
+			Color = Color3.fromRGB(135, 206, 250),
+			Thickness = 2,
+			Transparency = 0.15
+		})
+
+		-- Mittlerer Ring (mittel, CCW)
+		local Ring2 = Create("Frame", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 84, 0, 84),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, -90),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			ZIndex = 102
+		})
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Ring2})
+		Create("UIStroke", {
+			Parent = Ring2,
+			Color = Color3.fromRGB(135, 206, 250),
+			Thickness = 1.5,
+			Transparency = 0.45
+		})
+
+		-- Innerer Ring (schnell, CW)
+		local Ring3 = Create("Frame", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 60, 0, 60),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, -90),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			ZIndex = 102
+		})
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Ring3})
+		Create("UIStroke", {
+			Parent = Ring3,
+			Color = Color3.fromRGB(135, 206, 250),
+			Thickness = 1,
+			Transparency = 0.65
+		})
+
+		-- Logo-Box in der Mitte der Ringe
+		local LogoBox = Create("Frame", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 34, 0, 34),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, -90),
+			BackgroundColor3 = Color3.fromRGB(135, 206, 250),
+			BackgroundTransparency = 0.82,
+			BorderSizePixel = 0,
+			ZIndex = 103
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 7), Parent = LogoBox})
+		Create("UIStroke", {
+			Parent = LogoBox,
+			Color = Color3.fromRGB(135, 206, 250),
+			Thickness = 1,
+			Transparency = 0.4
+		})
+
+		-- Kreuz-Icon in der Logo-Box
+		local IconH = Create("Frame", {
+			Parent = LogoBox,
+			Size = UDim2.new(0, 14, 0, 2),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			BackgroundColor3 = Color3.fromRGB(135, 206, 250),
+			BackgroundTransparency = 0,
+			BorderSizePixel = 0,
+			ZIndex = 104
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = IconH})
+		local IconV = Create("Frame", {
+			Parent = LogoBox,
+			Size = UDim2.new(0, 2, 0, 14),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			BackgroundColor3 = Color3.fromRGB(135, 206, 250),
+			BackgroundTransparency = 0,
+			BorderSizePixel = 0,
+			ZIndex = 104
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = IconV})
+
+		-- Haupt-Titel (NIGHTSYSTEM)
+		local TitleLabel = Create("TextLabel", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 320, 0, 32),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, -20),
+			BackgroundTransparency = 1,
+			Text = string.upper(WindowConfig.Name),
+			TextColor3 = Color3.fromRGB(232, 232, 236),
+			TextSize = 22,
+			Font = Enum.Font.GothamBlack,
 			TextXAlignment = Enum.TextXAlignment.Center,
-			Font = Enum.Font.GothamBold,
-			TextTransparency = 1
+			TextTransparency = 1,
+			ZIndex = 103
 		})
-		TweenService:Create(LoadSequenceLogo, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0, Position = UDim2.new(0.5,0,0.5,0)}):Play()
-		wait(0.8)
-		TweenService:Create(LoadSequenceLogo, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -(LoadSequenceText.TextBounds.X/2), 0.5, 0)}):Play()
-		wait(0.3)
-		TweenService:Create(LoadSequenceText, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
-		wait(2)
-		TweenService:Create(LoadSequenceText, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+
+		-- Untertitel (LOADING)
+		local SubLabel = Create("TextLabel", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 320, 0, 16),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 5),
+			BackgroundTransparency = 1,
+			Text = "LOADING",
+			TextColor3 = Color3.fromRGB(135, 206, 250),
+			TextSize = 11,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextTransparency = 1,
+			ZIndex = 103
+		})
+
+		-- Progress Bar Hintergrund
+		local ProgressBG = Create("Frame", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 260, 0, 2),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 30),
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.92,
+			BorderSizePixel = 0,
+			ZIndex = 103
+		})
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = ProgressBG})
+
+		-- Progress Bar Fill
+		local ProgressFill = Create("Frame", {
+			Parent = ProgressBG,
+			Size = UDim2.new(0, 0, 1, 0),
+			BackgroundColor3 = Color3.fromRGB(135, 206, 250),
+			BackgroundTransparency = 0,
+			BorderSizePixel = 0,
+			ZIndex = 104
+		})
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = ProgressFill})
+
+		-- Status Text (links)
+		local StatusLabel = Create("TextLabel", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 200, 0, 14),
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0.5, -130, 0.5, 45),
+			BackgroundTransparency = 1,
+			Text = "Initialisiere...",
+			TextColor3 = Color3.fromRGB(135, 206, 250),
+			TextSize = 10,
+			Font = Enum.Font.Gotham,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTransparency = 0.4,
+			ZIndex = 103
+		})
+
+		-- Prozent (rechts)
+		local PctLabel = Create("TextLabel", {
+			Parent = LoadBG,
+			Size = UDim2.new(0, 60, 0, 14),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(0.5, 130, 0.5, 45),
+			BackgroundTransparency = 1,
+			Text = "0%",
+			TextColor3 = Color3.fromRGB(135, 206, 250),
+			TextSize = 10,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			TextTransparency = 0.25,
+			ZIndex = 103
+		})
+
+		-- Step-Dots + Labels
+		local stepNames = {"System Check", "Interface", "Themes", "Config", "Bereit"}
+		local stepDots  = {}
+		local stepLabels = {}
+		local totalSteps = 5
+		local dotSpacing = 52
+		local startX = -(dotSpacing * (totalSteps - 1) / 2)
+
+		for i = 1, totalSteps do
+			local dot = Create("Frame", {
+				Parent = LoadBG,
+				Size = UDim2.new(0, 5, 0, 5),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0.5, startX + (i-1)*dotSpacing, 0.5, 65),
+				BackgroundColor3 = Color3.fromRGB(135, 206, 250),
+				BackgroundTransparency = 0.8,
+				BorderSizePixel = 0,
+				ZIndex = 103
+			})
+			Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = dot})
+			stepDots[i] = dot
+
+			local lbl = Create("TextLabel", {
+				Parent = LoadBG,
+				Size = UDim2.new(0, 60, 0, 12),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0.5, startX + (i-1)*dotSpacing, 0.5, 80),
+				BackgroundTransparency = 1,
+				Text = stepNames[i],
+				TextColor3 = Color3.fromRGB(135, 206, 250),
+				TextSize = 8,
+				Font = Enum.Font.Gotham,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextTransparency = 0.7,
+				ZIndex = 103
+			})
+			stepLabels[i] = lbl
+		end
+
+		-- Spin-Verbindungen
+		local spinConn
+		local a1, a2, a3 = 0, 0, 0
+		spinConn = RunService.RenderStepped:Connect(function(dt)
+			a1 = a1 + dt * 90
+			a2 = a2 - dt * 140
+			a3 = a3 + dt * 220
+			Ring1.Rotation = a1
+			Ring2.Rotation = a2
+			Ring3.Rotation = a3
+		end)
+
+		-- Hilfsfunktion: Progress animieren
+		local currentPct = 0
+		local function AnimateProgress(targetPct, duration)
+			local startP = currentPct
+			local elapsed = 0
+			local conn2
+			conn2 = RunService.RenderStepped:Connect(function(dt)
+				elapsed = elapsed + dt
+				local t = math.min(elapsed / duration, 1)
+				local ease = 1 - math.pow(1 - t, 3)
+				local val = math.floor(startP + (targetPct - startP) * ease)
+				currentPct = val
+				ProgressFill.Size = UDim2.new(val / 100, 0, 1, 0)
+				PctLabel.Text = val .. "%"
+				if t >= 1 then conn2:Disconnect() end
+			end)
+		end
+
+		-- Hilfsfunktion: Steps aktualisieren
+		local function SetStep(idx)
+			for i = 1, totalSteps do
+				local dot = stepDots[i]
+				local lbl = stepLabels[i]
+				if i < idx then
+					TweenService:Create(dot, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {BackgroundTransparency = 0.05, BackgroundColor3 = Color3.fromRGB(135,206,250)}):Play()
+					TweenService:Create(lbl, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextTransparency = 0.15, TextColor3 = Color3.fromRGB(135,206,250)}):Play()
+				elseif i == idx then
+					TweenService:Create(dot, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {BackgroundTransparency = 0.3}):Play()
+					TweenService:Create(lbl, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextTransparency = 0.35}):Play()
+				else
+					TweenService:Create(dot, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {BackgroundTransparency = 0.82}):Play()
+					TweenService:Create(lbl, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextTransparency = 0.72}):Play()
+				end
+			end
+		end
+
+		-- Elemente einblenden
+		TweenService:Create(TitleLabel, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
+		TweenService:Create(SubLabel,   TweenInfo.new(0.6, Enum.EasingStyle.Quint), {TextTransparency = 0.3}):Play()
+
+		wait(0.4)
+
+		-- Schritt 1: System Check
+		SetStep(1)
+		StatusLabel.Text = "System Check..."
+		AnimateProgress(20, 0.45)
+		wait(0.55)
+
+		-- Schritt 2: Interface laden
+		SetStep(2)
+		StatusLabel.Text = "Interface laden..."
+		AnimateProgress(45, 0.4)
+		wait(0.5)
+
+		-- Schritt 3: Themes anwenden
+		SetStep(3)
+		StatusLabel.Text = "Themes anwenden..."
+		AnimateProgress(72, 0.4)
+		wait(0.55)
+
+		-- Schritt 4: Config lesen
+		SetStep(4)
+		StatusLabel.Text = "Config lesen..."
+		AnimateProgress(90, 0.3)
+		wait(0.4)
+
+		-- Schritt 5: Bereit
+		SetStep(5)
+		StatusLabel.Text = "Abgeschlossen!"
+		AnimateProgress(100, 0.25)
+		wait(0.55)
+
+		-- Alles ausblenden
+		spinConn:Disconnect()
+
+		TweenService:Create(LoadBG, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(TitleLabel,  TweenInfo.new(0.4, Enum.EasingStyle.Quint), {TextTransparency = 1}):Play()
+		TweenService:Create(SubLabel,    TweenInfo.new(0.4, Enum.EasingStyle.Quint), {TextTransparency = 1}):Play()
+		TweenService:Create(StatusLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {TextTransparency = 1}):Play()
+		TweenService:Create(PctLabel,    TweenInfo.new(0.4, Enum.EasingStyle.Quint), {TextTransparency = 1}):Play()
+		TweenService:Create(ProgressBG,  TweenInfo.new(0.4, Enum.EasingStyle.Quint), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(ProgressFill,TweenInfo.new(0.4, Enum.EasingStyle.Quint), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(Ring1, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(Ring2, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(Ring3, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(LogoBox, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {BackgroundTransparency = 1}):Play()
+		for i = 1, totalSteps do
+			TweenService:Create(stepDots[i],   TweenInfo.new(0.3, Enum.EasingStyle.Quint), {BackgroundTransparency = 1}):Play()
+			TweenService:Create(stepLabels[i], TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextTransparency = 1}):Play()
+		end
+
+		wait(0.65)
+		LoadBG:Destroy()
 		MainWindow.Visible = true
-		LoadSequenceLogo:Destroy()
-		LoadSequenceText:Destroy()
+		Library:Init()
 	end
+	-- =============================================
+	-- ENDE NEUER LOADER
+	-- =============================================
 
 	if WindowConfig.IntroEnabled then LoadSequence() end
 
