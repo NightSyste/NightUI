@@ -498,7 +498,7 @@ function Library:MakeWindow(WindowConfig)
 	WindowConfig.Icon            = WindowConfig.Icon            or "rbxassetid://8834748103"
 	WindowConfig.IntroIcon       = WindowConfig.IntroIcon       or "rbxassetid://8834748103"
 	WindowConfig.SearchCallback  = WindowConfig.SearchCallback  or function() end
-	WindowConfig.ToggleKey       = WindowConfig.ToggleKey       or Enum.KeyCode.RightShift
+	WindowConfig.ToggleKey       = WindowConfig.ToggleKey       or Enum.KeyCode.LeftControl
 
 	Library.SearchRegistry = {}
 	local ToggleKeyName = (typeof(WindowConfig.ToggleKey) == "EnumItem" and WindowConfig.ToggleKey.Name or tostring(WindowConfig.ToggleKey)):gsub("(%l)(%u)", "%1 %2")
