@@ -57,7 +57,7 @@ local ACCENT_SOFT  = Library.AccentSoft
 -- Wird für: Fenster-Icon (oben links), Loader-Icon beim Laden
 -- und das kleine Icon verwendet, das erscheint, wenn die UI
 -- geschlossen/minimiert wird.
-Library.FixedIconId = "rbxassetid://111145155979089"
+Library.FixedIconId = "rbxassetid://123815022027998"
 
 local function PackColor(Color)
 	return {R = Color.R * 255, G = Color.G * 255, B = Color.B * 255}
