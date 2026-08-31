@@ -533,7 +533,7 @@ function Library:MakeWindow(WindowConfig)
 	end
 
 	-- Lupe (als Vektor gezeichnet, braucht kein Asset)
-	local SearchBtn = SetChildren(TopIcon(-133), {
+	local SearchBtn = SetChildren(TopIcon(-165), {
 		SetChildren(SetProps(MakeElement("TFrame"), {
 			Size = UDim2.new(0, 12, 0, 12),
 			Position = UDim2.new(0, 6, 0, 6),
@@ -550,6 +550,16 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
+	-- Zahnrad: UI-Einstellungen (Akzentfarbe, Transparenz, Verhalten)
+	local SettingsBtn = SetChildren(TopIcon(-133), {
+		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072720870"), {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			Size = UDim2.new(0, 17, 0, 17),
+			Name = "Ico"
+		}), "TextDark")
+	})
+
 	-- Chevron: Fenster ein-/ausklappen
 	local MinimizeBtn = SetChildren(TopIcon(-101), {
 		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
@@ -561,7 +571,7 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Minus: UI verstecken
+	-- Minus: UI verstecken (zu Mini-Icon)
 	local HideBtn = SetChildren(TopIcon(-69), {
 		AddThemeObject(SetProps(MakeElement("Frame"), {
 			Size = UDim2.new(0, 13, 0, 1.6),
@@ -580,7 +590,7 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	for _, Btn in pairs({SearchBtn, MinimizeBtn, HideBtn, CloseBtn}) do
+	for _, Btn in pairs({SearchBtn, SettingsBtn, MinimizeBtn, HideBtn, CloseBtn}) do
 		Create("UICorner", {CornerRadius = UDim.new(0, 7), Parent = Btn})
 		Btn.BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
 		AddConnection(Btn.MouseEnter, function()
@@ -645,7 +655,7 @@ function Library:MakeWindow(WindowConfig)
 	})
 
 	local WindowName = AddThemeObject(SetProps(MakeElement("Label", WindowConfig.Name, 18), {
-		Size = UDim2.new(1,-140,0,50),
+		Size = UDim2.new(1,-172,0,50),
 		Position = UDim2.new(0, WindowConfig.ShowIcon and 48 or 18, 0, 0),
 		Font = Enum.Font.GothamBold,
 		TextYAlignment = Enum.TextYAlignment.Center
@@ -695,6 +705,7 @@ function Library:MakeWindow(WindowConfig)
 			SearchFrame,
 			WindowTopBarLine,
 			SearchBtn,
+			SettingsBtn,
 			MinimizeBtn,
 			HideBtn,
 			CloseBtn
@@ -704,6 +715,115 @@ function Library:MakeWindow(WindowConfig)
 	}), "Main")
 
 	local SetResizingCallback = MakeDraggable(DragPoint, MainWindow)
+
+	-- ╔══════════════════════════════════════════╗
+	-- ║   MINI-ICON (rundes, verschiebbares      ║
+	-- ║   Minimier-Icon mit Logo)                ║
+	-- ╚══════════════════════════════════════════╝
+
+	Library.MinimizeSettings = {
+		ReopenMode = "DoubleClick", -- "DoubleClick" oder "Click"
+		IconSize   = 46,
+	}
+
+	local MiniIcon = Create("Frame", {
+		Parent = Container,
+		Size = UDim2.new(0, Library.MinimizeSettings.IconSize, 0, Library.MinimizeSettings.IconSize),
+		Position = UDim2.new(0.5, -23, 0, 20),
+		BackgroundColor3 = Library.Themes[Library.SelectedTheme].Main,
+		BackgroundTransparency = 0.1,
+		Visible = false,
+		ZIndex = 50,
+		Name = "MiniIcon"
+	})
+	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = MiniIcon})
+	local MiniStroke = Create("UIStroke", {Color = ACCENT, Thickness = 1.4, Transparency = 0.2, Parent = MiniIcon})
+
+	local MiniLogo = Create("TextLabel", {
+		Parent = MiniIcon,
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		Text = "N", -- Kuerzel/Logo-Buchstabe
+		Font = Enum.Font.GothamBlack,
+		TextSize = 20,
+		TextColor3 = ACCENT_TEXT,
+		ZIndex = 51
+	})
+
+	-- kleiner "Puls"-Ring als optischer Indikator, dass die UI laeuft
+	local PulseRing = Create("UIStroke", {Color = ACCENT, Thickness = 1, Transparency = 0.7, Parent = MiniIcon})
+	task.spawn(function()
+		while Library:IsRunning() do
+			TweenService:Create(PulseRing, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {Transparency = 0.95}):Play()
+			wait(1.2)
+			if not Library:IsRunning() then break end
+			TweenService:Create(PulseRing, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {Transparency = 0.7}):Play()
+			wait(1.2)
+		end
+	end)
+
+	-- Mini-Icon draggable machen (eigene, einfache Drag-Logik)
+	do
+		local Dragging, DragStart, StartPos = false, nil, nil
+		local MovedSinceDown = false
+
+		AddConnection(MiniIcon.InputBegan, function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+				Dragging = true
+				MovedSinceDown = false
+				DragStart = Input.Position
+				StartPos = MiniIcon.Position
+			end
+		end)
+
+		AddConnection(UserInputService.InputChanged, function(Input)
+			if Dragging and (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) then
+				local Delta = Input.Position - DragStart
+				if Delta.Magnitude > 3 then MovedSinceDown = true end
+				MiniIcon.Position = UDim2.new(
+					StartPos.X.Scale, StartPos.X.Offset + Delta.X,
+					StartPos.Y.Scale, StartPos.Y.Offset + Delta.Y
+				)
+			end
+		end)
+
+		AddConnection(UserInputService.InputEnded, function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+				Dragging = false
+			end
+		end)
+
+		-- Klick-/Doppelklick-Erkennung zum Wiederoeffnen
+		local LastClick = 0
+		AddConnection(MiniIcon.InputEnded, function(Input)
+			if Input.UserInputType ~= Enum.UserInputType.MouseButton1 and Input.UserInputType ~= Enum.UserInputType.Touch then return end
+			if MovedSinceDown then return end -- war ein Drag, kein Klick
+
+			if Library.MinimizeSettings.ReopenMode == "Click" then
+				Library:ShowFromMini(MainWindow, MiniIcon)
+				return
+			end
+
+			local Now = tick()
+			if Now - LastClick < 0.35 then
+				Library:ShowFromMini(MainWindow, MiniIcon)
+				LastClick = 0
+			else
+				LastClick = Now
+			end
+		end)
+	end
+
+	function Library:ShowFromMini(TargetWindow, TargetIcon)
+		TargetIcon.Visible = false
+		TargetWindow.Visible = true
+		TargetWindow.Size = UDim2.new(0, 0, 0, 0)
+		TargetWindow.Position = UDim2.new(0.5, -320, 0.5, -169)
+		TweenService:Create(TargetWindow, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 640, 0, 338)
+		}):Play()
+		UIHidden = false
+	end
 
 	local MobileReopenButton = SetChildren(SetProps(MakeElement("Button"), {
 		Parent = Container,
@@ -723,13 +843,9 @@ function Library:MakeWindow(WindowConfig)
 
 	local function HideUI()
 		MainWindow.Visible = false
-		if UserInputService.TouchEnabled then MobileReopenButton.Visible = true end
+		MiniIcon.Visible = true
 		UIHidden = true
-		Library:MakeNotification({
-			Name = "Interface Hidden",
-			Content = UserInputService.TouchEnabled and ("Tap the button or press " .. ToggleKeyName .. " to reopen the interface") or ("Press " .. ToggleKeyName .. " to reopen the interface"),
-			Time = 5
-		})
+		if UserInputService.TouchEnabled then MobileReopenButton.Visible = false end
 	end
 
 	AddConnection(CloseBtn.MouseButton1Up, function()
@@ -793,6 +909,7 @@ function Library:MakeWindow(WindowConfig)
 	local function SetUIVisible(State)
 		UIHidden = not State
 		MainWindow.Visible = State
+		MiniIcon.Visible = false
 		if UserInputService.TouchEnabled then MobileReopenButton.Visible = not State end
 	end
 
@@ -807,6 +924,7 @@ function Library:MakeWindow(WindowConfig)
 	AddConnection(MobileReopenButton.Activated, function()
 		MainWindow.Visible = true
 		MobileReopenButton.Visible = false
+		MiniIcon.Visible = false
 		UIHidden = false
 	end)
 
@@ -848,7 +966,7 @@ function Library:MakeWindow(WindowConfig)
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = LoaderFrame})
 
-		-- Äußerer Stroke (blau, leicht transparent)
+		-- Aeusserer Stroke (blau, leicht transparent)
 		local FrameStroke = Create("UIStroke", {
 			Parent = LoaderFrame,
 			Color = ACCENT,
@@ -885,7 +1003,7 @@ function Library:MakeWindow(WindowConfig)
 			ZIndex = 11
 		})
 
-		-- Statustext (wechselt während des Ladens)
+		-- Statustext (wechselt waehrend des Ladens)
 		local StatusLabel = Create("TextLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0),
@@ -924,7 +1042,7 @@ function Library:MakeWindow(WindowConfig)
 		})
 		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = BarFill})
 
-		-- ── Einblend-Animation ──
+		-- Einblend-Animation
 		TweenService:Create(LoaderFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
 			Position = UDim2.new(0.5, 0, 0.5, 0),
 			BackgroundTransparency = 0.25
@@ -936,7 +1054,7 @@ function Library:MakeWindow(WindowConfig)
 		TweenService:Create(TitleLabel,  TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
 		TweenService:Create(StatusLabel, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
 
-		-- ── Fortschritts-Schritte ──
+		-- Fortschritts-Schritte
 		local steps = {
 			{ text = "Loading modules...",  progress = 0.25, delay = 0.30 },
 			{ text = "Building UI...",      progress = 0.55, delay = 0.45 },
@@ -956,7 +1074,7 @@ function Library:MakeWindow(WindowConfig)
 			TweenService:Create(FrameStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Transparency = 0.5}):Play()
 		end
 
-		-- ── Abschluss: Bar auf 100% ──
+		-- Abschluss: Bar auf 100%
 		wait(0.2)
 		StatusLabel.Text = "Done!"
 		TweenService:Create(BarFill, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
@@ -965,7 +1083,7 @@ function Library:MakeWindow(WindowConfig)
 		TweenService:Create(FrameStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Transparency = 0}):Play()
 		wait(0.45)
 
-		-- ── Ausblend-Animation (nach oben gleiten) ──
+		-- Ausblend-Animation (nach oben gleiten)
 		TweenService:Create(LoaderFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0.5, 0, 0.47, 0)
@@ -981,6 +1099,193 @@ function Library:MakeWindow(WindowConfig)
 	end
 
 	if WindowConfig.IntroEnabled then LoadSequence() end
+
+	-- ╔══════════════════════════════════════════╗
+	-- ║      UI-EINSTELLUNGSPANEL (Zahnrad)      ║
+	-- ╚══════════════════════════════════════════╝
+
+	local UISettingsPanel = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 5), {
+		Size = UDim2.new(1, -150, 1, -50),
+		Position = UDim2.new(0, 150, 0, 50),
+		Parent = MainWindow,
+		Visible = false,
+		Name = "UISettingsPanel"
+	}), {
+		MakeElement("List", 0, 8),
+		MakeElement("Padding", 14, 8, 14, 10)
+	}), "Divider")
+
+	AddConnection(UISettingsPanel.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+		UISettingsPanel.CanvasSize = UDim2.new(0, 0, 0, UISettingsPanel.UIListLayout.AbsoluteContentSize.Y + 30)
+	end)
+
+	local function BuildUISettings()
+		local function Row(name, height)
+			return AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 8), {
+				Size = UDim2.new(1, 0, 0, height or 38),
+				Parent = UISettingsPanel
+			}), {
+				AddThemeObject(SetProps(MakeElement("Label", name, 15), {
+					Size = UDim2.new(1, -12, 0, 20), Position = UDim2.new(0, 12, 0, 8),
+					Font = Enum.Font.GothamSemibold
+				}), "Text"),
+				AddThemeObject(MakeElement("Stroke"), "Stroke")
+			}), "Second")
+		end
+
+		-- Ueberschrift
+		local HeaderFrame = AddThemeObject(SetProps(MakeElement("Label", "UI-Einstellungen", 12), {
+			Size = UDim2.new(1, -12, 0, 14),
+			Position = UDim2.new(0, 6, 0, 0),
+			Font = Enum.Font.GothamSemibold,
+			Parent = UISettingsPanel
+		}), "TextDark")
+
+		-- Akzentfarbe live aendern
+		local ColorRow = Row("Akzentfarbe", 66)
+		local ColorBar = Create("Frame", {
+			Parent = ColorRow, Size = UDim2.new(1, -24, 0, 22),
+			Position = UDim2.new(0, 12, 0, 32), BackgroundColor3 = Color3.fromRGB(255,255,255)
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = ColorBar})
+		Create("UIGradient", {
+			Parent = ColorBar, Rotation = 0,
+			Color = ColorSequence.new{
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255,0,4)),
+				ColorSequenceKeypoint.new(0.20, Color3.fromRGB(234,255,0)),
+				ColorSequenceKeypoint.new(0.40, Color3.fromRGB(21,255,0)),
+				ColorSequenceKeypoint.new(0.60, Color3.fromRGB(0,255,255)),
+				ColorSequenceKeypoint.new(0.80, Color3.fromRGB(0,17,255)),
+				ColorSequenceKeypoint.new(0.90, Color3.fromRGB(255,0,251)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255,0,4))
+			}
+		})
+		local Picker = Create("Frame", {
+			Parent = ColorBar, Size = UDim2.new(0, 4, 1, 4), Position = UDim2.new(0, 0, 0, -2),
+			BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0
+		})
+
+		local function ApplyAccent(NewColor)
+			ACCENT = NewColor
+			ACCENT_TEXT = NewColor:Lerp(Color3.fromRGB(255,255,255), 0.15)
+			ACCENT_SOFT = NewColor:Lerp(Color3.fromRGB(255,255,255), 0.05)
+			Library.Accent, Library.AccentText, Library.AccentSoft = ACCENT, ACCENT_TEXT, ACCENT_SOFT
+			MiniStroke.Color = ACCENT
+			PulseRing.Color = ACCENT
+			for _, Tab in next, TabHolder:GetChildren() do
+				if Tab:IsA("TextButton") and Tab:FindFirstChild("Title") and Tab.Title.Font == Enum.Font.GothamBold then
+					Tab.Ico.ImageColor3, Tab.Title.TextColor3 = ACCENT_TEXT, ACCENT_TEXT
+				end
+			end
+			WindowIcon.ImageColor3 = ACCENT
+		end
+
+		local DraggingColor = false
+		AddConnection(ColorBar.InputBegan, function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = true end
+		end)
+		AddConnection(UserInputService.InputEnded, function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = false end
+		end)
+		AddConnection(UserInputService.InputChanged, function(i)
+			if DraggingColor and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local Rel = math.clamp((Mouse.X - ColorBar.AbsolutePosition.X) / ColorBar.AbsoluteSize.X, 0, 1)
+				Picker.Position = UDim2.new(Rel, -2, 0, -2)
+				local NewColor = Color3.fromHSV(Rel, 1, 1)
+				ApplyAccent(NewColor)
+			end
+		end)
+
+		-- Fenster-Transparenz Slider
+		local TransRow = Row("Fenster-Transparenz", 60)
+		local TSlider = Create("Frame", {
+			Parent = TransRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = TSlider})
+		local TFill = Create("Frame", {
+			Parent = TSlider, Size = UDim2.new(1 - Library.Transparency.Window, 0, 1, 0),
+			BackgroundColor3 = ACCENT
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = TFill})
+		local DraggingT = false
+		AddConnection(TSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingT = true end end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingT = false end end)
+		AddConnection(UserInputService.InputChanged, function(i)
+			if DraggingT and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local Rel = math.clamp((Mouse.X - TSlider.AbsolutePosition.X) / TSlider.AbsoluteSize.X, 0, 1)
+				TFill.Size = UDim2.new(Rel, 0, 1, 0)
+				Library.Transparency.Window = 1 - Rel
+				MainWindow.BackgroundTransparency = Library.Transparency.Window
+			end
+		end)
+
+		-- Sidebar-Transparenz Slider
+		local SideRow = Row("Sidebar-Transparenz", 60)
+		local SSlider = Create("Frame", {
+			Parent = SideRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = SSlider})
+		local SFill = Create("Frame", {
+			Parent = SSlider, Size = UDim2.new(1 - Library.Transparency.Sidebar, 0, 1, 0),
+			BackgroundColor3 = ACCENT
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = SFill})
+		local DraggingS = false
+		AddConnection(SSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingS = true end end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingS = false end end)
+		AddConnection(UserInputService.InputChanged, function(i)
+			if DraggingS and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local Rel = math.clamp((Mouse.X - SSlider.AbsolutePosition.X) / SSlider.AbsoluteSize.X, 0, 1)
+				SFill.Size = UDim2.new(Rel, 0, 1, 0)
+				Library.Transparency.Sidebar = 1 - Rel
+				WindowStuff.BackgroundTransparency = Library.Transparency.Sidebar
+			end
+		end)
+
+		-- Reopen-Modus fuer Mini-Icon
+		local ModeRow = Row("Wieder oeffnen per", 38)
+		local ModeBtn = Create("TextButton", {
+			Parent = ModeRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Doppelklick",
+			TextColor3 = Color3.fromRGB(230,230,230), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = ModeBtn})
+		AddConnection(ModeBtn.MouseButton1Click, function()
+			if Library.MinimizeSettings.ReopenMode == "DoubleClick" then
+				Library.MinimizeSettings.ReopenMode = "Click"
+				ModeBtn.Text = "Einfachklick"
+			else
+				Library.MinimizeSettings.ReopenMode = "DoubleClick"
+				ModeBtn.Text = "Doppelklick"
+			end
+		end)
+
+		-- Mini-Icon Logo-Text aendern
+		local LogoRow = Row("Mini-Icon Logo (1-2 Zeichen)", 38)
+		local LogoBox = Create("TextBox", {
+			Parent = LogoRow, Size = UDim2.new(0, 60, 0, 24), Position = UDim2.new(1, -72, 0, 7),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = MiniLogo.Text,
+			TextColor3 = Color3.fromRGB(230,230,230), Font = Enum.Font.GothamSemibold, TextSize = 14,
+			ClearTextOnFocus = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LogoBox})
+		AddConnection(LogoBox:GetPropertyChangedSignal("Text"), function()
+			if #LogoBox.Text > 2 then LogoBox.Text = string.sub(LogoBox.Text, 1, 2) end
+			MiniLogo.Text = LogoBox.Text ~= "" and LogoBox.Text or "N"
+		end)
+	end
+	BuildUISettings()
+
+	AddConnection(SettingsBtn.MouseButton1Up, function()
+		local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
+		local ShowSettings = not UISettingsPanel.Visible
+		UISettingsPanel.Visible = ShowSettings
+		for _, ItemContainer in next, MainWindow:GetChildren() do
+			if ItemContainer.Name == "ItemContainer" and ShowSettings then ItemContainer.Visible = false end
+		end
+	end)
 
 	local function BuildTab(TabConfig, ParentHolder)
 		TabConfig = TabConfig or {}
@@ -1046,6 +1351,7 @@ function Library:MakeWindow(WindowConfig)
 			for _, ItemContainer in next, MainWindow:GetChildren() do
 				if ItemContainer.Name == "ItemContainer" then ItemContainer.Visible = false end
 			end
+			UISettingsPanel.Visible = false
 			TweenService:Create(TabFrame.Ico,   TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0, ImageColor3 = ACCENT_TEXT}):Play()
 			TweenService:Create(TabFrame.Title, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency  = 0, TextColor3  = ACCENT_TEXT}):Play()
 			TabFrame.Title.Font = Enum.Font.GothamBold
