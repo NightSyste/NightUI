@@ -38,7 +38,7 @@ Library.Transparency = {
 	Window  = 0.25, -- Fenster + Content-Bereich (durchscheinend wie im Bild)
 	Sidebar = 0.12, -- linke Tab-Leiste
 	Second  = 0,    -- Element-Panel (deckend)
-	Control = 0.45, -- Keybind-Feld, Textbox-Feld, Farb-Vorschau
+	Control = 0.45, -- Keybind-Feld, Textbox-Feld, Farbfeld
 }
 
 -- ╔══════════════════════════════════════════╗
@@ -50,6 +50,14 @@ Library.AccentSoft = Color3.fromRGB(128, 121, 190) -- Gruppen-Überschriften
 local ACCENT       = Library.Accent
 local ACCENT_TEXT  = Library.AccentText
 local ACCENT_SOFT  = Library.AccentSoft
+
+-- ╔══════════════════════════════════════════╗
+-- ║        FESTES ICON (Roblox Asset-ID)     ║
+-- ╚══════════════════════════════════════════╝
+-- Wird für: Fenster-Icon (oben links), Loader-Icon beim Laden
+-- und das kleine Icon verwendet, das erscheint, wenn die UI
+-- geschlossen/minimiert wird.
+Library.FixedIconId = "rbxassetid://11145155979089"
 
 local function PackColor(Color)
 	return {R = Color.R * 255, G = Color.G * 255, B = Color.B * 255}
@@ -491,12 +499,12 @@ function Library:MakeWindow(WindowConfig)
 	WindowConfig.ConfigFolder    = WindowConfig.ConfigFolder     or WindowConfig.Name
 	WindowConfig.SaveConfig      = WindowConfig.SaveConfig      or false
 	if WindowConfig.IntroEnabled == nil then WindowConfig.IntroEnabled = true end
-	WindowConfig.IntroToggleIcon = WindowConfig.IntroToggleIcon or "rbxassetid://8834748103"
+	WindowConfig.IntroToggleIcon = WindowConfig.IntroToggleIcon or Library.FixedIconId
 	WindowConfig.IntroText       = WindowConfig.IntroText       or "Starting NightSystem..."
 	WindowConfig.CloseCallback   = WindowConfig.CloseCallback   or function() end
-	WindowConfig.ShowIcon        = WindowConfig.ShowIcon        or false
-	WindowConfig.Icon            = WindowConfig.Icon            or "rbxassetid://8834748103"
-	WindowConfig.IntroIcon       = WindowConfig.IntroIcon       or "rbxassetid://8834748103"
+	if WindowConfig.ShowIcon == nil then WindowConfig.ShowIcon = true end
+	WindowConfig.Icon            = WindowConfig.Icon            or Library.FixedIconId
+	WindowConfig.IntroIcon       = WindowConfig.IntroIcon       or Library.FixedIconId
 	WindowConfig.SearchCallback  = WindowConfig.SearchCallback  or function() end
 	WindowConfig.ToggleKey       = WindowConfig.ToggleKey       or Enum.KeyCode.LeftControl
 
@@ -551,14 +559,48 @@ function Library:MakeWindow(WindowConfig)
 	})
 
 	-- Zahnrad: UI-Einstellungen (Akzentfarbe, Transparenz, Verhalten)
-	local SettingsBtn = SetChildren(TopIcon(-133), {
-		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072720870"), {
+	-- Wird als eigenes gezeichnetes Zahnrad (8 Zaehne + Ring) gebaut,
+	-- damit es zuverlaessig wie ein Gear-Icon aussieht (kein Asset-Risiko).
+	local SettingsBtn = TopIcon(-133)
+	do
+		local GearCenter = SetProps(MakeElement("TFrame"), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
-			Size = UDim2.new(0, 17, 0, 17),
+			Size = UDim2.new(0, 18, 0, 18),
 			Name = "Ico"
+		})
+		-- Aussenring (Zahnrad-Koerper)
+		AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 1, 0), {
+			Size = UDim2.new(1, 0, 1, 0),
+			BackgroundTransparency = 1,
+			Parent = GearCenter
+		}), {
+			AddThemeObject(SetProps(MakeElement("Stroke"), {Thickness = 2.2}), "TextDark")
 		}), "TextDark")
-	})
+		-- 8 "Zaehne" gleichmaessig um den Ring verteilt
+		for i = 0, 7 do
+			local Tooth = AddThemeObject(SetProps(MakeElement("Frame"), {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.new(0, 4, 0, 6),
+				Position = UDim2.new(0.5, 0, 0.5, 0),
+				Parent = GearCenter
+			}), "TextDark")
+			Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Tooth})
+			local Angle = (360 / 8) * i
+			local Rad = math.rad(Angle)
+			local Radius = 9
+			Tooth.Position = UDim2.new(0.5, math.sin(Rad) * Radius, 0.5, -math.cos(Rad) * Radius)
+			Tooth.Rotation = Angle
+		end
+		-- Mittelpunkt (Loch)
+		AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 1, 0), {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			Size = UDim2.new(0, 6, 0, 6),
+			Parent = GearCenter
+		}), {}), "Control")
+		GearCenter.Parent = SettingsBtn
+	end
 
 	-- Chevron: Fenster ein-/ausklappen
 	local MinimizeBtn = SetChildren(TopIcon(-101), {
@@ -717,8 +759,8 @@ function Library:MakeWindow(WindowConfig)
 	local SetResizingCallback = MakeDraggable(DragPoint, MainWindow)
 
 	-- ╔══════════════════════════════════════════╗
-	-- ║   MINI-ICON (rundes, verschiebbares      ║
-	-- ║   Minimier-Icon mit Logo)                ║
+	-- ║   MINI-ICON (abgerundetes Viereck mit    ║
+	-- ║   festem "N", + eigenes Roblox-Icon)     ║
 	-- ╚══════════════════════════════════════════╝
 
 	Library.MinimizeSettings = {
@@ -736,18 +778,33 @@ function Library:MakeWindow(WindowConfig)
 		ZIndex = 50,
 		Name = "MiniIcon"
 	})
-	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = MiniIcon})
+	-- Abgerundetes Viereck statt Kreis
+	Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = MiniIcon})
 	local MiniStroke = Create("UIStroke", {Color = ACCENT, Thickness = 1.4, Transparency = 0.2, Parent = MiniIcon})
 
+	-- Eigenes Icon (Roblox Asset-ID) als kleines Abzeichen oben rechts im Mini-Icon
+	local MiniIconBadge = Create("ImageLabel", {
+		Parent = MiniIcon,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -3, 0, 3),
+		Size = UDim2.new(0, 14, 0, 14),
+		BackgroundTransparency = 1,
+		Image = Library.FixedIconId,
+		ZIndex = 52
+	})
+	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = MiniIconBadge})
+
+	-- Das "N" ist fest und kann vom Nutzer nicht veraendert werden.
 	local MiniLogo = Create("TextLabel", {
 		Parent = MiniIcon,
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
-		Text = "N", -- Kuerzel/Logo-Buchstabe
+		Text = "N",
 		Font = Enum.Font.GothamBlack,
 		TextSize = 20,
 		TextColor3 = ACCENT_TEXT,
-		ZIndex = 51
+		ZIndex = 51,
+		Name = "FixedLogo"
 	})
 
 	-- kleiner "Puls"-Ring als optischer Indikator, dass die UI laeuft
@@ -833,7 +890,7 @@ function Library:MakeWindow(WindowConfig)
 		BackgroundColor3 = Library.Themes[Library.SelectedTheme].Main,
 		Visible = false
 	}), {
-		AddThemeObject(SetProps(MakeElement("Image", WindowConfig.IntroToggleIcon or "http://www.roblox.com/asset/?id=8834748103"), {
+		AddThemeObject(SetProps(MakeElement("Image", WindowConfig.IntroToggleIcon or Library.FixedIconId), {
 			AnchorPoint = Vector2.new(0.5,0.5),
 			Position = UDim2.new(0.5,0,0.5,0),
 			Size = UDim2.new(0.7,0,0.7,0),
@@ -974,7 +1031,7 @@ function Library:MakeWindow(WindowConfig)
 			Transparency = 0.5
 		})
 
-		-- Icon links
+		-- Icon links (festes Roblox-Icon)
 		local LogoIcon = Create("ImageLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0.5),
@@ -982,10 +1039,10 @@ function Library:MakeWindow(WindowConfig)
 			Size = UDim2.new(0, 22, 0, 22),
 			Image = WindowConfig.IntroIcon,
 			BackgroundTransparency = 1,
-			ImageColor3 = ACCENT,
 			ImageTransparency = 1,
 			ZIndex = 11
 		})
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = LogoIcon})
 
 		-- Titeltext (Name des Scripts)
 		local TitleLabel = Create("TextLabel", {
@@ -1141,7 +1198,47 @@ function Library:MakeWindow(WindowConfig)
 			Parent = UISettingsPanel
 		}), "TextDark")
 
-		-- Akzentfarbe live aendern
+		-- ╔══════════════════════════════════════╗
+		-- ║  Account-Info: Roblox-ID + Spiel      ║
+		-- ╚══════════════════════════════════════╝
+		local AccountRow = Row("Account", 92)
+		local GameName = "Unbekannt"
+		pcall(function()
+			local MarketplaceService = game:GetService("MarketplaceService")
+			local Info = MarketplaceService:GetProductInfo(game.PlaceId)
+			if Info and Info.Name then GameName = Info.Name end
+		end)
+
+		Create("ImageLabel", {
+			Parent = AccountRow,
+			Position = UDim2.new(0, 12, 0, 30),
+			Size = UDim2.new(0, 34, 0, 34),
+			BackgroundTransparency = 1,
+			Image = "https://www.roblox.com/headshot-thumbnail/image?userId="..(LocalPlayer and LocalPlayer.UserId or 0).."&width=150&height=150&format=png"
+		})
+		local AvatarCorner = Create("UICorner", {CornerRadius = UDim.new(1, 0)})
+		AvatarCorner.Parent = AccountRow:GetChildren()[#AccountRow:GetChildren()]
+
+		AddThemeObject(SetProps(MakeElement("Label", "Benutzername: "..(LocalPlayer and LocalPlayer.Name or "?"), 13), {
+			Size = UDim2.new(1, -60, 0, 16),
+			Position = UDim2.new(0, 54, 0, 28),
+			Font = Enum.Font.GothamSemibold,
+			Parent = AccountRow
+		}), "TextDark")
+		AddThemeObject(SetProps(MakeElement("Label", "Roblox-ID: "..(LocalPlayer and tostring(LocalPlayer.UserId) or "?"), 13), {
+			Size = UDim2.new(1, -60, 0, 16),
+			Position = UDim2.new(0, 54, 0, 46),
+			Font = Enum.Font.GothamSemibold,
+			Parent = AccountRow
+		}), "TextDark")
+		AddThemeObject(SetProps(MakeElement("Label", "Spiel: "..GameName, 13), {
+			Size = UDim2.new(1, -60, 0, 16),
+			Position = UDim2.new(0, 54, 0, 64),
+			Font = Enum.Font.GothamSemibold,
+			Parent = AccountRow
+		}), "TextDark")
+
+		-- Akzentfarbe live aendern (gilt fuer alle Tabs)
 		local ColorRow = Row("Akzentfarbe", 66)
 		local ColorBar = Create("Frame", {
 			Parent = ColorRow, Size = UDim2.new(1, -24, 0, 22),
@@ -1172,12 +1269,16 @@ function Library:MakeWindow(WindowConfig)
 			Library.Accent, Library.AccentText, Library.AccentSoft = ACCENT, ACCENT_TEXT, ACCENT_SOFT
 			MiniStroke.Color = ACCENT
 			PulseRing.Color = ACCENT
+			-- Aktualisiert ALLE Tabs (auch inaktive uebernehmen die neue Akzentfarbe fuer ihren aktiven Zustand)
 			for _, Tab in next, TabHolder:GetChildren() do
-				if Tab:IsA("TextButton") and Tab:FindFirstChild("Title") and Tab.Title.Font == Enum.Font.GothamBold then
-					Tab.Ico.ImageColor3, Tab.Title.TextColor3 = ACCENT_TEXT, ACCENT_TEXT
+				if Tab:IsA("TextButton") and Tab:FindFirstChild("Ico") and Tab:FindFirstChild("Title") then
+					if Tab.Title.Font == Enum.Font.GothamBold then
+						Tab.Ico.ImageColor3, Tab.Title.TextColor3 = ACCENT_TEXT, ACCENT_TEXT
+					end
 				end
 			end
 			WindowIcon.ImageColor3 = ACCENT
+			MiniLogo.TextColor3 = ACCENT_TEXT
 		end
 
 		local DraggingColor = false
@@ -1244,6 +1345,29 @@ function Library:MakeWindow(WindowConfig)
 			end
 		end)
 
+		-- Control-Transparenz Slider (neu: Keybind/Textbox/Farbfeld)
+		local ControlRow = Row("Element-Transparenz", 60)
+		local CSlider = Create("Frame", {
+			Parent = ControlRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = CSlider})
+		local CFill = Create("Frame", {
+			Parent = CSlider, Size = UDim2.new(1 - Library.Transparency.Control, 0, 1, 0),
+			BackgroundColor3 = ACCENT
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = CFill})
+		local DraggingC = false
+		AddConnection(CSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingC = true end end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingC = false end end)
+		AddConnection(UserInputService.InputChanged, function(i)
+			if DraggingC and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local Rel = math.clamp((Mouse.X - CSlider.AbsolutePosition.X) / CSlider.AbsoluteSize.X, 0, 1)
+				CFill.Size = UDim2.new(Rel, 0, 1, 0)
+				Library.Transparency.Control = 1 - Rel
+			end
+		end)
+
 		-- Reopen-Modus fuer Mini-Icon
 		local ModeRow = Row("Wieder oeffnen per", 38)
 		local ModeBtn = Create("TextButton", {
@@ -1262,18 +1386,28 @@ function Library:MakeWindow(WindowConfig)
 			end
 		end)
 
-		-- Mini-Icon Logo-Text aendern
-		local LogoRow = Row("Mini-Icon Logo (1-2 Zeichen)", 38)
-		local LogoBox = Create("TextBox", {
-			Parent = LogoRow, Size = UDim2.new(0, 60, 0, 24), Position = UDim2.new(1, -72, 0, 7),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = MiniLogo.Text,
-			TextColor3 = Color3.fromRGB(230,230,230), Font = Enum.Font.GothamSemibold, TextSize = 14,
-			ClearTextOnFocus = false
+		-- Toggle-Taste anzeigen (Info, read-only)
+		local ToggleKeyRow = Row("Toggle-Taste", 38)
+		AddThemeObject(SetProps(MakeElement("Label", ToggleKeyName, 13), {
+			Size = UDim2.new(0, 120, 0, 24),
+			Position = UDim2.new(1, -132, 0, 7),
+			TextXAlignment = Enum.TextXAlignment.Right,
+			Font = Enum.Font.GothamSemibold,
+			Parent = ToggleKeyRow
+		}), "TextDark")
+
+		-- Akzentfarbe zuruecksetzen
+		local ResetRow = Row("Akzentfarbe zuruecksetzen", 38)
+		local ResetBtn = Create("TextButton", {
+			Parent = ResetRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Reset",
+			TextColor3 = Color3.fromRGB(230,230,230), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LogoBox})
-		AddConnection(LogoBox:GetPropertyChangedSignal("Text"), function()
-			if #LogoBox.Text > 2 then LogoBox.Text = string.sub(LogoBox.Text, 1, 2) end
-			MiniLogo.Text = LogoBox.Text ~= "" and LogoBox.Text or "N"
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = ResetBtn})
+		AddConnection(ResetBtn.MouseButton1Click, function()
+			local Default = Color3.fromRGB(121, 113, 192)
+			Picker.Position = UDim2.new(select(1, Color3.toHSV(Default)), -2, 0, -2)
+			ApplyAccent(Default)
 		end)
 	end
 	BuildUISettings()
