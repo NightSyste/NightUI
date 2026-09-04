@@ -1,9 +1,12 @@
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local LocalPlayer = game:GetService("Players").LocalPlayer
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local Stats = game:GetService("Stats")
 
 local Library = {
 	Elements = {},
@@ -13,51 +16,117 @@ local Library = {
 	SearchRegistry = {},
 	Themes = {
 		Default = {
-			Main = Color3.fromRGB(26, 26, 28),     -- Fenster / Content
-			Second = Color3.fromRGB(28, 29, 30),   -- Element-Panel
-			Sidebar = Color3.fromRGB(30, 30, 32),  -- linke Leiste
-			Control = Color3.fromRGB(44, 44, 48),  -- Keybind / Textbox / Farbfeld
-			Stroke = Color3.fromRGB(38, 38, 42),
-			Divider = Color3.fromRGB(38, 38, 42),
-			Text = Color3.fromRGB(220, 220, 224),
-			TextDark = Color3.fromRGB(130, 130, 136),
-			MainTransparency = 0.1,
+			Main = Color3.fromRGB(18, 14, 25),      -- Tiefes Dunkel-Lila / Midnight Violet
+			Second = Color3.fromRGB(25, 20, 36),    -- Elegantes Element-Panel
+			Sidebar = Color3.fromRGB(20, 16, 30),   -- Dunkle samtige Tab-Leiste
+			Control = Color3.fromRGB(38, 30, 54),   -- Keybind / Textbox / Regler-Feld
+			Stroke = Color3.fromRGB(60, 46, 84),    -- Sanfte lila Konturen
+			Divider = Color3.fromRGB(44, 34, 62),   -- Trennlinien
+			Text = Color3.fromRGB(240, 235, 250),   -- Heller Text mit leichtem Lila-Schimmer
+			TextDark = Color3.fromRGB(155, 140, 180),-- Gedämpfter Text
+			MainTransparency = 0.22,
 			SecondTransparency = 0.15,
 			FrameTransparency = 0.2
 		}
 	},
 	SelectedTheme = "Default",
-	Font = Enum.Font.Gotham
+	Font = Enum.Font.Gotham,
+	SoundsEnabled = true,
+	RainbowEnabled = false,
+	BlurEnabled = false,
+	WatermarkEnabled = false
 }
 
--- ╔══════════════════════════════════════════╗
--- ║   TRANSPARENZ (hier bequem anpassen)     ║
--- ╚══════════════════════════════════════════╝
--- 0 = deckend/grau, 1 = komplett unsichtbar
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║   CUSTOM LOGO URL (Hier direkt deinen Bild-Link eintragen)   ║
+-- ╚══════════════════════════════════════════════════════════════╝
+-- Unterstützt: Web-Links (https://i.imgur.com/xyz.png, Discord, GitHub, etc.)
+-- sowie standard Roblox Asset-IDs (rbxassetid://...)
+Library.CustomLogoUrl = "" 
+
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║   TRANSPARENZ (Dunkel-Lila Glas-Optik)                       ║
+-- ╚══════════════════════════════════════════════════════════════╝
 Library.Transparency = {
-	Window  = 0.25, -- Fenster + Content-Bereich (durchscheinend wie im Bild)
-	Sidebar = 0.12, -- linke Tab-Leiste
-	Second  = 0,    -- Element-Panel (deckend)
-	Control = 0.45, -- Keybind-Feld, Textbox-Feld, Farbfeld
+	Window  = 0.22, -- Fenster + Content-Bereich (durchscheinender Glas-Look)
+	Sidebar = 0.14, -- linke Tab-Leiste
+	Second  = 0,    -- Element-Panel (deckend für perfekte Lesbarkeit)
+	Control = 0.40, -- Keybind-Feld, Textbox-Feld, Farbfeld
 }
 
--- ╔══════════════════════════════════════════╗
--- ║        AKZENTFARBE (Lila / Purple)       ║
--- ╚══════════════════════════════════════════╝
-Library.Accent     = Color3.fromRGB(121, 113, 192) -- Toggles, Slider (aus dem Screenshot)
-Library.AccentText = Color3.fromRGB(150, 142, 230) -- aktiver Tab
-Library.AccentSoft = Color3.fromRGB(128, 121, 190) -- Gruppen-Überschriften
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║        AKZENTFARBE (Neon / Cyber Lila)                       ║
+-- ╚══════════════════════════════════════════════════════════════╝
+Library.Accent     = Color3.fromRGB(145, 115, 245) -- Leuchtendes Lila (Toggles, Slider)
+Library.AccentText = Color3.fromRGB(185, 165, 255) -- Aktiver Tab & Überschriften
+Library.AccentSoft = Color3.fromRGB(155, 135, 220) -- Gruppen-Titel
 local ACCENT       = Library.Accent
 local ACCENT_TEXT  = Library.AccentText
 local ACCENT_SOFT  = Library.AccentSoft
 
--- ╔══════════════════════════════════════════╗
--- ║        FESTES ICON (Roblox Asset-ID)     ║
--- ╚══════════════════════════════════════════╝
--- Wird für: Fenster-Icon (oben links), Loader-Icon beim Laden
--- und das kleine Icon verwendet, das erscheint, wenn die UI
--- geschlossen/minimiert wird.
+-- Standard Fallback-Icon falls keine URL angegeben ist
 Library.FixedIconId = "rbxassetid://71392308711379"
+
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║   ROBUSTER WEB-IMAGE LOADER (HTTP -> Custom Asset)           ║
+-- ╚══════════════════════════════════════════════════════════════╝
+local function LoadCustomAsset(urlOrAsset, fallback)
+	if not urlOrAsset or urlOrAsset == "" then
+		return fallback or Library.FixedIconId
+	end
+	local str = tostring(urlOrAsset)
+	-- Wenn es bereits eine Roblox-Asset-ID oder Asset-Nummer ist
+	if string.sub(str, 1, 13) == "rbxassetid://" or tonumber(str) then
+		return (tonumber(str) and ("rbxassetid://" .. str)) or str
+	end
+	-- Wenn es eine direkte Roblox-URL ist (z.B. Avatar Headshot)
+	if string.find(str, "roblox.com") then
+		return str
+	end
+	-- Wenn es ein Web-Link (HTTP/HTTPS) ist (Imgur, Discord, GitHub etc.)
+	if string.sub(str, 1, 4) == "http" then
+		local success, result = pcall(function()
+			if not (isfile and writefile and getcustomasset) then
+				return str
+			end
+			-- Hash aus der URL erzeugen für eindeutigen lokalen Cache
+			local hash = 0
+			for i = 1, #str do
+				hash = (hash * 31 + string.byte(str, i)) % 2147483647
+			end
+			local fileName = "NightLogo_" .. tostring(hash) .. ".png"
+			
+			if isfile(fileName) then
+				return getcustomasset(fileName)
+			end
+			
+			local requestFunc = (syn and syn.request) or (http and http.request) or http_request or request
+			if requestFunc then
+				local res = requestFunc({Url = str, Method = "GET"})
+				if res and (res.StatusCode == 200 or res.StatusMessage == "OK" or res.Success) and res.Body then
+					writefile(fileName, res.Body)
+					return getcustomasset(fileName)
+				end
+			end
+			return str
+		end)
+		if success and result then return result end
+		return str
+	end
+	return urlOrAsset
+end
+
+local function PlayClickSound()
+	if not Library.SoundsEnabled then return end
+	pcall(function()
+		local sound = Instance.new("Sound")
+		sound.SoundId = "rbxassetid://6895079853"
+		sound.Volume = 0.45
+		sound.Parent = game:GetService("SoundService")
+		sound:Play()
+		game:GetService("Debris"):AddItem(sound, 1)
+	end)
+end
 
 local function PackColor(Color)
 	return {R = Color.R * 255, G = Color.G * 255, B = Color.B * 255}
@@ -138,6 +207,7 @@ Library:CleanupInstance()
 local Container = Instance.new("ScreenGui")
 Container.Name = string.char(math.random(65, 90))..tostring(math.random(100, 999))
 Container.DisplayOrder = 2147483647
+Container.ResetOnSpawn = false
 Container.Parent = game:GetService("CoreGui")
 
 function Library:IsRunning()
@@ -193,36 +263,6 @@ local function MakeDraggable(DragPoint, Main)
 	end
 end
 
-local function MakeResizable(ResizeButton, Main, MinSize, MaxSize, SetResizingCallback)
-	pcall(function()
-		local Resizing = false
-		local StartSize, StartPos
-		ResizeButton.InputBegan:Connect(function(Input)
-			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-				Resizing = true
-				if SetResizingCallback then SetResizingCallback(true) end
-				StartSize = Main.Size
-				StartPos = Vector2.new(Mouse.X, Mouse.Y)
-			end
-		end)
-		ResizeButton.InputEnded:Connect(function(Input)
-			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-				Resizing = false
-				if SetResizingCallback then SetResizingCallback(false) end
-			end
-		end)
-		UserInputService.InputChanged:Connect(function()
-			if Resizing then
-				local CurrentPos = Vector2.new(Mouse.X, Mouse.Y)
-				local Delta = CurrentPos - StartPos
-				local NewWidth = math.clamp(StartSize.X.Offset + Delta.X, MinSize.X, MaxSize.X)
-				local NewHeight = math.clamp(StartSize.Y.Offset + Delta.Y, MinSize.Y, MaxSize.Y)
-				Main.Size = UDim2.new(0, NewWidth, 0, NewHeight)
-			end
-		end)
-	end)
-end
-
 local function Create(Name, Properties, Children)
 	local Object = Instance.new(Name)
 	for i, v in next, Properties or {} do Object[i] = v end
@@ -274,7 +314,6 @@ local function AddThemeObject(Object, Type)
 	return Object
 end
 
--- Text eines Elements (fuer die Suche)
 local function GetElementName(Frame)
 	local Result = ""
 	local Title = Frame:FindFirstChild("Title", true)
@@ -284,7 +323,6 @@ local function GetElementName(Frame)
 	return Result
 end
 
--- Element fuer die Suche registrieren + ggf. ins Panel einfuegen
 local function SetupElement(Frame, InPanel, Container, Activate, ItemParent)
 	table.insert(Library.SearchRegistry, {
 		Frame = Frame,
@@ -318,14 +356,6 @@ local function SetupElement(Frame, InPanel, Container, Activate, ItemParent)
 		end)
 	end
 	return Frame
-end
-
-local function SetTheme()
-	for Name, Type in pairs(Library.ThemeObjects) do
-		for _, Object in pairs(Type) do
-			Object[ReturnProperty(Object)] = Library.Themes[Library.SelectedTheme][Name]
-		end
-	end
 end
 
 local WhitelistedMouse = {Enum.UserInputType.MouseButton1, Enum.UserInputType.MouseButton2, Enum.UserInputType.MouseButton3, Enum.UserInputType.Touch}
@@ -375,12 +405,7 @@ end)
 CreateElement("Button", function()
 	local Button = Create("TextButton", {Text = "", AutoButtonColor = false, BackgroundTransparency = 1, BorderSizePixel = 0})
 	Button.MouseButton1Click:Connect(function()
-		local sound = Instance.new("Sound")
-		sound.SoundId = "rbxassetid://6895079853"
-		sound.Volume = 0.5
-		sound.Parent = game:GetService("SoundService")
-		sound:Play()
-		game:GetService("Debris"):AddItem(sound, 1)
+		PlayClickSound()
 	end)
 	return Button
 end)
@@ -436,11 +461,11 @@ local NotificationHolder = SetProps(SetChildren(MakeElement("TFrame"), {
 })
 
 function Library:MakeNotification(NotificationConfig)
-	spawn(function()
+	task.spawn(function()
 		NotificationConfig.Name    = NotificationConfig.Name    or "Notification"
 		NotificationConfig.Content = NotificationConfig.Content or "Test"
 		NotificationConfig.Image   = NotificationConfig.Image   or "rbxassetid://4384403532"
-		NotificationConfig.Time    = NotificationConfig.Time    or 15
+		NotificationConfig.Time    = NotificationConfig.Time    or 5
 
 		local NotificationParent = SetProps(MakeElement("TFrame"), {
 			Size = UDim2.new(1, 0, 0, 0),
@@ -448,24 +473,25 @@ function Library:MakeNotification(NotificationConfig)
 			Parent = NotificationHolder
 		})
 
-		local NotificationFrame = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(25,25,25), 0, 10), {
+		local NotificationFrame = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(22, 17, 30), 0, 10), {
 			Parent = NotificationParent,
 			Size = UDim2.new(1, 0, 0, 0),
 			Position = UDim2.new(1, 0, 0, 0),
 			BackgroundTransparency = 0.15,
 			AutomaticSize = Enum.AutomaticSize.Y
 		}), {
-			MakeElement("Stroke", Color3.fromRGB(93,93,93), 1.2),
+			MakeElement("Stroke", ACCENT, 1.2),
 			MakeElement("Padding", 12, 12, 12, 12),
 			SetProps(MakeElement("Image", NotificationConfig.Image), {
 				Size = UDim2.new(0, 20, 0, 20),
-				ImageColor3 = Color3.fromRGB(240,240,240),
+				ImageColor3 = ACCENT_TEXT,
 				Name = "Icon"
 			}),
 			SetProps(MakeElement("Label", NotificationConfig.Name, 15), {
 				Size = UDim2.new(1, -30, 0, 20),
 				Position = UDim2.new(0, 30, 0, 0),
-				Font = Enum.Font.GothamSemibold,
+				Font = Enum.Font.GothamBold,
+				TextColor3 = Color3.fromRGB(245, 240, 255),
 				Name = "Title"
 			}),
 			SetProps(MakeElement("Label", NotificationConfig.Content, 14), {
@@ -474,15 +500,15 @@ function Library:MakeNotification(NotificationConfig)
 				Font = Enum.Font.GothamSemibold,
 				Name = "Content",
 				AutomaticSize = Enum.AutomaticSize.Y,
-				TextColor3 = Color3.fromRGB(200,200,200),
+				TextColor3 = Color3.fromRGB(200, 190, 220),
 				TextWrapped = true
 			})
 		})
 
 		TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Position = UDim2.new(0,0,0,0)}):Play()
-		wait(NotificationConfig.Time)
+		task.wait(NotificationConfig.Time)
 		TweenService:Create(NotificationFrame, TweenInfo.new(0.8, Enum.EasingStyle.Quint), {Position = UDim2.new(1,0,0,0)}):Play()
-		wait(0.8)
+		task.wait(0.8)
 		NotificationParent:Destroy()
 	end)
 end
@@ -490,26 +516,33 @@ end
 function Library:MakeWindow(WindowConfig)
 	local FirstTab = true
 	local Minimized = false
-	local Loaded = false
 	local UIHidden = false
 
 	WindowConfig = WindowConfig or {}
 	WindowConfig.Name            = WindowConfig.Name            or "NightSystem"
 	WindowConfig.HidePremium     = WindowConfig.HidePremium     or false
-	WindowConfig.ConfigFolder    = WindowConfig.ConfigFolder     or WindowConfig.Name
+	WindowConfig.ConfigFolder    = WindowConfig.ConfigFolder    or WindowConfig.Name
 	WindowConfig.SaveConfig      = WindowConfig.SaveConfig      or false
 	if WindowConfig.IntroEnabled == nil then WindowConfig.IntroEnabled = true end
-	WindowConfig.IntroToggleIcon = WindowConfig.IntroToggleIcon or Library.FixedIconId
-	WindowConfig.IntroText       = WindowConfig.IntroText       or "Starting NightSystem..."
 	WindowConfig.CloseCallback   = WindowConfig.CloseCallback   or function() end
 	if WindowConfig.ShowIcon == nil then WindowConfig.ShowIcon = true end
-	WindowConfig.Icon            = WindowConfig.Icon            or Library.FixedIconId
-	WindowConfig.IntroIcon       = WindowConfig.IntroIcon       or Library.FixedIconId
+	
+	-- Priorität für das Logo:
+	-- 1. WindowConfig.CustomLogo (direkt im MakeWindow übergeben)
+	-- 2. Library.CustomLogoUrl (oben im Skript definiert)
+	-- 3. WindowConfig.Icon
+	-- 4. Fallback Library.FixedIconId
+	local activeLogoUrl = WindowConfig.CustomLogo or (Library.CustomLogoUrl ~= "" and Library.CustomLogoUrl) or WindowConfig.Icon or Library.FixedIconId
+	local ResolvedLogo = LoadCustomAsset(activeLogoUrl, Library.FixedIconId)
+
+	WindowConfig.Icon            = ResolvedLogo
+	WindowConfig.IntroIcon       = ResolvedLogo
+	WindowConfig.IntroToggleIcon = ResolvedLogo
 	WindowConfig.SearchCallback  = WindowConfig.SearchCallback  or function() end
 	WindowConfig.ToggleKey       = WindowConfig.ToggleKey       or Enum.KeyCode.LeftControl
 
 	Library.SearchRegistry = {}
-	local ToggleKeyName = (typeof(WindowConfig.ToggleKey) == "EnumItem" and WindowConfig.ToggleKey.Name or tostring(WindowConfig.ToggleKey)):gsub("(%l)(%u)", "%1 %2")
+	local ToggleKeyName = (typeof(WindowConfig.ToggleKey) == "EnumItem" and WindowConfig.ToggleKey.Name or tostring(WindowConfig.ToggleKey))
 
 	Library.Folder  = WindowConfig.ConfigFolder
 	Library.SaveCfg = WindowConfig.SaveConfig
@@ -519,6 +552,23 @@ function Library:MakeWindow(WindowConfig)
 				makefolder(WindowConfig.ConfigFolder)
 			end
 		end)
+	end
+
+	-- Optionaler Background Blur Effect
+	local BlurEffect = nil
+	local function SetBlurState(enabled)
+		if enabled then
+			if not BlurEffect then
+				BlurEffect = Instance.new("BlurEffect")
+				BlurEffect.Size = 14
+				BlurEffect.Parent = Lighting
+			end
+		else
+			if BlurEffect then
+				BlurEffect:Destroy()
+				BlurEffect = nil
+			end
+		end
 	end
 
 	local TabHolder = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {
@@ -540,7 +590,7 @@ function Library:MakeWindow(WindowConfig)
 		})
 	end
 
-	-- Lupe (als Vektor gezeichnet, braucht kein Asset)
+	-- Lupe
 	local SearchBtn = SetChildren(TopIcon(-165), {
 		SetChildren(SetProps(MakeElement("TFrame"), {
 			Size = UDim2.new(0, 12, 0, 12),
@@ -558,9 +608,7 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Zahnrad: UI-Einstellungen (Akzentfarbe, Transparenz, Verhalten)
-	-- Wird als eigenes gezeichnetes Zahnrad (8 Zaehne + Ring) gebaut,
-	-- damit es zuverlaessig wie ein Gear-Icon aussieht (kein Asset-Risiko).
+	-- Zahnrad
 	local SettingsBtn = TopIcon(-133)
 	do
 		local GearCenter = SetProps(MakeElement("TFrame"), {
@@ -569,7 +617,6 @@ function Library:MakeWindow(WindowConfig)
 			Size = UDim2.new(0, 18, 0, 18),
 			Name = "Ico"
 		})
-		-- Aussenring (Zahnrad-Koerper)
 		AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 1, 0), {
 			Size = UDim2.new(1, 0, 1, 0),
 			BackgroundTransparency = 1,
@@ -577,7 +624,6 @@ function Library:MakeWindow(WindowConfig)
 		}), {
 			AddThemeObject(SetProps(MakeElement("Stroke"), {Thickness = 2.2}), "TextDark")
 		}), "TextDark")
-		-- 8 "Zaehne" gleichmaessig um den Ring verteilt
 		for i = 0, 7 do
 			local Tooth = AddThemeObject(SetProps(MakeElement("Frame"), {
 				AnchorPoint = Vector2.new(0.5, 0.5),
@@ -592,7 +638,6 @@ function Library:MakeWindow(WindowConfig)
 			Tooth.Position = UDim2.new(0.5, math.sin(Rad) * Radius, 0.5, -math.cos(Rad) * Radius)
 			Tooth.Rotation = Angle
 		end
-		-- Mittelpunkt (Loch)
 		AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 1, 0), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -602,7 +647,7 @@ function Library:MakeWindow(WindowConfig)
 		GearCenter.Parent = SettingsBtn
 	end
 
-	-- Chevron: Fenster ein-/ausklappen
+	-- Chevron
 	local MinimizeBtn = SetChildren(TopIcon(-101), {
 		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -613,7 +658,7 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Minus: UI verstecken (zu Mini-Icon)
+	-- Minus
 	local HideBtn = SetChildren(TopIcon(-69), {
 		AddThemeObject(SetProps(MakeElement("Frame"), {
 			Size = UDim2.new(0, 13, 0, 1.6),
@@ -679,7 +724,7 @@ function Library:MakeWindow(WindowConfig)
 				Font = Enum.Font.GothamSemibold,
 				ClipsDescendants = true
 			}), "Text"),
-			SetProps(MakeElement("Label", ".gg/DjvzXcqd5m ", 12), {
+			SetProps(MakeElement("Label", ".gg/DjvzXcqd5m", 12), {
 				Size = UDim2.new(1,-60,0,12),
 				Position = UDim2.new(0,50,1,-25),
 				Visible = not WindowConfig.HidePremium,
@@ -688,17 +733,21 @@ function Library:MakeWindow(WindowConfig)
 		}),
 	}), "Sidebar")
 
-	local WindowIcon = SetProps(MakeElement("Image", WindowConfig.Icon), {
-		Size = UDim2.new(0,22,0,22),
-		Position = UDim2.new(0,16,0,14),
-		ImageColor3 = ACCENT,
+	-- ╔══════════════════════════════════════════╗
+	-- ║   WINDOW LOGO OBEN LINKS NEBEN TITEL     ║
+	-- ╚══════════════════════════════════════════╝
+	local WindowIcon = SetProps(MakeElement("Image", ResolvedLogo), {
+		Size = UDim2.new(0, 24, 0, 24),
+		Position = UDim2.new(0, 16, 0, 13),
+		ImageColor3 = Color3.fromRGB(255, 255, 255), -- Natürliche Farben des Logos beibehalten
 		Visible = WindowConfig.ShowIcon and true or false,
 		Name = "WindowIcon"
 	})
+	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = WindowIcon})
 
 	local WindowName = AddThemeObject(SetProps(MakeElement("Label", WindowConfig.Name, 18), {
 		Size = UDim2.new(1,-172,0,50),
-		Position = UDim2.new(0, WindowConfig.ShowIcon and 48 or 18, 0, 0),
+		Position = UDim2.new(0, WindowConfig.ShowIcon and 50 or 18, 0, 0),
 		Font = Enum.Font.GothamBold,
 		TextYAlignment = Enum.TextYAlignment.Center
 	}), "Text")
@@ -709,7 +758,7 @@ function Library:MakeWindow(WindowConfig)
 		BackgroundTransparency = 1,
 		Text = "",
 		PlaceholderText = "Search...",
-		PlaceholderColor3 = Color3.fromRGB(120, 120, 126),
+		PlaceholderColor3 = Color3.fromRGB(130, 120, 150),
 		Font = Enum.Font.GothamSemibold,
 		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -759,12 +808,10 @@ function Library:MakeWindow(WindowConfig)
 	local SetResizingCallback = MakeDraggable(DragPoint, MainWindow)
 
 	-- ╔══════════════════════════════════════════╗
-	-- ║   MINI-ICON (abgerundetes Viereck mit    ║
-	-- ║   festem "N", + eigenes Roblox-Icon)     ║
+	-- ║   MINI-ICON                              ║
 	-- ╚══════════════════════════════════════════╝
-
 	Library.MinimizeSettings = {
-		ReopenMode = "DoubleClick", -- "DoubleClick" oder "Click"
+		ReopenMode = "DoubleClick",
 		IconSize   = 46,
 	}
 
@@ -778,23 +825,20 @@ function Library:MakeWindow(WindowConfig)
 		ZIndex = 50,
 		Name = "MiniIcon"
 	})
-	-- Abgerundetes Viereck statt Kreis
 	Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = MiniIcon})
 	local MiniStroke = Create("UIStroke", {Color = ACCENT, Thickness = 1.4, Transparency = 0.2, Parent = MiniIcon})
 
-	-- Eigenes Icon (Roblox Asset-ID) als kleines Abzeichen oben rechts im Mini-Icon
 	local MiniIconBadge = Create("ImageLabel", {
 		Parent = MiniIcon,
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -3, 0, 3),
-		Size = UDim2.new(0, 14, 0, 14),
+		Size = UDim2.new(0, 16, 0, 16),
 		BackgroundTransparency = 1,
-		Image = Library.FixedIconId,
+		Image = ResolvedLogo,
 		ZIndex = 52
 	})
-	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = MiniIconBadge})
+	Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = MiniIconBadge})
 
-	-- Das "N" ist fest und kann vom Nutzer nicht veraendert werden.
 	local MiniLogo = Create("TextLabel", {
 		Parent = MiniIcon,
 		Size = UDim2.new(1, 0, 1, 0),
@@ -807,19 +851,17 @@ function Library:MakeWindow(WindowConfig)
 		Name = "FixedLogo"
 	})
 
-	-- kleiner "Puls"-Ring als optischer Indikator, dass die UI laeuft
 	local PulseRing = Create("UIStroke", {Color = ACCENT, Thickness = 1, Transparency = 0.7, Parent = MiniIcon})
 	task.spawn(function()
 		while Library:IsRunning() do
 			TweenService:Create(PulseRing, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {Transparency = 0.95}):Play()
-			wait(1.2)
+			task.wait(1.2)
 			if not Library:IsRunning() then break end
 			TweenService:Create(PulseRing, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {Transparency = 0.7}):Play()
-			wait(1.2)
+			task.wait(1.2)
 		end
 	end)
 
-	-- Mini-Icon draggable machen (eigene, einfache Drag-Logik)
 	do
 		local Dragging, DragStart, StartPos = false, nil, nil
 		local MovedSinceDown = false
@@ -850,11 +892,10 @@ function Library:MakeWindow(WindowConfig)
 			end
 		end)
 
-		-- Klick-/Doppelklick-Erkennung zum Wiederoeffnen
 		local LastClick = 0
 		AddConnection(MiniIcon.InputEnded, function(Input)
 			if Input.UserInputType ~= Enum.UserInputType.MouseButton1 and Input.UserInputType ~= Enum.UserInputType.Touch then return end
-			if MovedSinceDown then return end -- war ein Drag, kein Klick
+			if MovedSinceDown then return end
 
 			if Library.MinimizeSettings.ReopenMode == "Click" then
 				Library:ShowFromMini(MainWindow, MiniIcon)
@@ -880,6 +921,7 @@ function Library:MakeWindow(WindowConfig)
 			Size = UDim2.new(0, 640, 0, 338)
 		}):Play()
 		UIHidden = false
+		if Library.BlurEnabled then SetBlurState(true) end
 	end
 
 	local MobileReopenButton = SetChildren(SetProps(MakeElement("Button"), {
@@ -890,7 +932,7 @@ function Library:MakeWindow(WindowConfig)
 		BackgroundColor3 = Library.Themes[Library.SelectedTheme].Main,
 		Visible = false
 	}), {
-		AddThemeObject(SetProps(MakeElement("Image", WindowConfig.IntroToggleIcon or Library.FixedIconId), {
+		AddThemeObject(SetProps(MakeElement("Image", ResolvedLogo), {
 			AnchorPoint = Vector2.new(0.5,0.5),
 			Position = UDim2.new(0.5,0,0.5,0),
 			Size = UDim2.new(0.7,0,0.7,0),
@@ -902,6 +944,7 @@ function Library:MakeWindow(WindowConfig)
 		MainWindow.Visible = false
 		MiniIcon.Visible = true
 		UIHidden = true
+		if Library.BlurEnabled then SetBlurState(false) end
 		if UserInputService.TouchEnabled then MobileReopenButton.Visible = false end
 	end
 
@@ -967,6 +1010,7 @@ function Library:MakeWindow(WindowConfig)
 		UIHidden = not State
 		MainWindow.Visible = State
 		MiniIcon.Visible = false
+		if Library.BlurEnabled then SetBlurState(State) end
 		if UserInputService.TouchEnabled then MobileReopenButton.Visible = not State end
 	end
 
@@ -983,13 +1027,14 @@ function Library:MakeWindow(WindowConfig)
 		MobileReopenButton.Visible = false
 		MiniIcon.Visible = false
 		UIHidden = false
+		if Library.BlurEnabled then SetBlurState(true) end
 	end)
 
 	AddConnection(MinimizeBtn.MouseButton1Up, function()
 		if Minimized then
 			TweenService:Create(MainWindow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0,640,0,338)}):Play()
 			MinimizeBtn.Ico.Rotation = 180
-			wait(.02)
+			task.wait(.02)
 			MainWindow.ClipsDescendants = false
 			WindowStuff.Visible = true
 			WindowTopBarLine.Visible = true
@@ -998,60 +1043,57 @@ function Library:MakeWindow(WindowConfig)
 			WindowTopBarLine.Visible = false
 			MinimizeBtn.Ico.Rotation = 0
 			TweenService:Create(MainWindow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, math.max(WindowName.TextBounds.X + 210, 320), 0, 50)}):Play()
-			wait(0.1)
+			task.wait(0.1)
 			WindowStuff.Visible = false
 		end
 		Minimized = not Minimized
 	end)
 
 	-- ╔══════════════════════════════════════════╗
-	-- ║           NEUER LOADER (2025)            ║
+	-- ║   LOADER MIT ECHT-LOGO & VIOLETT-DESIGN  ║
 	-- ╚══════════════════════════════════════════╝
 	local function LoadSequence()
 		MainWindow.Visible = false
 
-		-- Haupt-Container: kompakt, zentriert, halbtransparent
 		local LoaderFrame = Create("Frame", {
 			Parent = Container,
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.53, 0),
-			Size = UDim2.new(0, 230, 0, 68),
-			BackgroundColor3 = Color3.fromRGB(15, 15, 17),
-			BackgroundTransparency = 0.25,
+			Size = UDim2.new(0, 240, 0, 72),
+			BackgroundColor3 = Color3.fromRGB(16, 12, 22),
+			BackgroundTransparency = 0.20,
 			BorderSizePixel = 0,
 			ZIndex = 10
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = LoaderFrame})
 
-		-- Aeusserer Stroke (blau, leicht transparent)
 		local FrameStroke = Create("UIStroke", {
 			Parent = LoaderFrame,
 			Color = ACCENT,
-			Thickness = 0.8,
-			Transparency = 0.5
+			Thickness = 1.0,
+			Transparency = 0.4
 		})
 
-		-- Icon links (festes Roblox-Icon)
+		-- Logo im Loader (verwendet das geladene Wunsch-Logo)
 		local LogoIcon = Create("ImageLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0.5),
 			Position = UDim2.new(0, 14, 0.5, -8),
-			Size = UDim2.new(0, 22, 0, 22),
-			Image = WindowConfig.IntroIcon,
+			Size = UDim2.new(0, 26, 0, 26),
+			Image = ResolvedLogo,
 			BackgroundTransparency = 1,
 			ImageTransparency = 1,
 			ZIndex = 11
 		})
-		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = LogoIcon})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LogoIcon})
 
-		-- Titeltext (Name des Scripts)
 		local TitleLabel = Create("TextLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 44, 0, 9),
-			Size = UDim2.new(1, -54, 0, 18),
+			Position = UDim2.new(0, 48, 0, 10),
+			Size = UDim2.new(1, -58, 0, 18),
 			Text = WindowConfig.Name,
-			TextColor3 = Color3.fromRGB(235, 235, 240),
+			TextColor3 = Color3.fromRGB(245, 240, 255),
 			TextTransparency = 1,
 			TextSize = 15,
 			Font = Enum.Font.GothamBlack,
@@ -1060,14 +1102,13 @@ function Library:MakeWindow(WindowConfig)
 			ZIndex = 11
 		})
 
-		-- Statustext (wechselt waehrend des Ladens)
 		local StatusLabel = Create("TextLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 44, 0, 30),
-			Size = UDim2.new(1, -54, 0, 14),
+			Position = UDim2.new(0, 48, 0, 31),
+			Size = UDim2.new(1, -58, 0, 14),
 			Text = "Initializing...",
-			TextColor3 = ACCENT,
+			TextColor3 = ACCENT_TEXT,
 			TextTransparency = 1,
 			TextSize = 11,
 			Font = Enum.Font.GothamSemibold,
@@ -1076,20 +1117,18 @@ function Library:MakeWindow(WindowConfig)
 			ZIndex = 11
 		})
 
-		-- Fortschrittsleiste Hintergrund
 		local BarBG = Create("Frame", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new(0.5, 0, 1, -8),
-			Size = UDim2.new(1, -28, 0, 2),
-			BackgroundColor3 = Color3.fromRGB(50, 50, 55),
-			BackgroundTransparency = 0.4,
+			Size = UDim2.new(1, -28, 0, 3),
+			BackgroundColor3 = Color3.fromRGB(35, 26, 50),
+			BackgroundTransparency = 0.3,
 			BorderSizePixel = 0,
 			ZIndex = 11
 		})
 		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = BarBG})
 
-		-- Fortschrittsleiste Fill (der blaue Balken)
 		local BarFill = Create("Frame", {
 			Parent = BarBG,
 			Size = UDim2.new(0, 0, 1, 0),
@@ -1099,48 +1138,43 @@ function Library:MakeWindow(WindowConfig)
 		})
 		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = BarFill})
 
-		-- Einblend-Animation
 		TweenService:Create(LoaderFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
 			Position = UDim2.new(0.5, 0, 0.5, 0),
-			BackgroundTransparency = 0.25
+			BackgroundTransparency = 0.20
 		}):Play()
 		TweenService:Create(LogoIcon, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
 			ImageTransparency = 0
 		}):Play()
-		wait(0.15)
+		task.wait(0.15)
 		TweenService:Create(TitleLabel,  TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
 		TweenService:Create(StatusLabel, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
 
-		-- Fortschritts-Schritte
 		local steps = {
-			{ text = "Loading modules...",  progress = 0.25, delay = 0.30 },
-			{ text = "Building UI...",      progress = 0.55, delay = 0.45 },
-			{ text = "Applying themes...",  progress = 0.78, delay = 0.35 },
-			{ text = "Almost ready...",     progress = 0.95, delay = 0.30 },
+			{ text = "Loading modules...",  progress = 0.25, delay = 0.25 },
+			{ text = "Building UI...",      progress = 0.55, delay = 0.35 },
+			{ text = "Applying violet...",  progress = 0.80, delay = 0.30 },
+			{ text = "Almost ready...",     progress = 0.95, delay = 0.25 },
 		}
 
 		for _, step in ipairs(steps) do
-			wait(step.delay)
+			task.wait(step.delay)
 			StatusLabel.Text = step.text
 			TweenService:Create(BarFill, TweenInfo.new(step.delay + 0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
 				Size = UDim2.new(step.progress, 0, 1, 0)
 			}):Play()
-			-- Stroke kurz aufleuchten lassen
-			TweenService:Create(FrameStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Transparency = 0.05}):Play()
-			wait(0.15)
-			TweenService:Create(FrameStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Transparency = 0.5}):Play()
+			TweenService:Create(FrameStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Transparency = 0.1}):Play()
+			task.wait(0.15)
+			TweenService:Create(FrameStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Transparency = 0.4}):Play()
 		end
 
-		-- Abschluss: Bar auf 100%
-		wait(0.2)
-		StatusLabel.Text = "Done!"
+		task.wait(0.15)
+		StatusLabel.Text = "Ready!"
 		TweenService:Create(BarFill, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
 			Size = UDim2.new(1, 0, 1, 0)
 		}):Play()
 		TweenService:Create(FrameStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Transparency = 0}):Play()
-		wait(0.45)
+		task.wait(0.35)
 
-		-- Ausblend-Animation (nach oben gleiten)
 		TweenService:Create(LoaderFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0.5, 0, 0.47, 0)
@@ -1149,18 +1183,18 @@ function Library:MakeWindow(WindowConfig)
 		TweenService:Create(TitleLabel,  TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextTransparency  = 1}):Play()
 		TweenService:Create(StatusLabel, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextTransparency  = 1}):Play()
 		TweenService:Create(FrameStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Transparency      = 1}):Play()
-		wait(0.4)
+		task.wait(0.35)
 
 		LoaderFrame:Destroy()
 		MainWindow.Visible = true
+		if Library.BlurEnabled then SetBlurState(true) end
 	end
 
 	if WindowConfig.IntroEnabled then LoadSequence() end
 
-	-- ╔══════════════════════════════════════════╗
-	-- ║      UI-EINSTELLUNGSPANEL (Zahnrad)      ║
-	-- ╚══════════════════════════════════════════╝
-
+	-- ╔══════════════════════════════════════════════════════════════╗
+	-- ║   ERWEITERTES UI-EINSTELLUNGSPANEL (PRO-SETTINGS)            ║
+	-- ╚══════════════════════════════════════════════════════════════╝
 	local UISettingsPanel = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 5), {
 		Size = UDim2.new(1, -150, 1, -50),
 		Position = UDim2.new(0, 150, 0, 50),
@@ -1190,19 +1224,21 @@ function Library:MakeWindow(WindowConfig)
 			}), "Second")
 		end
 
-		-- Ueberschrift
-		local HeaderFrame = AddThemeObject(SetProps(MakeElement("Label", "UI-Einstellungen", 12), {
-			Size = UDim2.new(1, -12, 0, 14),
-			Position = UDim2.new(0, 6, 0, 0),
-			Font = Enum.Font.GothamSemibold,
-			Parent = UISettingsPanel
-		}), "TextDark")
+		local function Header(title)
+			AddThemeObject(SetProps(MakeElement("Label", string.upper(title), 11), {
+				Size = UDim2.new(1, -12, 0, 16),
+				Position = UDim2.new(0, 6, 0, 0),
+				Font = Enum.Font.GothamBold,
+				Parent = UISettingsPanel,
+				TextColor3 = ACCENT_SOFT
+			}), "TextDark")
+		end
 
-		-- ╔══════════════════════════════════════╗
-		-- ║  Account-Info: Roblox-ID + Spiel      ║
-		-- ╚══════════════════════════════════════╝
-		local AccountRow = Row("Account", 92)
-		local GameName = "Unbekannt"
+		Header("Account & Spiel")
+
+		-- Account Row mit Ping & JobId
+		local AccountRow = Row("Benutzer", 100)
+		local GameName = "Emergency Hamburg"
 		pcall(function()
 			local MarketplaceService = game:GetService("MarketplaceService")
 			local Info = MarketplaceService:GetProductInfo(game.PlaceId)
@@ -1212,33 +1248,83 @@ function Library:MakeWindow(WindowConfig)
 		Create("ImageLabel", {
 			Parent = AccountRow,
 			Position = UDim2.new(0, 12, 0, 30),
-			Size = UDim2.new(0, 34, 0, 34),
+			Size = UDim2.new(0, 42, 0, 42),
 			BackgroundTransparency = 1,
 			Image = "https://www.roblox.com/headshot-thumbnail/image?userId="..(LocalPlayer and LocalPlayer.UserId or 0).."&width=150&height=150&format=png"
 		})
 		local AvatarCorner = Create("UICorner", {CornerRadius = UDim.new(1, 0)})
 		AvatarCorner.Parent = AccountRow:GetChildren()[#AccountRow:GetChildren()]
 
-		AddThemeObject(SetProps(MakeElement("Label", "Benutzername: "..(LocalPlayer and LocalPlayer.Name or "?"), 13), {
-			Size = UDim2.new(1, -60, 0, 16),
-			Position = UDim2.new(0, 54, 0, 28),
-			Font = Enum.Font.GothamSemibold,
-			Parent = AccountRow
+		AddThemeObject(SetProps(MakeElement("Label", "Name: " .. (LocalPlayer and LocalPlayer.Name or "?") .. " (@" .. (LocalPlayer and LocalPlayer.DisplayName or "?") .. ")", 13), {
+			Size = UDim2.new(1, -70, 0, 16), Position = UDim2.new(0, 64, 0, 28),
+			Font = Enum.Font.GothamSemibold, Parent = AccountRow
+		}), "Text")
+		AddThemeObject(SetProps(MakeElement("Label", "ID: " .. (LocalPlayer and tostring(LocalPlayer.UserId) or "?"), 12), {
+			Size = UDim2.new(1, -70, 0, 16), Position = UDim2.new(0, 64, 0, 48),
+			Font = Enum.Font.GothamSemibold, Parent = AccountRow
 		}), "TextDark")
-		AddThemeObject(SetProps(MakeElement("Label", "Roblox-ID: "..(LocalPlayer and tostring(LocalPlayer.UserId) or "?"), 13), {
-			Size = UDim2.new(1, -60, 0, 16),
-			Position = UDim2.new(0, 54, 0, 46),
-			Font = Enum.Font.GothamSemibold,
-			Parent = AccountRow
-		}), "TextDark")
-		AddThemeObject(SetProps(MakeElement("Label", "Spiel: "..GameName, 13), {
-			Size = UDim2.new(1, -60, 0, 16),
-			Position = UDim2.new(0, 54, 0, 64),
-			Font = Enum.Font.GothamSemibold,
-			Parent = AccountRow
+		AddThemeObject(SetProps(MakeElement("Label", "Spiel: " .. GameName, 12), {
+			Size = UDim2.new(1, -70, 0, 16), Position = UDim2.new(0, 64, 0, 68),
+			Font = Enum.Font.GothamSemibold, Parent = AccountRow
 		}), "TextDark")
 
-		-- Akzentfarbe live aendern (gilt fuer alle Tabs)
+		Header("Aussehen & Logo")
+
+		-- ╔══════════════════════════════════════════╗
+		-- ║   CUSTOM LOGO LIVE ÄNDERN                ║
+		-- ╚══════════════════════════════════════════╝
+		local LogoRow = Row("Logo-URL (Bild-Link)", 66)
+		local LogoInputBox = AddThemeObject(Create("TextBox", {
+			Parent = LogoRow,
+			Size = UDim2.new(1, -110, 0, 24),
+			Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
+			BackgroundTransparency = 0.2,
+			Text = activeLogoUrl,
+			PlaceholderText = "https://... (PNG/JPG Link)",
+			PlaceholderColor3 = Color3.fromRGB(120, 110, 140),
+			Font = Enum.Font.GothamSemibold,
+			TextSize = 12,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ClearTextOnFocus = false
+		}), "Text")
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LogoInputBox})
+		Create("UIPadding", {PaddingLeft = UDim.new(0, 8), Parent = LogoInputBox})
+
+		local LogoApplyBtn = Create("TextButton", {
+			Parent = LogoRow,
+			Size = UDim2.new(0, 85, 0, 24),
+			Position = UDim2.new(1, -95, 0, 32),
+			BackgroundColor3 = ACCENT,
+			Text = "Anwenden",
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			Font = Enum.Font.GothamBold,
+			TextSize = 12,
+			AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LogoApplyBtn})
+
+		local function UpdateLogoLive(newUrl)
+			if newUrl and newUrl ~= "" then
+				activeLogoUrl = newUrl
+				Library.CustomLogoUrl = newUrl
+				local newAsset = LoadCustomAsset(newUrl, Library.FixedIconId)
+				WindowIcon.Image = newAsset
+				MiniIconBadge.Image = newAsset
+				Library:MakeNotification({
+					Name = "Logo aktualisiert",
+					Content = "Neues Logo erfolgreich geladen!",
+					Time = 3
+				})
+			end
+		end
+
+		LogoApplyBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			UpdateLogoLive(LogoInputBox.Text)
+		end)
+
+		-- Akzentfarbe Live Picker
 		local ColorRow = Row("Akzentfarbe", 66)
 		local ColorBar = Create("Frame", {
 			Parent = ColorRow, Size = UDim2.new(1, -24, 0, 22),
@@ -1248,13 +1334,13 @@ function Library:MakeWindow(WindowConfig)
 		Create("UIGradient", {
 			Parent = ColorBar, Rotation = 0,
 			Color = ColorSequence.new{
-				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255,0,4)),
-				ColorSequenceKeypoint.new(0.20, Color3.fromRGB(234,255,0)),
-				ColorSequenceKeypoint.new(0.40, Color3.fromRGB(21,255,0)),
-				ColorSequenceKeypoint.new(0.60, Color3.fromRGB(0,255,255)),
-				ColorSequenceKeypoint.new(0.80, Color3.fromRGB(0,17,255)),
-				ColorSequenceKeypoint.new(0.90, Color3.fromRGB(255,0,251)),
-				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255,0,4))
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(145,115,245)),
+				ColorSequenceKeypoint.new(0.18, Color3.fromRGB(0,200,255)),
+				ColorSequenceKeypoint.new(0.36, Color3.fromRGB(0,255,170)),
+				ColorSequenceKeypoint.new(0.54, Color3.fromRGB(255,220,0)),
+				ColorSequenceKeypoint.new(0.72, Color3.fromRGB(255,60,100)),
+				ColorSequenceKeypoint.new(0.88, Color3.fromRGB(255,0,230)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(145,115,245))
 			}
 		})
 		local Picker = Create("Frame", {
@@ -1264,12 +1350,12 @@ function Library:MakeWindow(WindowConfig)
 
 		local function ApplyAccent(NewColor)
 			ACCENT = NewColor
-			ACCENT_TEXT = NewColor:Lerp(Color3.fromRGB(255,255,255), 0.15)
-			ACCENT_SOFT = NewColor:Lerp(Color3.fromRGB(255,255,255), 0.05)
+			ACCENT_TEXT = NewColor:Lerp(Color3.fromRGB(255,255,255), 0.20)
+			ACCENT_SOFT = NewColor:Lerp(Color3.fromRGB(255,255,255), 0.08)
 			Library.Accent, Library.AccentText, Library.AccentSoft = ACCENT, ACCENT_TEXT, ACCENT_SOFT
 			MiniStroke.Color = ACCENT
 			PulseRing.Color = ACCENT
-			-- Aktualisiert ALLE Tabs (auch inaktive uebernehmen die neue Akzentfarbe fuer ihren aktiven Zustand)
+			LogoApplyBtn.BackgroundColor3 = ACCENT
 			for _, Tab in next, TabHolder:GetChildren() do
 				if Tab:IsA("TextButton") and Tab:FindFirstChild("Ico") and Tab:FindFirstChild("Title") then
 					if Tab.Title.Font == Enum.Font.GothamBold then
@@ -1277,25 +1363,50 @@ function Library:MakeWindow(WindowConfig)
 					end
 				end
 			end
-			WindowIcon.ImageColor3 = ACCENT
 			MiniLogo.TextColor3 = ACCENT_TEXT
 		end
 
 		local DraggingColor = false
-		AddConnection(ColorBar.InputBegan, function(i)
-			if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = true end
-		end)
-		AddConnection(UserInputService.InputEnded, function(i)
-			if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = false end
-		end)
+		AddConnection(ColorBar.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = true end end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = false end end)
 		AddConnection(UserInputService.InputChanged, function(i)
 			if DraggingColor and i.UserInputType == Enum.UserInputType.MouseMovement then
 				local Rel = math.clamp((Mouse.X - ColorBar.AbsolutePosition.X) / ColorBar.AbsoluteSize.X, 0, 1)
 				Picker.Position = UDim2.new(Rel, -2, 0, -2)
-				local NewColor = Color3.fromHSV(Rel, 1, 1)
+				local NewColor = Color3.fromHSV(Rel, 0.75, 1)
 				ApplyAccent(NewColor)
 			end
 		end)
+
+		-- Rainbow / Chroma Mode Toggle
+		local RainbowRow = Row("Rainbow Chroma-Modus", 38)
+		local RainbowBtn = Create("TextButton", {
+			Parent = RainbowRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Aus",
+			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = RainbowBtn})
+		
+		task.spawn(function()
+			local hue = 0
+			while Library:IsRunning() do
+				if Library.RainbowEnabled then
+					hue = (hue + 0.005) % 1
+					local c = Color3.fromHSV(hue, 0.8, 1)
+					ApplyAccent(c)
+				end
+				task.wait(0.03)
+			end
+		end)
+
+		RainbowBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			Library.RainbowEnabled = not Library.RainbowEnabled
+			RainbowBtn.Text = Library.RainbowEnabled and "AN" or "Aus"
+			RainbowBtn.BackgroundColor3 = Library.RainbowEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+		end)
+
+		Header("Transparenz & Effekte")
 
 		-- Fenster-Transparenz Slider
 		local TransRow = Row("Fenster-Transparenz", 60)
@@ -1345,38 +1456,81 @@ function Library:MakeWindow(WindowConfig)
 			end
 		end)
 
-		-- Control-Transparenz Slider (neu: Keybind/Textbox/Farbfeld)
-		local ControlRow = Row("Element-Transparenz", 60)
-		local CSlider = Create("Frame", {
-			Parent = ControlRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
+		-- Blur-Effekt Toggle
+		local BlurRow = Row("Hintergrund-Unschärfe (Blur)", 38)
+		local BlurBtn = Create("TextButton", {
+			Parent = BlurRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Aus",
+			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = CSlider})
-		local CFill = Create("Frame", {
-			Parent = CSlider, Size = UDim2.new(1 - Library.Transparency.Control, 0, 1, 0),
-			BackgroundColor3 = ACCENT
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = BlurBtn})
+		BlurBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			Library.BlurEnabled = not Library.BlurEnabled
+			BlurBtn.Text = Library.BlurEnabled and "AN" or "Aus"
+			BlurBtn.BackgroundColor3 = Library.BlurEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+			SetBlurState(Library.BlurEnabled and MainWindow.Visible)
+		end)
+
+		Header("Steuerung & Tastenkürzel")
+
+		-- Toggle-Taste interaktiv ändern
+		local ToggleKeyRow = Row("Menü-Taste ändern", 38)
+		local KeybindBtn = Create("TextButton", {
+			Parent = ToggleKeyRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = ToggleKeyName,
+			TextColor3 = Color3.fromRGB(230,225,245), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
 		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = CFill})
-		local DraggingC = false
-		AddConnection(CSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingC = true end end)
-		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingC = false end end)
-		AddConnection(UserInputService.InputChanged, function(i)
-			if DraggingC and i.UserInputType == Enum.UserInputType.MouseMovement then
-				local Rel = math.clamp((Mouse.X - CSlider.AbsolutePosition.X) / CSlider.AbsoluteSize.X, 0, 1)
-				CFill.Size = UDim2.new(Rel, 0, 1, 0)
-				Library.Transparency.Control = 1 - Rel
-			end
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = KeybindBtn})
+		
+		local ListeningForKey = false
+		KeybindBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			if ListeningForKey then return end
+			ListeningForKey = true
+			KeybindBtn.Text = "Drücke Taste..."
+			local conn
+			conn = UserInputService.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.Keyboard and not CheckKey(BlacklistedKeys, input.KeyCode) then
+					WindowConfig.ToggleKey = input.KeyCode
+					ToggleKeyName = input.KeyCode.Name
+					KeybindBtn.Text = ToggleKeyName
+					ListeningForKey = false
+					conn:Disconnect()
+					Library:MakeNotification({
+						Name = "Taste geändert",
+						Content = "Neue Menü-Taste: " .. ToggleKeyName,
+						Time = 3
+					})
+				end
+			end)
+		end)
+
+		-- Soundeffekte Toggle
+		local SoundRow = Row("Klick-Soundeffekte", 38)
+		local SoundBtn = Create("TextButton", {
+			Parent = SoundRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = ACCENT, Text = "AN",
+			TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = SoundBtn})
+		SoundBtn.MouseButton1Click:Connect(function()
+			Library.SoundsEnabled = not Library.SoundsEnabled
+			SoundBtn.Text = Library.SoundsEnabled and "AN" or "Aus"
+			SoundBtn.BackgroundColor3 = Library.SoundsEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+			PlayClickSound()
 		end)
 
 		-- Reopen-Modus fuer Mini-Icon
-		local ModeRow = Row("Wieder oeffnen per", 38)
+		local ModeRow = Row("Wieder öffnen per", 38)
 		local ModeBtn = Create("TextButton", {
 			Parent = ModeRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
 			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Doppelklick",
-			TextColor3 = Color3.fromRGB(230,230,230), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+			TextColor3 = Color3.fromRGB(230,225,245), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = ModeBtn})
 		AddConnection(ModeBtn.MouseButton1Click, function()
+			PlayClickSound()
 			if Library.MinimizeSettings.ReopenMode == "DoubleClick" then
 				Library.MinimizeSettings.ReopenMode = "Click"
 				ModeBtn.Text = "Einfachklick"
@@ -1386,34 +1540,45 @@ function Library:MakeWindow(WindowConfig)
 			end
 		end)
 
-		-- Toggle-Taste anzeigen (Info, read-only)
-		local ToggleKeyRow = Row("Toggle-Taste", 38)
-		AddThemeObject(SetProps(MakeElement("Label", ToggleKeyName, 13), {
-			Size = UDim2.new(0, 120, 0, 24),
-			Position = UDim2.new(1, -132, 0, 7),
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Font = Enum.Font.GothamSemibold,
-			Parent = ToggleKeyRow
-		}), "TextDark")
+		Header("Verwaltung")
 
-		-- Akzentfarbe zuruecksetzen
-		local ResetRow = Row("Akzentfarbe zuruecksetzen", 38)
+		-- Reset Theme Button
+		local ResetRow = Row("Farbe & Theme zurücksetzen", 38)
 		local ResetBtn = Create("TextButton", {
 			Parent = ResetRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
 			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Reset",
-			TextColor3 = Color3.fromRGB(230,230,230), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+			TextColor3 = Color3.fromRGB(230,225,245), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = ResetBtn})
 		AddConnection(ResetBtn.MouseButton1Click, function()
-			local Default = Color3.fromRGB(121, 113, 192)
+			PlayClickSound()
+			local Default = Color3.fromRGB(145, 115, 245)
 			Picker.Position = UDim2.new(select(1, Color3.toHSV(Default)), -2, 0, -2)
 			ApplyAccent(Default)
+			MainWindow.BackgroundTransparency = 0.22
+			WindowStuff.BackgroundTransparency = 0.14
+			Library.Transparency.Window = 0.22
+			Library.Transparency.Sidebar = 0.14
+		end)
+
+		-- Schließen / Unload Button
+		local UnloadRow = Row("UI komplett entladen", 38)
+		local UnloadBtn = Create("TextButton", {
+			Parent = UnloadRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Color3.fromRGB(180, 40, 50), Text = "Entladen",
+			TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = UnloadBtn})
+		UnloadBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			SetBlurState(false)
+			Library:Destroy()
 		end)
 	end
 	BuildUISettings()
 
 	AddConnection(SettingsBtn.MouseButton1Up, function()
-		local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
+		PlayClickSound()
 		local ShowSettings = not UISettingsPanel.Visible
 		UISettingsPanel.Visible = ShowSettings
 		for _, ItemContainer in next, MainWindow:GetChildren() do
@@ -1493,7 +1658,7 @@ function Library:MakeWindow(WindowConfig)
 		end
 
 		AddConnection(TabFrame.MouseButton1Click, function()
-			local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
+			PlayClickSound()
 			ActivateTab()
 		end)
 
@@ -1581,14 +1746,14 @@ function Library:MakeWindow(WindowConfig)
 					Click
 				}), "Second")
 				SetupElement(ButtonFrame, InPanel, TabItemContainer, ActivateTab, ItemParent)
-				AddConnection(Click.MouseEnter,      function() TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+3, Library.Themes[Library.SelectedTheme].Second.G*255+3, Library.Themes[Library.SelectedTheme].Second.B*255+3)}):Play() end)
+				AddConnection(Click.MouseEnter,      function() TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+4, Library.Themes[Library.SelectedTheme].Second.G*255+4, Library.Themes[Library.SelectedTheme].Second.B*255+4)}):Play() end)
 				AddConnection(Click.MouseLeave,      function() TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Library.Themes[Library.SelectedTheme].Second}):Play() end)
 				AddConnection(Click.MouseButton1Up,  function()
-					local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
-					TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+3, Library.Themes[Library.SelectedTheme].Second.G*255+3, Library.Themes[Library.SelectedTheme].Second.B*255+3)}):Play()
-					spawn(function() ButtonConfig.Callback() end)
+					PlayClickSound()
+					TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+4, Library.Themes[Library.SelectedTheme].Second.G*255+4, Library.Themes[Library.SelectedTheme].Second.B*255+4)}):Play()
+					task.spawn(function() ButtonConfig.Callback() end)
 				end)
-				AddConnection(Click.MouseButton1Down, function() TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+6, Library.Themes[Library.SelectedTheme].Second.G*255+6, Library.Themes[Library.SelectedTheme].Second.B*255+6)}):Play() end)
+				AddConnection(Click.MouseButton1Down, function() TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+8, Library.Themes[Library.SelectedTheme].Second.G*255+8, Library.Themes[Library.SelectedTheme].Second.B*255+8)}):Play() end)
 				function Button:Set(ButtonText) ButtonFrame.Content.Text = ButtonText end
 				return Button
 			end
@@ -1644,15 +1809,15 @@ function Library:MakeWindow(WindowConfig)
 				end
 
 				Toggle:Set(Toggle.Value)
-				AddConnection(Click.MouseEnter,       function() TweenService:Create(ToggleFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+3, Library.Themes[Library.SelectedTheme].Second.G*255+3, Library.Themes[Library.SelectedTheme].Second.B*255+3)}):Play() end)
+				AddConnection(Click.MouseEnter,       function() TweenService:Create(ToggleFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+4, Library.Themes[Library.SelectedTheme].Second.G*255+4, Library.Themes[Library.SelectedTheme].Second.B*255+4)}):Play() end)
 				AddConnection(Click.MouseLeave,       function() TweenService:Create(ToggleFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Library.Themes[Library.SelectedTheme].Second}):Play() end)
 				AddConnection(Click.MouseButton1Up,   function()
-					local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
-					TweenService:Create(ToggleFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+3, Library.Themes[Library.SelectedTheme].Second.G*255+3, Library.Themes[Library.SelectedTheme].Second.B*255+3)}):Play()
+					PlayClickSound()
+					TweenService:Create(ToggleFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+4, Library.Themes[Library.SelectedTheme].Second.G*255+4, Library.Themes[Library.SelectedTheme].Second.B*255+4)}):Play()
 					Toggle:Set(not Toggle.Value)
 					SaveCfg(game.GameId)
 				end)
-				AddConnection(Click.MouseButton1Down, function() TweenService:Create(ToggleFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+6, Library.Themes[Library.SelectedTheme].Second.G*255+6, Library.Themes[Library.SelectedTheme].Second.B*255+6)}):Play() end)
+				AddConnection(Click.MouseButton1Down, function() TweenService:Create(ToggleFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+8, Library.Themes[Library.SelectedTheme].Second.G*255+8, Library.Themes[Library.SelectedTheme].Second.B*255+8)}):Play() end)
 
 				if ToggleConfig.Flag then Library.Flags[ToggleConfig.Flag] = Toggle end
 				return Toggle
@@ -1676,7 +1841,7 @@ function Library:MakeWindow(WindowConfig)
 
 				local SliderDrag = SetChildren(SetProps(MakeElement("RoundFrame", SliderConfig.Color, 0, 5), {
 					Size = UDim2.new(0,0,1,0),
-					BackgroundTransparency = 0.3,
+					BackgroundTransparency = 0.25,
 					ClipsDescendants = true
 				}), {
 					AddThemeObject(SetProps(MakeElement("Label", "value", 13), {
@@ -1722,7 +1887,7 @@ function Library:MakeWindow(WindowConfig)
 				SliderBar.InputBegan:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 						Dragging = true
-						local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
+						PlayClickSound()
 					end
 				end)
 				SliderBar.InputEnded:Connect(function(Input)
@@ -1810,7 +1975,7 @@ function Library:MakeWindow(WindowConfig)
 							AddThemeObject(SetProps(MakeElement("Label", Option, 13, 0.4), {Position = UDim2.new(0,8,0,0), Size = UDim2.new(1,-8,1,0), Name = "Title"}), "Text")
 						}), "Second")
 						AddConnection(OptionBtn.MouseButton1Click, function()
-							local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
+							PlayClickSound()
 							Dropdown:Set(Option)
 							SaveCfg(game.GameId)
 						end)
@@ -1850,7 +2015,7 @@ function Library:MakeWindow(WindowConfig)
 				end
 
 				AddConnection(Click.MouseButton1Click, function()
-					local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
+					PlayClickSound()
 					Dropdown.Toggled = not Dropdown.Toggled
 					DropdownFrame.F.Line.Visible = Dropdown.Toggled
 					TweenService:Create(DropdownFrame.F.Ico, TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = Dropdown.Toggled and 180 or 0}):Play()
@@ -1918,7 +2083,7 @@ function Library:MakeWindow(WindowConfig)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 						if Bind.Binding then return end
 						Bind.Binding = true
-						BindBox.Value.Text = ""
+						BindBox.Value.Text = "..."
 					end
 				end)
 				AddConnection(UserInputService.InputBegan, function(Input)
@@ -1947,10 +2112,10 @@ function Library:MakeWindow(WindowConfig)
 						end
 					end
 				end)
-				AddConnection(Click.MouseEnter,       function() TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+3, Library.Themes[Library.SelectedTheme].Second.G*255+3, Library.Themes[Library.SelectedTheme].Second.B*255+3)}):Play() end)
+				AddConnection(Click.MouseEnter,       function() TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+4, Library.Themes[Library.SelectedTheme].Second.G*255+4, Library.Themes[Library.SelectedTheme].Second.B*255+4)}):Play() end)
 				AddConnection(Click.MouseLeave,       function() TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Library.Themes[Library.SelectedTheme].Second}):Play() end)
-				AddConnection(Click.MouseButton1Up,   function() TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+3, Library.Themes[Library.SelectedTheme].Second.G*255+3, Library.Themes[Library.SelectedTheme].Second.B*255+3)}):Play() end)
-				AddConnection(Click.MouseButton1Down, function() TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+6, Library.Themes[Library.SelectedTheme].Second.G*255+6, Library.Themes[Library.SelectedTheme].Second.B*255+6)}):Play() end)
+				AddConnection(Click.MouseButton1Up,   function() PlayClickSound(); TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+4, Library.Themes[Library.SelectedTheme].Second.G*255+4, Library.Themes[Library.SelectedTheme].Second.B*255+4)}):Play() end)
+				AddConnection(Click.MouseButton1Down, function() TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+8, Library.Themes[Library.SelectedTheme].Second.G*255+8, Library.Themes[Library.SelectedTheme].Second.B*255+8)}):Play() end)
 
 				function Bind:Set(Key)
 					Bind.Binding = false
@@ -1976,7 +2141,7 @@ function Library:MakeWindow(WindowConfig)
 					Size = UDim2.new(1,0,1,0),
 					BackgroundTransparency = 1,
 					TextColor3 = Color3.fromRGB(255,255,255),
-					PlaceholderColor3 = Color3.fromRGB(210,210,210),
+					PlaceholderColor3 = Color3.fromRGB(150,140,170),
 					PlaceholderText = "Input",
 					Font = Enum.Font.GothamSemibold,
 					TextXAlignment = Enum.TextXAlignment.Center,
@@ -2018,13 +2183,14 @@ function Library:MakeWindow(WindowConfig)
 					if TextboxConfig.TextDisappear then TextboxActual.Text = "" end
 				end)
 				TextboxActual.Text = TextboxConfig.Default
-				AddConnection(Click.MouseEnter,       function() TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+3, Library.Themes[Library.SelectedTheme].Second.G*255+3, Library.Themes[Library.SelectedTheme].Second.B*255+3)}):Play() end)
+				AddConnection(Click.MouseEnter,       function() TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+4, Library.Themes[Library.SelectedTheme].Second.G*255+4, Library.Themes[Library.SelectedTheme].Second.B*255+4)}):Play() end)
 				AddConnection(Click.MouseLeave,       function() TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Library.Themes[Library.SelectedTheme].Second}):Play() end)
 				AddConnection(Click.MouseButton1Up,   function()
-					TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+3, Library.Themes[Library.SelectedTheme].Second.G*255+3, Library.Themes[Library.SelectedTheme].Second.B*255+3)}):Play()
+					PlayClickSound()
+					TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+4, Library.Themes[Library.SelectedTheme].Second.G*255+4, Library.Themes[Library.SelectedTheme].Second.B*255+4)}):Play()
 					TextboxActual:CaptureFocus()
 				end)
-				AddConnection(Click.MouseButton1Down, function() TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+6, Library.Themes[Library.SelectedTheme].Second.G*255+6, Library.Themes[Library.SelectedTheme].Second.B*255+6)}):Play() end)
+				AddConnection(Click.MouseButton1Down, function() TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+8, Library.Themes[Library.SelectedTheme].Second.G*255+8, Library.Themes[Library.SelectedTheme].Second.B*255+8)}):Play() end)
 			end
 
 			function ElementFunction:AddColorpicker(ColorpickerConfig)
@@ -2106,7 +2272,7 @@ function Library:MakeWindow(WindowConfig)
 				SetupElement(ColorpickerFrame, InPanel, TabItemContainer, ActivateTab, ItemParent)
 
 				AddConnection(Click.MouseButton1Click, function()
-					local sound = Instance.new("Sound") sound.SoundId = "rbxassetid://6895079853" sound.Volume = 0.5 sound.Parent = game:GetService("SoundService") sound:Play() game:GetService("Debris"):AddItem(sound, 1)
+					PlayClickSound()
 					Colorpicker.Toggled = not Colorpicker.Toggled
 					TweenService:Create(ColorpickerFrame, TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = Colorpicker.Toggled and UDim2.new(1,0,0,168) or UDim2.new(1,0,0,38)}):Play()
 					Color.Visible = Colorpicker.Toggled
@@ -2472,12 +2638,12 @@ function Library:MakeWindow(WindowConfig)
 end
 
 local Configs_HUB = {
-	Cor_Hub      = Color3.fromRGB(15,15,15),
-	Cor_Options  = Color3.fromRGB(15,15,15),
-	Cor_Stroke   = Color3.fromRGB(60,60,60),
-	Cor_Text     = Color3.fromRGB(240,240,240),
-	Cor_DarkText = Color3.fromRGB(140,140,140),
-	Corner_Radius = UDim.new(0, 4),
+	Cor_Hub      = Color3.fromRGB(18,14,25),
+	Cor_Options  = Color3.fromRGB(18,14,25),
+	Cor_Stroke   = Color3.fromRGB(60,46,84),
+	Cor_Text     = Color3.fromRGB(240,235,250),
+	Cor_DarkText = Color3.fromRGB(155,140,180),
+	Corner_Radius = UDim.new(0, 6),
 	Text_Font    = Library.Font
 }
 
@@ -2546,28 +2712,29 @@ function Library:MakeNotifi(Configs)
 		AutomaticSize="Y",
 		BackgroundTransparency=0.15
 	}) Corner2(Frame2)
+	Stroke2(Frame2)
 
 	local TextLabel = Create2("TextLabel", Frame2, {
 		Size=UDim2.new(1,0,0,25), Font=Configs_HUB.Text_Font,
-		BackgroundTransparency=1, Text=Title, TextSize=20,
+		BackgroundTransparency=1, Text=Title, TextSize=18,
 		Position=UDim2.new(0,20,0,5), TextXAlignment="Left", TextColor3=Configs_HUB.Cor_Text
 	})
 	local TextButton = Create2("TextButton", Frame2, {
-		Text="X", Font=Configs_HUB.Text_Font, TextSize=20,
+		Text="X", Font=Configs_HUB.Text_Font, TextSize=18,
 		BackgroundTransparency=1, TextColor3=Color3.fromRGB(200,200,200),
 		Position=UDim2.new(1,-5,0,5), AnchorPoint=Vector2.new(1,0), Size=UDim2.new(0,25,0,25)
 	})
 	local TextLabel2 = Create2("TextLabel", Frame2, {
 		Size=UDim2.new(1,-30,0,0),
 		Position=UDim2.new(0,20,0,TextButton.Size.Y.Offset+10),
-		TextSize=15, TextColor3=Configs_HUB.Cor_DarkText,
+		TextSize=14, TextColor3=Configs_HUB.Cor_DarkText,
 		TextXAlignment="Left", TextYAlignment="Top",
 		AutomaticSize=Enum.AutomaticSize.Y, Text=text,
 		Font=Configs_HUB.Text_Font, BackgroundTransparency=1, TextWrapped=true
 	})
 
 	local FrameSize = Create2("Frame", Frame2, {
-		Size=UDim2.new(1,0,0,2), BackgroundColor3=Configs_HUB.Cor_Stroke,
+		Size=UDim2.new(1,0,0,2), BackgroundColor3=ACCENT,
 		Position=UDim2.new(0,2,0,30), BorderSizePixel=0
 	}) Corner2(FrameSize)
 	Create2("Frame", Frame2, {Size=UDim2.new(0,0,0,5), Position=UDim2.new(0,0,1,5), BackgroundTransparency=1})
