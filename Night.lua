@@ -710,7 +710,7 @@ function Library:MakeWindow(WindowConfig)
 
 	-- Zahnrad (Schönes, sauberes Vektor-Zahnrad)
 	local SettingsBtn = SetChildren(TopIcon(-133), {
-		AddThemeObject(SetProps(MakeElement("Image", "https://s1.directupload.eu/images/260904/5esdbgzc.png"), {
+		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://105216135416947"), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
 			Size = UDim2.new(0, 18, 0, 18),
