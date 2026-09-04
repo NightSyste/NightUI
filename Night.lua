@@ -708,7 +708,7 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Zahnrad (Schönes, sauberes Vektor-Zahnrad)
+	-- Zahnrad
 	local SettingsBtn = TopIcon(-133)
 	do
 		local GearCenter = SetProps(MakeElement("TFrame"), {
@@ -746,6 +746,7 @@ function Library:MakeWindow(WindowConfig)
 		}), {}), "Control")
 		GearCenter.Parent = SettingsBtn
 	end
+
 	-- Chevron
 	local MinimizeBtn = SetChildren(TopIcon(-101), {
 		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
