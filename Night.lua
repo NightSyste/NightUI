@@ -795,7 +795,7 @@ function Library:MakeWindow(WindowConfig)
 				Font = Enum.Font.GothamSemibold,
 				ClipsDescendants = true
 			}), "Text"),
-			SetProps(MakeElement("Label", ".gg/DjvzXcqd5m", 12), {
+			SetProps(MakeElement("Label", ".gg/8nKxKcerCv", 12), {
 				Size = UDim2.new(1,-60,0,12),
 				Position = UDim2.new(0,50,1,-25),
 				Visible = not WindowConfig.HidePremium,
