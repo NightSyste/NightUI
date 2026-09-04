@@ -708,44 +708,15 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Zahnrad
-	local SettingsBtn = TopIcon(-133)
-	do
-		local GearCenter = SetProps(MakeElement("TFrame"), {
+	-- Zahnrad (Schönes, sauberes Vektor-Zahnrad)
+	local SettingsBtn = SetChildren(TopIcon(-133), {
+		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072721867"), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
 			Size = UDim2.new(0, 18, 0, 18),
 			Name = "Ico"
-		})
-		AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 1, 0), {
-			Size = UDim2.new(1, 0, 1, 0),
-			BackgroundTransparency = 1,
-			Parent = GearCenter
-		}), {
-			AddThemeObject(SetProps(MakeElement("Stroke"), {Thickness = 2.2}), "TextDark")
 		}), "TextDark")
-		for i = 0, 7 do
-			local Tooth = AddThemeObject(SetProps(MakeElement("Frame"), {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Size = UDim2.new(0, 4, 0, 6),
-				Position = UDim2.new(0.5, 0, 0.5, 0),
-				Parent = GearCenter
-			}), "TextDark")
-			Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Tooth})
-			local Angle = (360 / 8) * i
-			local Rad = math.rad(Angle)
-			local Radius = 9
-			Tooth.Position = UDim2.new(0.5, math.sin(Rad) * Radius, 0.5, -math.cos(Rad) * Radius)
-			Tooth.Rotation = Angle
-		end
-		AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 1, 0), {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.5, 0),
-			Size = UDim2.new(0, 6, 0, 6),
-			Parent = GearCenter
-		}), {}), "Control")
-		GearCenter.Parent = SettingsBtn
-	end
+	})
 
 	-- Chevron
 	local MinimizeBtn = SetChildren(TopIcon(-101), {
