@@ -41,7 +41,7 @@ local Library = {
 -- ║   CUSTOM LOGO & HINTERGRUND-BILD LINKS                       ║
 -- ╚══════════════════════════════════════════════════════════════╝
 Library.CustomLogoUrl       = "https://i.ibb.co/B2kt592w/Night-removebg-preview.png"
-Library.CustomBackgroundUrl = "https://s1.directupload.eu/images/260904/9r57xffj.png"
+Library.CustomBackgroundUrl = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
 Library.BackgroundTransparency = 0.35 -- Wie stark das Hintergrundbild durchscheint (0 = voll sichtbar, 1 = unsichtbar)
 
 -- ╔══════════════════════════════════════════════════════════════╗
@@ -740,17 +740,17 @@ function Library:MakeWindow(WindowConfig)
 	-- ║   WINDOW LOGO OBEN LINKS NEBEN TITEL     ║
 	-- ╚══════════════════════════════════════════╝
 	local WindowIcon = SetProps(MakeElement("Image", ResolvedLogo), {
-		Size = UDim2.new(0, 24, 0, 24),
-		Position = UDim2.new(0, 16, 0, 13),
+		Size = UDim2.new(0, 32, 0, 32),
+		Position = UDim2.new(0, 14, 0, 9),
 		ImageColor3 = Color3.fromRGB(255, 255, 255), -- Natürliche Farben des Logos beibehalten
 		Visible = WindowConfig.ShowIcon and true or false,
 		Name = "WindowIcon"
 	})
-	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = WindowIcon})
+	Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = WindowIcon})
 
 	local WindowName = AddThemeObject(SetProps(MakeElement("Label", WindowConfig.Name, 18), {
-		Size = UDim2.new(1,-172,0,50),
-		Position = UDim2.new(0, WindowConfig.ShowIcon and 50 or 18, 0, 0),
+		Size = UDim2.new(1,-180,0,50),
+		Position = UDim2.new(0, WindowConfig.ShowIcon and 54 or 18, 0, 0),
 		Font = Enum.Font.GothamBold,
 		TextYAlignment = Enum.TextYAlignment.Center
 	}), "Text")
@@ -1079,7 +1079,7 @@ function Library:MakeWindow(WindowConfig)
 			Parent = Container,
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.53, 0),
-			Size = UDim2.new(0, 240, 0, 72),
+			Size = UDim2.new(0, 260, 0, 74),
 			BackgroundColor3 = Color3.fromRGB(16, 12, 22),
 			BackgroundTransparency = 0.20,
 			BorderSizePixel = 0,
@@ -1094,24 +1094,24 @@ function Library:MakeWindow(WindowConfig)
 			Transparency = 0.4
 		})
 
-		-- Logo im Loader (verwendet das geladene Wunsch-Logo)
+		-- Logo im Loader (verwendet das geladene Wunsch-Logo - vergrößert)
 		local LogoIcon = Create("ImageLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 14, 0.5, -8),
-			Size = UDim2.new(0, 26, 0, 26),
+			Position = UDim2.new(0, 12, 0.5, -6),
+			Size = UDim2.new(0, 38, 0, 38),
 			Image = ResolvedLogo,
 			BackgroundTransparency = 1,
 			ImageTransparency = 1,
 			ZIndex = 11
 		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LogoIcon})
+		Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = LogoIcon})
 
 		local TitleLabel = Create("TextLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 48, 0, 10),
-			Size = UDim2.new(1, -58, 0, 18),
+			Position = UDim2.new(0, 58, 0, 11),
+			Size = UDim2.new(1, -68, 0, 18),
 			Text = WindowConfig.Name,
 			TextColor3 = Color3.fromRGB(245, 240, 255),
 			TextTransparency = 1,
@@ -1125,8 +1125,8 @@ function Library:MakeWindow(WindowConfig)
 		local StatusLabel = Create("TextLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 48, 0, 31),
-			Size = UDim2.new(1, -58, 0, 14),
+			Position = UDim2.new(0, 58, 0, 32),
+			Size = UDim2.new(1, -68, 0, 14),
 			Text = "Initializing...",
 			TextColor3 = ACCENT_TEXT,
 			TextTransparency = 1,
@@ -1288,136 +1288,7 @@ function Library:MakeWindow(WindowConfig)
 			Font = Enum.Font.GothamSemibold, Parent = AccountRow
 		}), "TextDark")
 
-		Header("Aussehen & Logo")
-
-		-- ╔══════════════════════════════════════════╗
-		-- ║   CUSTOM LOGO LIVE ÄNDERN                ║
-		-- ╚══════════════════════════════════════════╝
-		local LogoRow = Row("Logo-URL (Bild-Link)", 66)
-		local LogoInputBox = AddThemeObject(Create("TextBox", {
-			Parent = LogoRow,
-			Size = UDim2.new(1, -110, 0, 24),
-			Position = UDim2.new(0, 12, 0, 32),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
-			BackgroundTransparency = 0.2,
-			Text = activeLogoUrl,
-			PlaceholderText = "https://... (PNG/JPG Link)",
-			PlaceholderColor3 = Color3.fromRGB(120, 110, 140),
-			Font = Enum.Font.GothamSemibold,
-			TextSize = 12,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			ClearTextOnFocus = false
-		}), "Text")
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LogoInputBox})
-		Create("UIPadding", {PaddingLeft = UDim.new(0, 8), Parent = LogoInputBox})
-
-		local LogoApplyBtn = Create("TextButton", {
-			Parent = LogoRow,
-			Size = UDim2.new(0, 85, 0, 24),
-			Position = UDim2.new(1, -95, 0, 32),
-			BackgroundColor3 = ACCENT,
-			Text = "Anwenden",
-			TextColor3 = Color3.fromRGB(255, 255, 255),
-			Font = Enum.Font.GothamBold,
-			TextSize = 12,
-			AutoButtonColor = false
-		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LogoApplyBtn})
-
-		local function UpdateLogoLive(newUrl)
-			if newUrl and newUrl ~= "" then
-				activeLogoUrl = newUrl
-				Library.CustomLogoUrl = newUrl
-				local newAsset = LoadCustomAsset(newUrl, Library.FixedIconId)
-				WindowIcon.Image = newAsset
-				MiniIconBadge.Image = newAsset
-				Library:MakeNotification({
-					Name = "Logo aktualisiert",
-					Content = "Neues Logo erfolgreich geladen!",
-					Time = 3
-				})
-			end
-		end
-
-		LogoApplyBtn.MouseButton1Click:Connect(function()
-			PlayClickSound()
-			UpdateLogoLive(LogoInputBox.Text)
-		end)
-
-		-- Hintergrund-Bild URL live ändern
-		local BgRow = Row("Hintergrundbild-URL", 66)
-		local BgInputBox = AddThemeObject(Create("TextBox", {
-			Parent = BgRow,
-			Size = UDim2.new(1, -110, 0, 24),
-			Position = UDim2.new(0, 12, 0, 32),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
-			BackgroundTransparency = 0.2,
-			Text = activeBgUrl or "",
-			PlaceholderText = "https://... (Hintergrund Link)",
-			PlaceholderColor3 = Color3.fromRGB(120, 110, 140),
-			Font = Enum.Font.GothamSemibold,
-			TextSize = 12,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			ClearTextOnFocus = false
-		}), "Text")
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = BgInputBox})
-		Create("UIPadding", {PaddingLeft = UDim.new(0, 8), Parent = BgInputBox})
-
-		local BgApplyBtn = Create("TextButton", {
-			Parent = BgRow,
-			Size = UDim2.new(0, 85, 0, 24),
-			Position = UDim2.new(1, -95, 0, 32),
-			BackgroundColor3 = ACCENT,
-			Text = "Anwenden",
-			TextColor3 = Color3.fromRGB(255, 255, 255),
-			Font = Enum.Font.GothamBold,
-			TextSize = 12,
-			AutoButtonColor = false
-		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = BgApplyBtn})
-
-		BgApplyBtn.MouseButton1Click:Connect(function()
-			PlayClickSound()
-			local url = BgInputBox.Text
-			if url and url ~= "" then
-				activeBgUrl = url
-				Library.CustomBackgroundUrl = url
-				local asset = LoadCustomAsset(url, nil)
-				if asset then
-					WindowBackgroundImage.Image = asset
-					WindowBackgroundImage.Visible = true
-					Library:MakeNotification({
-						Name = "Hintergrund aktualisiert",
-						Content = "Hintergrundbild erfolgreich geladen!",
-						Time = 3
-					})
-				end
-			end
-		end)
-
-		-- Hintergrundbild Deckkraft / Transparenz Slider
-		local BgTransRow = Row("Hintergrund-Sichtbarkeit", 60)
-		local BgSlider = Create("Frame", {
-			Parent = BgTransRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
-		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = BgSlider})
-		local BgFill = Create("Frame", {
-			Parent = BgSlider, Size = UDim2.new(1 - (Library.BackgroundTransparency or 0.35), 0, 1, 0),
-			BackgroundColor3 = ACCENT
-		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = BgFill})
-		local DraggingBg = false
-		AddConnection(BgSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingBg = true end end)
-		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingBg = false end end)
-		AddConnection(UserInputService.InputChanged, function(i)
-			if DraggingBg and i.UserInputType == Enum.UserInputType.MouseMovement then
-				local Rel = math.clamp((Mouse.X - BgSlider.AbsolutePosition.X) / BgSlider.AbsoluteSize.X, 0, 1)
-				BgFill.Size = UDim2.new(Rel, 0, 1, 0)
-				Library.BackgroundTransparency = 1 - Rel
-				WindowBackgroundImage.ImageTransparency = Library.BackgroundTransparency
-			end
-		end)
+		Header("Design & Farben")
 
 		-- Akzentfarbe Live Picker
 		local ColorRow = Row("Akzentfarbe", 66)
@@ -1450,7 +1321,6 @@ function Library:MakeWindow(WindowConfig)
 			Library.Accent, Library.AccentText, Library.AccentSoft = ACCENT, ACCENT_TEXT, ACCENT_SOFT
 			MiniStroke.Color = ACCENT
 			PulseRing.Color = ACCENT
-			LogoApplyBtn.BackgroundColor3 = ACCENT
 			for _, Tab in next, TabHolder:GetChildren() do
 				if Tab:IsA("TextButton") and Tab:FindFirstChild("Ico") and Tab:FindFirstChild("Title") then
 					if Tab.Title.Font == Enum.Font.GothamBold then
