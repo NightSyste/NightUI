@@ -41,7 +41,8 @@ local Library = {
 -- ║   CUSTOM LOGO & HINTERGRUND-BILD LINKS                       ║
 -- ╚══════════════════════════════════════════════════════════════╝
 Library.CustomLogoUrl       = "https://i.ibb.co/B2kt592w/Night-removebg-preview.png"
-Library.CustomBackgroundUrl = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
+Library.CustomBackgroundUrl  = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
+Library.CustomBackgroundUrl2 = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg"
 Library.BackgroundTransparency = 0.35 -- Wie stark das Hintergrundbild durchscheint (0 = voll sichtbar, 1 = unsichtbar)
 
 -- ╔══════════════════════════════════════════════════════════════╗
@@ -1289,6 +1290,137 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 
 		Header("Design & Farben")
+
+		-- ╔══════════════════════════════════════════╗
+		-- ║   HINTERGRUNDBILD AUSWAHL (DROPDOWN)     ║
+		-- ╚══════════════════════════════════════════╝
+		local BgOptions = {
+			{ Name = "Hintergrund 1 (Standard)", Url = Library.CustomBackgroundUrl },
+			{ Name = "Hintergrund 2 (Neu)",      Url = Library.CustomBackgroundUrl2 or "https://s1.directupload.eu/images/260904/soqw6y3k.jpg" },
+			{ Name = "Kein Hintergrund (Aus)",   Url = nil }
+		}
+		local CurrentBgOption = "Hintergrund 1 (Standard)"
+
+		local BgDropdownList = MakeElement("List")
+		local BgDropdownContainer = AddThemeObject(SetProps(SetChildren(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {BgDropdownList}), {
+			Position = UDim2.new(0, 0, 0, 38),
+			Size = UDim2.new(1, 0, 1, -38),
+			ClipsDescendants = true
+		}), "Divider")
+
+		local BgClick = SetProps(MakeElement("Button"), {Size = UDim2.new(1, 0, 1, 0)})
+		local BgIco = AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
+			Size = UDim2.new(0, 20, 0, 20),
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(1, -30, 0.5, 0),
+			ImageColor3 = Color3.fromRGB(240, 240, 240),
+			Name = "Ico"
+		}), "TextDark")
+		local BgSelected = AddThemeObject(SetProps(MakeElement("Label", CurrentBgOption, 13), {
+			Size = UDim2.new(1, -40, 1, 0),
+			Font = Enum.Font.GothamSemibold,
+			Name = "Selected",
+			TextXAlignment = Enum.TextXAlignment.Right
+		}), "TextDark")
+		local BgLine = AddThemeObject(SetProps(MakeElement("Frame"), {
+			Size = UDim2.new(1, 0, 0, 1),
+			Position = UDim2.new(0, 0, 1, -1),
+			Name = "Line",
+			Visible = false
+		}), "Stroke")
+
+		local BgDropdownFrame = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 8), {
+			Size = UDim2.new(1, 0, 0, 38),
+			Parent = UISettingsPanel,
+			ClipsDescendants = true,
+			Name = "BgDropdownFrame"
+		}), {
+			BgDropdownContainer,
+			SetProps(SetChildren(MakeElement("TFrame"), {
+				AddThemeObject(SetProps(MakeElement("Label", "Hintergrundbild", 15), {
+					Size = UDim2.new(1, -12, 1, 0),
+					Position = UDim2.new(0, 12, 0, 0),
+					Font = Enum.Font.GothamSemibold,
+					Name = "Content"
+				}), "Text"),
+				BgIco,
+				BgSelected,
+				BgLine,
+				BgClick
+			}), {Size = UDim2.new(1, 0, 0, 38), ClipsDescendants = true, Name = "F"}),
+			AddThemeObject(MakeElement("Stroke"), "Stroke"),
+			MakeElement("Corner")
+		}), "Second")
+
+		local BgToggled = false
+		local BgButtons = {}
+
+		local function SetBackgroundByOption(opt)
+			CurrentBgOption = opt.Name
+			BgSelected.Text = opt.Name
+			for name, btn in pairs(BgButtons) do
+				local isSel = (name == opt.Name)
+				TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = isSel and 0 or 0.2}):Play()
+				if btn:FindFirstChild("Title") then
+					TweenService:Create(btn.Title, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = isSel and 0 or 0.4}):Play()
+				end
+			end
+			if opt.Url and opt.Url ~= "" then
+				task.spawn(function()
+					local asset = LoadCustomAsset(opt.Url, nil)
+					if asset then
+						WindowBackgroundImage.Image = asset
+						WindowBackgroundImage.Visible = true
+					end
+				end)
+			else
+				WindowBackgroundImage.Visible = false
+			end
+			Library:MakeNotification({
+				Name = "Hintergrund gewechselt",
+				Content = opt.Name,
+				Time = 2.5
+			})
+		end
+
+		for _, opt in ipairs(BgOptions) do
+			local optBtn = AddThemeObject(SetChildren(SetProps(MakeElement("Button"), {
+				Parent = BgDropdownContainer,
+				Size = UDim2.new(1, 0, 0, 28),
+				BackgroundTransparency = (opt.Name == CurrentBgOption) and 0 or 0.2,
+				ClipsDescendants = true
+			}), {
+				MakeElement("Corner", 0, 6),
+				AddThemeObject(SetProps(MakeElement("Label", opt.Name, 13, (opt.Name == CurrentBgOption) and 0 or 0.4), {
+					Position = UDim2.new(0, 8, 0, 0),
+					Size = UDim2.new(1, -8, 1, 0),
+					Name = "Title"
+				}), "Text")
+			}), "Second")
+
+			AddConnection(optBtn.MouseButton1Click, function()
+				PlayClickSound()
+				SetBackgroundByOption(opt)
+				BgToggled = false
+				BgLine.Visible = false
+				TweenService:Create(BgIco, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
+				TweenService:Create(BgDropdownFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, 38)}):Play()
+			end)
+			BgButtons[opt.Name] = optBtn
+		end
+
+		AddConnection(BgDropdownList:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+			BgDropdownContainer.CanvasSize = UDim2.new(0, 0, 0, BgDropdownList.AbsoluteContentSize.Y)
+		end)
+
+		AddConnection(BgClick.MouseButton1Click, function()
+			PlayClickSound()
+			BgToggled = not BgToggled
+			BgLine.Visible = BgToggled
+			TweenService:Create(BgIco, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = BgToggled and 180 or 0}):Play()
+			local targetH = BgToggled and (38 + (#BgOptions * 28)) or 38
+			TweenService:Create(BgDropdownFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
+		end)
 
 		-- Akzentfarbe Live Picker
 		local ColorRow = Row("Akzentfarbe", 66)
