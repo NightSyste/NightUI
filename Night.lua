@@ -38,11 +38,11 @@ local Library = {
 }
 
 -- ╔══════════════════════════════════════════════════════════════╗
--- ║   CUSTOM LOGO URL (Hier direkt deinen Bild-Link eintragen)   ║
+-- ║   CUSTOM LOGO & HINTERGRUND-BILD LINKS                       ║
 -- ╚══════════════════════════════════════════════════════════════╝
--- Unterstützt: Web-Links (https://i.imgur.com/xyz.png, Discord, GitHub, etc.)
--- sowie standard Roblox Asset-IDs (rbxassetid://...)
-Library.CustomLogoUrl = "" 
+Library.CustomLogoUrl       = "https://i.ibb.co/B2kt592w/Night-removebg-preview.png"
+Library.CustomBackgroundUrl = "https://s1.directupload.eu/images/260904/9r57xffj.png"
+Library.BackgroundTransparency = 0.35 -- Wie stark das Hintergrundbild durchscheint (0 = voll sichtbar, 1 = unsichtbar)
 
 -- ╔══════════════════════════════════════════════════════════════╗
 -- ║   TRANSPARENZ (Dunkel-Lila Glas-Optik)                       ║
@@ -535,6 +535,9 @@ function Library:MakeWindow(WindowConfig)
 	local activeLogoUrl = WindowConfig.CustomLogo or (Library.CustomLogoUrl ~= "" and Library.CustomLogoUrl) or WindowConfig.Icon or Library.FixedIconId
 	local ResolvedLogo = LoadCustomAsset(activeLogoUrl, Library.FixedIconId)
 
+	local activeBgUrl = WindowConfig.CustomBackground or (Library.CustomBackgroundUrl ~= "" and Library.CustomBackgroundUrl)
+	local ResolvedBackground = activeBgUrl and LoadCustomAsset(activeBgUrl, nil) or nil
+
 	WindowConfig.Icon            = ResolvedLogo
 	WindowConfig.IntroIcon       = ResolvedLogo
 	WindowConfig.IntroToggleIcon = ResolvedLogo
@@ -783,6 +786,22 @@ function Library:MakeWindow(WindowConfig)
 		Position = UDim2.new(0,0,1,-1)
 	}), "Stroke")
 
+	-- ╔══════════════════════════════════════════╗
+	-- ║   CUSTOM HINTERGRUNDBILD FÜR DIE UI      ║
+	-- ╚══════════════════════════════════════════╝
+	local WindowBackgroundImage = Create("ImageLabel", {
+		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 1,
+		Image = ResolvedBackground or "",
+		ScaleType = Enum.ScaleType.Crop,
+		ImageTransparency = Library.BackgroundTransparency or 0.35,
+		Visible = (ResolvedBackground ~= nil and ResolvedBackground ~= ""),
+		ZIndex = 1,
+		Name = "WindowBackgroundImage"
+	})
+	Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = WindowBackgroundImage})
+
 	local MainWindow = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 10), {
 		Parent = Container,
 		Position = UDim2.new(0.5,-320,0.5,-169),
@@ -790,6 +809,7 @@ function Library:MakeWindow(WindowConfig)
 		ClipsDescendants = true,
 		BackgroundTransparency = Library.Transparency.Window
 	}), {
+		WindowBackgroundImage,
 		SetChildren(SetProps(MakeElement("TFrame"), {Size = UDim2.new(1,0,0,50), Name = "TopBar"}), {
 			WindowIcon,
 			WindowName,
@@ -1322,6 +1342,81 @@ function Library:MakeWindow(WindowConfig)
 		LogoApplyBtn.MouseButton1Click:Connect(function()
 			PlayClickSound()
 			UpdateLogoLive(LogoInputBox.Text)
+		end)
+
+		-- Hintergrund-Bild URL live ändern
+		local BgRow = Row("Hintergrundbild-URL", 66)
+		local BgInputBox = AddThemeObject(Create("TextBox", {
+			Parent = BgRow,
+			Size = UDim2.new(1, -110, 0, 24),
+			Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
+			BackgroundTransparency = 0.2,
+			Text = activeBgUrl or "",
+			PlaceholderText = "https://... (Hintergrund Link)",
+			PlaceholderColor3 = Color3.fromRGB(120, 110, 140),
+			Font = Enum.Font.GothamSemibold,
+			TextSize = 12,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ClearTextOnFocus = false
+		}), "Text")
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = BgInputBox})
+		Create("UIPadding", {PaddingLeft = UDim.new(0, 8), Parent = BgInputBox})
+
+		local BgApplyBtn = Create("TextButton", {
+			Parent = BgRow,
+			Size = UDim2.new(0, 85, 0, 24),
+			Position = UDim2.new(1, -95, 0, 32),
+			BackgroundColor3 = ACCENT,
+			Text = "Anwenden",
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			Font = Enum.Font.GothamBold,
+			TextSize = 12,
+			AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = BgApplyBtn})
+
+		BgApplyBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			local url = BgInputBox.Text
+			if url and url ~= "" then
+				activeBgUrl = url
+				Library.CustomBackgroundUrl = url
+				local asset = LoadCustomAsset(url, nil)
+				if asset then
+					WindowBackgroundImage.Image = asset
+					WindowBackgroundImage.Visible = true
+					Library:MakeNotification({
+						Name = "Hintergrund aktualisiert",
+						Content = "Hintergrundbild erfolgreich geladen!",
+						Time = 3
+					})
+				end
+			end
+		end)
+
+		-- Hintergrundbild Deckkraft / Transparenz Slider
+		local BgTransRow = Row("Hintergrund-Sichtbarkeit", 60)
+		local BgSlider = Create("Frame", {
+			Parent = BgTransRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = BgSlider})
+		local BgFill = Create("Frame", {
+			Parent = BgSlider, Size = UDim2.new(1 - (Library.BackgroundTransparency or 0.35), 0, 1, 0),
+			BackgroundColor3 = ACCENT
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = BgFill})
+		local DraggingBg = false
+		AddConnection(BgSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingBg = true end end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingBg = false end end)
+		AddConnection(UserInputService.InputChanged, function(i)
+			if DraggingBg and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local Rel = math.clamp((Mouse.X - BgSlider.AbsolutePosition.X) / BgSlider.AbsoluteSize.X, 0, 1)
+				BgFill.Size = UDim2.new(Rel, 0, 1, 0)
+				Library.BackgroundTransparency = 1 - Rel
+				WindowBackgroundImage.ImageTransparency = Library.BackgroundTransparency
+			end
 		end)
 
 		-- Akzentfarbe Live Picker
