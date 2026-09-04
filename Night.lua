@@ -41,8 +41,15 @@ local Library = {
 -- ║   CUSTOM LOGO & HINTERGRUND-BILD LINKS                       ║
 -- ╚══════════════════════════════════════════════════════════════╝
 Library.CustomLogoUrl       = "https://i.ibb.co/B2kt592w/Night-removebg-preview.png"
-Library.CustomBackgroundUrl  = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
-Library.CustomBackgroundUrl2 = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg"
+Library.CustomBackgroundUrl = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
+Library.BackgroundUrls = {
+	["Frau 1"] = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
+	["Frau 2"] = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg",
+	["Frau 3"] = "https://s1.directupload.eu/images/260904/qqkkxxbc.jpg",
+	["Frau 4"] = "https://s1.directupload.eu/images/260904/n75cgpa4.jpg"
+}
+Library.SelectedBackground = "Frau 1"
+Library.ActiveBackgroundUrl = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
 Library.BackgroundTransparency = 0.35 -- Wie stark das Hintergrundbild durchscheint (0 = voll sichtbar, 1 = unsichtbar)
 
 -- ╔══════════════════════════════════════════════════════════════╗
@@ -170,6 +177,90 @@ local function SaveCfg(Name)
 	pcall(function()
 		writefile(Library.Folder .. "/" .. Name .. ".txt", tostring(HttpService:JSONEncode(Data)))
 	end)
+end
+
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║   UI-EINSTELLUNGEN SPEICHERN & LADEN (PERSISTENZ)            ║
+-- ╚══════════════════════════════════════════════════════════════╝
+local UI_CONFIG_FILE = "NightSystem_UI_Settings.json"
+
+local function LoadUIConfig()
+	local success, result = pcall(function()
+		if not (readfile and isfile and HttpService) then return nil end
+		if isfile(UI_CONFIG_FILE) then
+			local raw = readfile(UI_CONFIG_FILE)
+			if raw and raw ~= "" then
+				return HttpService:JSONDecode(raw)
+			end
+		end
+		return nil
+	end)
+	if success and result and type(result) == "table" then
+		return result
+	end
+	return nil
+end
+
+local function SaveUIConfig()
+	pcall(function()
+		if not (writefile and HttpService) then return end
+		local data = {
+			SelectedBackground  = Library.SelectedBackground or "Frau 1",
+			BackgroundUrl       = Library.ActiveBackgroundUrl or "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
+			RainbowEnabled      = Library.RainbowEnabled or false,
+			BlurEnabled         = Library.BlurEnabled or false,
+			SoundsEnabled       = (Library.SoundsEnabled ~= false),
+			WindowTransparency  = Library.Transparency.Window or 0.22,
+			SidebarTransparency = Library.Transparency.Sidebar or 0.14,
+			ReopenMode          = (Library.MinimizeSettings and Library.MinimizeSettings.ReopenMode) or "DoubleClick",
+			ToggleKey           = (typeof(Library.ToggleKey) == "EnumItem" and Library.ToggleKey.Name) or (typeof(Library.ToggleKey) == "string" and Library.ToggleKey) or "LeftControl",
+			AccentColor         = {
+				R = math.floor((Library.Accent.R or 1) * 255 + 0.5),
+				G = math.floor((Library.Accent.G or 1) * 255 + 0.5),
+				B = math.floor((Library.Accent.B or 1) * 255 + 0.5)
+			}
+		}
+		writefile(UI_CONFIG_FILE, HttpService:JSONEncode(data))
+	end)
+end
+
+-- Beim Start sofort gespeicherte UI-Einstellungen laden
+local savedUI = LoadUIConfig()
+if savedUI then
+	if savedUI.SelectedBackground then
+		Library.SelectedBackground = savedUI.SelectedBackground
+		if savedUI.SelectedBackground == "Kein Hintergrund (Aus)" then
+			Library.ActiveBackgroundUrl = nil
+		elseif Library.BackgroundUrls and Library.BackgroundUrls[savedUI.SelectedBackground] then
+			Library.ActiveBackgroundUrl = Library.BackgroundUrls[savedUI.SelectedBackground]
+		elseif savedUI.BackgroundUrl then
+			Library.ActiveBackgroundUrl = savedUI.BackgroundUrl
+		end
+	end
+	if savedUI.WindowTransparency then
+		Library.Transparency.Window = savedUI.WindowTransparency
+	end
+	if savedUI.SidebarTransparency then
+		Library.Transparency.Sidebar = savedUI.SidebarTransparency
+	end
+	if savedUI.RainbowEnabled ~= nil then
+		Library.RainbowEnabled = savedUI.RainbowEnabled
+	end
+	if savedUI.BlurEnabled ~= nil then
+		Library.BlurEnabled = savedUI.BlurEnabled
+	end
+	if savedUI.SoundsEnabled ~= nil then
+		Library.SoundsEnabled = savedUI.SoundsEnabled
+	end
+	if savedUI.AccentColor and type(savedUI.AccentColor) == "table" then
+		local c = Color3.fromRGB(savedUI.AccentColor.R or 145, savedUI.AccentColor.G or 115, savedUI.AccentColor.B or 245)
+		Library.Accent = c
+		Library.AccentText = c:Lerp(Color3.fromRGB(255,255,255), 0.20)
+		Library.AccentSoft = c:Lerp(Color3.fromRGB(255,255,255), 0.08)
+		ACCENT = Library.Accent
+		ACCENT_TEXT = Library.AccentText
+		ACCENT_SOFT = Library.AccentSoft
+	end
 end
 
 function Library:Init()
@@ -536,8 +627,13 @@ function Library:MakeWindow(WindowConfig)
 	local activeLogoUrl = WindowConfig.CustomLogo or (Library.CustomLogoUrl ~= "" and Library.CustomLogoUrl) or WindowConfig.Icon or Library.FixedIconId
 	local ResolvedLogo = LoadCustomAsset(activeLogoUrl, Library.FixedIconId)
 
-	local activeBgUrl = WindowConfig.CustomBackground or (Library.CustomBackgroundUrl ~= "" and Library.CustomBackgroundUrl)
+	local activeBgUrl = (Library.SelectedBackground == "Kein Hintergrund (Aus)" and nil) or Library.ActiveBackgroundUrl or WindowConfig.CustomBackground or (Library.CustomBackgroundUrl ~= "" and Library.CustomBackgroundUrl)
 	local ResolvedBackground = activeBgUrl and LoadCustomAsset(activeBgUrl, nil) or nil
+
+	if savedUI and savedUI.ToggleKey and Enum.KeyCode[savedUI.ToggleKey] then
+		WindowConfig.ToggleKey = Enum.KeyCode[savedUI.ToggleKey]
+	end
+	Library.ToggleKey = WindowConfig.ToggleKey or Enum.KeyCode.LeftControl
 
 	WindowConfig.Icon            = ResolvedLogo
 	WindowConfig.IntroIcon       = ResolvedLogo
@@ -612,44 +708,15 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Zahnrad
-	local SettingsBtn = TopIcon(-133)
-	do
-		local GearCenter = SetProps(MakeElement("TFrame"), {
+	-- Zahnrad (Schönes, sauberes Vektor-Zahnrad)
+	local SettingsBtn = SetChildren(TopIcon(-133), {
+		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072721867"), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
 			Size = UDim2.new(0, 18, 0, 18),
 			Name = "Ico"
-		})
-		AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 1, 0), {
-			Size = UDim2.new(1, 0, 1, 0),
-			BackgroundTransparency = 1,
-			Parent = GearCenter
-		}), {
-			AddThemeObject(SetProps(MakeElement("Stroke"), {Thickness = 2.2}), "TextDark")
 		}), "TextDark")
-		for i = 0, 7 do
-			local Tooth = AddThemeObject(SetProps(MakeElement("Frame"), {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Size = UDim2.new(0, 4, 0, 6),
-				Position = UDim2.new(0.5, 0, 0.5, 0),
-				Parent = GearCenter
-			}), "TextDark")
-			Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Tooth})
-			local Angle = (360 / 8) * i
-			local Rad = math.rad(Angle)
-			local Radius = 9
-			Tooth.Position = UDim2.new(0.5, math.sin(Rad) * Radius, 0.5, -math.cos(Rad) * Radius)
-			Tooth.Rotation = Angle
-		end
-		AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 1, 0), {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.5, 0),
-			Size = UDim2.new(0, 6, 0, 6),
-			Parent = GearCenter
-		}), {}), "Control")
-		GearCenter.Parent = SettingsBtn
-	end
+	})
 
 	-- Chevron
 	local MinimizeBtn = SetChildren(TopIcon(-101), {
@@ -1295,11 +1362,13 @@ function Library:MakeWindow(WindowConfig)
 		-- ║   HINTERGRUNDBILD AUSWAHL (DROPDOWN)     ║
 		-- ╚══════════════════════════════════════════╝
 		local BgOptions = {
-			{ Name = "Hintergrund 1 (Standard)", Url = Library.CustomBackgroundUrl },
-			{ Name = "Hintergrund 2 (Neu)",      Url = Library.CustomBackgroundUrl2 or "https://s1.directupload.eu/images/260904/soqw6y3k.jpg" },
-			{ Name = "Kein Hintergrund (Aus)",   Url = nil }
+			{ Name = "Frau 1",                 Url = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg" },
+			{ Name = "Frau 2",                 Url = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg" },
+			{ Name = "Frau 3",                 Url = "https://s1.directupload.eu/images/260904/qqkkxxbc.jpg" },
+			{ Name = "Frau 4",                 Url = "https://s1.directupload.eu/images/260904/n75cgpa4.jpg" },
+			{ Name = "Kein Hintergrund (Aus)", Url = nil }
 		}
-		local CurrentBgOption = "Hintergrund 1 (Standard)"
+		local CurrentBgOption = Library.SelectedBackground or "Frau 1"
 
 		local BgDropdownList = MakeElement("List")
 		local BgDropdownContainer = AddThemeObject(SetProps(SetChildren(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {BgDropdownList}), {
@@ -1357,6 +1426,8 @@ function Library:MakeWindow(WindowConfig)
 
 		local function SetBackgroundByOption(opt)
 			CurrentBgOption = opt.Name
+			Library.SelectedBackground = opt.Name
+			Library.ActiveBackgroundUrl = opt.Url
 			BgSelected.Text = opt.Name
 			for name, btn in pairs(BgButtons) do
 				local isSel = (name == opt.Name)
@@ -1376,6 +1447,7 @@ function Library:MakeWindow(WindowConfig)
 			else
 				WindowBackgroundImage.Visible = false
 			end
+			SaveUIConfig()
 			Library:MakeNotification({
 				Name = "Hintergrund gewechselt",
 				Content = opt.Name,
@@ -1465,7 +1537,14 @@ function Library:MakeWindow(WindowConfig)
 
 		local DraggingColor = false
 		AddConnection(ColorBar.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = true end end)
-		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = false end end)
+		AddConnection(UserInputService.InputEnded, function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				if DraggingColor then
+					DraggingColor = false
+					SaveUIConfig()
+				end
+			end
+		end)
 		AddConnection(UserInputService.InputChanged, function(i)
 			if DraggingColor and i.UserInputType == Enum.UserInputType.MouseMovement then
 				local Rel = math.clamp((Mouse.X - ColorBar.AbsolutePosition.X) / ColorBar.AbsoluteSize.X, 0, 1)
@@ -1501,6 +1580,7 @@ function Library:MakeWindow(WindowConfig)
 			Library.RainbowEnabled = not Library.RainbowEnabled
 			RainbowBtn.Text = Library.RainbowEnabled and "AN" or "Aus"
 			RainbowBtn.BackgroundColor3 = Library.RainbowEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+			SaveUIConfig()
 		end)
 
 		Header("Transparenz & Effekte")
@@ -1519,7 +1599,14 @@ function Library:MakeWindow(WindowConfig)
 		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = TFill})
 		local DraggingT = false
 		AddConnection(TSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingT = true end end)
-		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingT = false end end)
+		AddConnection(UserInputService.InputEnded, function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				if DraggingT then
+					DraggingT = false
+					SaveUIConfig()
+				end
+			end
+		end)
 		AddConnection(UserInputService.InputChanged, function(i)
 			if DraggingT and i.UserInputType == Enum.UserInputType.MouseMovement then
 				local Rel = math.clamp((Mouse.X - TSlider.AbsolutePosition.X) / TSlider.AbsoluteSize.X, 0, 1)
@@ -1543,7 +1630,14 @@ function Library:MakeWindow(WindowConfig)
 		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = SFill})
 		local DraggingS = false
 		AddConnection(SSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingS = true end end)
-		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingS = false end end)
+		AddConnection(UserInputService.InputEnded, function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				if DraggingS then
+					DraggingS = false
+					SaveUIConfig()
+				end
+			end
+		end)
 		AddConnection(UserInputService.InputChanged, function(i)
 			if DraggingS and i.UserInputType == Enum.UserInputType.MouseMovement then
 				local Rel = math.clamp((Mouse.X - SSlider.AbsolutePosition.X) / SSlider.AbsoluteSize.X, 0, 1)
@@ -1567,6 +1661,7 @@ function Library:MakeWindow(WindowConfig)
 			BlurBtn.Text = Library.BlurEnabled and "AN" or "Aus"
 			BlurBtn.BackgroundColor3 = Library.BlurEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
 			SetBlurState(Library.BlurEnabled and MainWindow.Visible)
+			SaveUIConfig()
 		end)
 
 		Header("Steuerung & Tastenkürzel")
@@ -1590,10 +1685,12 @@ function Library:MakeWindow(WindowConfig)
 			conn = UserInputService.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.Keyboard and not CheckKey(BlacklistedKeys, input.KeyCode) then
 					WindowConfig.ToggleKey = input.KeyCode
+					Library.ToggleKey = input.KeyCode
 					ToggleKeyName = input.KeyCode.Name
 					KeybindBtn.Text = ToggleKeyName
 					ListeningForKey = false
 					conn:Disconnect()
+					SaveUIConfig()
 					Library:MakeNotification({
 						Name = "Taste geändert",
 						Content = "Neue Menü-Taste: " .. ToggleKeyName,
@@ -1616,6 +1713,7 @@ function Library:MakeWindow(WindowConfig)
 			SoundBtn.Text = Library.SoundsEnabled and "AN" or "Aus"
 			SoundBtn.BackgroundColor3 = Library.SoundsEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
 			PlayClickSound()
+			SaveUIConfig()
 		end)
 
 		-- Reopen-Modus fuer Mini-Icon
@@ -1635,6 +1733,7 @@ function Library:MakeWindow(WindowConfig)
 				Library.MinimizeSettings.ReopenMode = "DoubleClick"
 				ModeBtn.Text = "Doppelklick"
 			end
+			SaveUIConfig()
 		end)
 
 		Header("Verwaltung")
@@ -1656,6 +1755,7 @@ function Library:MakeWindow(WindowConfig)
 			WindowStuff.BackgroundTransparency = 0.14
 			Library.Transparency.Window = 0.22
 			Library.Transparency.Sidebar = 0.14
+			SaveUIConfig()
 		end)
 
 		-- Schließen / Unload Button
