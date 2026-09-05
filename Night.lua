@@ -38,19 +38,22 @@ local Library = {
 }
 
 -- ╔══════════════════════════════════════════════════════════════╗
--- ║   CUSTOM LOGO & HINTERGRUND-BILD LINKS                       ║
+-- ║   CUSTOM LOGO & HINTERGRUND (BILDER & VIDEO)                 ║
 -- ╚══════════════════════════════════════════════════════════════╝
 Library.CustomLogoUrl       = "https://i.ibb.co/B2kt592w/Night-removebg-preview.png"
-Library.CustomBackgroundUrl = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
+Library.CustomBackgroundUrl = "https://videotourl.com/videos/1788633377054-79acf20d-454f-48cf-b9d7-ff57fd2cafc8.mp4"
+Library.CustomVideoUrl      = "https://videotourl.com/videos/1788633377054-79acf20d-454f-48cf-b9d7-ff57fd2cafc8.mp4"
+
 Library.BackgroundUrls = {
-	["Frau 1"] = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
-	["Frau 2"] = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg",
-	["Frau 3"] = "https://s1.directupload.eu/images/260904/qqkkxxbc.jpg",
-	["Frau 4"] = "https://s1.directupload.eu/images/260904/n75cgpa4.jpg"
+	["Video 1 (Live)"] = "https://videotourl.com/videos/1788633377054-79acf20d-454f-48cf-b9d7-ff57fd2cafc8.mp4",
+	["Frau 1"]         = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
+	["Frau 2"]         = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg",
+	["Frau 3"]         = "https://s1.directupload.eu/images/260904/qqkkxxbc.jpg",
+	["Frau 4"]         = "https://s1.directupload.eu/images/260904/n75cgpa4.jpg"
 }
-Library.SelectedBackground = "Frau 1"
-Library.ActiveBackgroundUrl = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
-Library.BackgroundTransparency = 0.35 -- Wie stark das Hintergrundbild durchscheint (0 = voll sichtbar, 1 = unsichtbar)
+Library.SelectedBackground = "Video 1 (Live)"
+Library.ActiveBackgroundUrl = "https://videotourl.com/videos/1788633377054-79acf20d-454f-48cf-b9d7-ff57fd2cafc8.mp4"
+Library.BackgroundTransparency = 0.35 -- Wie stark der Hintergrund durchscheint (0 = voll sichtbar, 1 = unsichtbar)
 
 -- ╔══════════════════════════════════════════════════════════════╗
 -- ║   TRANSPARENZ (Dunkel-Lila Glas-Optik)                       ║
@@ -76,8 +79,14 @@ local ACCENT_SOFT  = Library.AccentSoft
 Library.FixedIconId = "rbxassetid://71392308711379"
 
 -- ╔══════════════════════════════════════════════════════════════╗
--- ║   ROBUSTER WEB-IMAGE LOADER (HTTP -> Custom Asset)           ║
+-- ║   ROBUSTER WEB-IMAGE & VIDEO LOADER (HTTP -> Custom Asset)   ║
 -- ╚══════════════════════════════════════════════════════════════╝
+local function IsVideoUrl(url)
+	if not url or typeof(url) ~= "string" then return false end
+	local l = url:lower()
+	return string.find(l, "%.mp4") ~= nil or string.find(l, "%.webm") ~= nil or string.find(l, "videotourl") ~= nil or string.find(l, "/video") ~= nil
+end
+
 local function LoadCustomAsset(urlOrAsset, fallback)
 	if not urlOrAsset or urlOrAsset == "" then
 		return fallback or Library.FixedIconId
@@ -91,7 +100,7 @@ local function LoadCustomAsset(urlOrAsset, fallback)
 	if string.find(str, "roblox.com") then
 		return str
 	end
-	-- Wenn es ein Web-Link (HTTP/HTTPS) ist (Imgur, Discord, GitHub etc.)
+	-- Wenn es ein Web-Link (HTTP/HTTPS) ist (Imgur, Discord, GitHub, VideoToUrl etc.)
 	if string.sub(str, 1, 4) == "http" then
 		local success, result = pcall(function()
 			if not (isfile and writefile and getcustomasset) then
@@ -102,7 +111,19 @@ local function LoadCustomAsset(urlOrAsset, fallback)
 			for i = 1, #str do
 				hash = (hash * 31 + string.byte(str, i)) % 2147483647
 			end
-			local fileName = "NightLogo_" .. tostring(hash) .. ".png"
+
+			-- Dateiendung bestimmen (wichtig: Roblox VideoFrame braucht zwingend .mp4)
+			local ext = ".png"
+			local lower = str:lower()
+			if string.find(lower, "%.mp4") or string.find(lower, "videotourl") or string.find(lower, "/video") then
+				ext = ".mp4"
+			elseif string.find(lower, "%.webm") then
+				ext = ".webm"
+			elseif string.find(lower, "%.jpg") or string.find(lower, "%.jpeg") then
+				ext = ".jpg"
+			end
+
+			local fileName = "NightAsset_" .. tostring(hash) .. ext
 			
 			if isfile(fileName) then
 				return getcustomasset(fileName)
@@ -205,8 +226,8 @@ local function SaveUIConfig()
 	pcall(function()
 		if not (writefile and HttpService) then return end
 		local data = {
-			SelectedBackground  = Library.SelectedBackground or "Frau 1",
-			BackgroundUrl       = Library.ActiveBackgroundUrl or "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
+			SelectedBackground  = Library.SelectedBackground or "Video 1 (Live)",
+			BackgroundUrl       = Library.ActiveBackgroundUrl or "https://videotourl.com/videos/1788633377054-79acf20d-454f-48cf-b9d7-ff57fd2cafc8.mp4",
 			RainbowEnabled      = Library.RainbowEnabled or false,
 			BlurEnabled         = Library.BlurEnabled or false,
 			SoundsEnabled       = (Library.SoundsEnabled ~= false),
@@ -393,6 +414,7 @@ local function ReturnProperty(Object)
 	if Object:IsA("UIStroke") then return "Color" end
 	if Object:IsA("TextLabel") or Object:IsA("TextBox") then return "TextColor3" end
 	if Object:IsA("ImageLabel") or Object:IsA("ImageButton") then return "ImageColor3" end
+	if Object:IsA("VideoFrame") then return "BackgroundColor3" end
 end
 
 local function AddThemeObject(Object, Type)
@@ -619,16 +641,15 @@ function Library:MakeWindow(WindowConfig)
 	WindowConfig.CloseCallback   = WindowConfig.CloseCallback   or function() end
 	if WindowConfig.ShowIcon == nil then WindowConfig.ShowIcon = true end
 	
-	-- Priorität für das Logo:
-	-- 1. WindowConfig.CustomLogo (direkt im MakeWindow übergeben)
-	-- 2. Library.CustomLogoUrl (oben im Skript definiert)
-	-- 3. WindowConfig.Icon
-	-- 4. Fallback Library.FixedIconId
 	local activeLogoUrl = WindowConfig.CustomLogo or (Library.CustomLogoUrl ~= "" and Library.CustomLogoUrl) or WindowConfig.Icon or Library.FixedIconId
 	local ResolvedLogo = LoadCustomAsset(activeLogoUrl, Library.FixedIconId)
 
-	local activeBgUrl = (Library.SelectedBackground == "Kein Hintergrund (Aus)" and nil) or Library.ActiveBackgroundUrl or WindowConfig.CustomBackground or (Library.CustomBackgroundUrl ~= "" and Library.CustomBackgroundUrl)
-	local ResolvedBackground = activeBgUrl and LoadCustomAsset(activeBgUrl, nil) or nil
+	local activeBgUrl = (Library.SelectedBackground == "Kein Hintergrund (Aus)" and nil) 
+		or WindowConfig.CustomVideo 
+		or WindowConfig.CustomBackground 
+		or Library.ActiveBackgroundUrl 
+		or (Library.CustomBackgroundUrl ~= "" and Library.CustomBackgroundUrl)
+		or (Library.CustomVideoUrl ~= "" and Library.CustomVideoUrl)
 
 	if savedUI and savedUI.ToggleKey and Enum.KeyCode[savedUI.ToggleKey] then
 		WindowConfig.ToggleKey = Enum.KeyCode[savedUI.ToggleKey]
@@ -708,7 +729,7 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Zahnrad (Schönes, sauberes Vektor-Zahnrad)
+	-- Zahnrad
 	local SettingsBtn = SetChildren(TopIcon(-133), {
 		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://89652930608206"), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -810,7 +831,7 @@ function Library:MakeWindow(WindowConfig)
 	local WindowIcon = SetProps(MakeElement("Image", ResolvedLogo), {
 		Size = UDim2.new(0, 32, 0, 32),
 		Position = UDim2.new(0, 14, 0, 9),
-		ImageColor3 = Color3.fromRGB(255, 255, 255), -- Natürliche Farben des Logos beibehalten
+		ImageColor3 = Color3.fromRGB(255, 255, 255),
 		Visible = WindowConfig.ShowIcon and true or false,
 		Name = "WindowIcon"
 	})
@@ -855,20 +876,89 @@ function Library:MakeWindow(WindowConfig)
 	}), "Stroke")
 
 	-- ╔══════════════════════════════════════════╗
-	-- ║   CUSTOM HINTERGRUNDBILD FÜR DIE UI      ║
+	-- ║   HINTERGRUND (BILD & VIDEO SUPPORT)     ║
 	-- ╚══════════════════════════════════════════╝
 	local WindowBackgroundImage = Create("ImageLabel", {
 		Size = UDim2.new(1, 0, 1, 0),
 		Position = UDim2.new(0, 0, 0, 0),
 		BackgroundTransparency = 1,
-		Image = ResolvedBackground or "",
+		Image = "",
 		ScaleType = Enum.ScaleType.Crop,
 		ImageTransparency = Library.BackgroundTransparency or 0.35,
-		Visible = (ResolvedBackground ~= nil and ResolvedBackground ~= ""),
+		Visible = false,
 		ZIndex = 1,
 		Name = "WindowBackgroundImage"
 	})
 	Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = WindowBackgroundImage})
+
+	local WindowBackgroundVideo = Create("VideoFrame", {
+		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 1,
+		Looped = true,
+		Playing = true,
+		Volume = 0,
+		Visible = false,
+		ZIndex = 1,
+		Name = "WindowBackgroundVideo"
+	})
+	Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = WindowBackgroundVideo})
+
+	local VideoDarkOverlay = Create("Frame", {
+		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundColor3 = Color3.fromRGB(18, 14, 25),
+		BackgroundTransparency = Library.BackgroundTransparency or 0.35,
+		BorderSizePixel = 0,
+		Visible = false,
+		ZIndex = 1,
+		Name = "VideoDarkOverlay"
+	})
+	Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = VideoDarkOverlay})
+
+	WindowBackgroundVideo.Ended:Connect(function()
+		if WindowBackgroundVideo.Visible and not UIHidden then
+			WindowBackgroundVideo.TimePosition = 0
+			pcall(function() WindowBackgroundVideo:Play() end)
+		end
+	end)
+
+	local function ApplyBackground(url)
+		if not url or url == "" or url == "none" then
+			WindowBackgroundImage.Visible = false
+			WindowBackgroundVideo.Visible = false
+			VideoDarkOverlay.Visible = false
+			pcall(function() WindowBackgroundVideo:Pause() end)
+			return
+		end
+
+		if IsVideoUrl(url) then
+			WindowBackgroundImage.Visible = false
+			task.spawn(function()
+				local asset = LoadCustomAsset(url, nil)
+				if asset then
+					WindowBackgroundVideo.Video = asset
+					WindowBackgroundVideo.Visible = true
+					VideoDarkOverlay.Visible = true
+					WindowBackgroundVideo.Looped = true
+					WindowBackgroundVideo.Volume = 0
+					WindowBackgroundVideo.TimePosition = 0
+					pcall(function() WindowBackgroundVideo:Play() end)
+				end
+			end)
+		else
+			WindowBackgroundVideo.Visible = false
+			VideoDarkOverlay.Visible = false
+			pcall(function() WindowBackgroundVideo:Pause() end)
+			task.spawn(function()
+				local asset = LoadCustomAsset(url, nil)
+				if asset then
+					WindowBackgroundImage.Image = asset
+					WindowBackgroundImage.Visible = true
+				end
+			end)
+		end
+	end
 
 	local MainWindow = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 10), {
 		Parent = Container,
@@ -878,6 +968,8 @@ function Library:MakeWindow(WindowConfig)
 		BackgroundTransparency = Library.Transparency.Window
 	}), {
 		WindowBackgroundImage,
+		WindowBackgroundVideo,
+		VideoDarkOverlay,
 		SetChildren(SetProps(MakeElement("TFrame"), {Size = UDim2.new(1,0,0,50), Name = "TopBar"}), {
 			WindowIcon,
 			WindowName,
@@ -892,6 +984,9 @@ function Library:MakeWindow(WindowConfig)
 		DragPoint,
 		WindowStuff
 	}), "Main")
+
+	-- Initial Hintergrund anwenden
+	ApplyBackground(activeBgUrl)
 
 	local SetResizingCallback = MakeDraggable(DragPoint, MainWindow)
 
@@ -1009,6 +1104,9 @@ function Library:MakeWindow(WindowConfig)
 			Size = UDim2.new(0, 640, 0, 338)
 		}):Play()
 		UIHidden = false
+		if WindowBackgroundVideo.Visible then
+			pcall(function() WindowBackgroundVideo:Play() end)
+		end
 		if Library.BlurEnabled then SetBlurState(true) end
 	end
 
@@ -1032,6 +1130,9 @@ function Library:MakeWindow(WindowConfig)
 		MainWindow.Visible = false
 		MiniIcon.Visible = true
 		UIHidden = true
+		if WindowBackgroundVideo.Visible then
+			pcall(function() WindowBackgroundVideo:Pause() end)
+		end
 		if Library.BlurEnabled then SetBlurState(false) end
 		if UserInputService.TouchEnabled then MobileReopenButton.Visible = false end
 	end
@@ -1098,6 +1199,11 @@ function Library:MakeWindow(WindowConfig)
 		UIHidden = not State
 		MainWindow.Visible = State
 		MiniIcon.Visible = false
+		if State and WindowBackgroundVideo.Visible then
+			pcall(function() WindowBackgroundVideo:Play() end)
+		elseif not State and WindowBackgroundVideo.Visible then
+			pcall(function() WindowBackgroundVideo:Pause() end)
+		end
 		if Library.BlurEnabled then SetBlurState(State) end
 		if UserInputService.TouchEnabled then MobileReopenButton.Visible = not State end
 	end
@@ -1115,6 +1221,9 @@ function Library:MakeWindow(WindowConfig)
 		MobileReopenButton.Visible = false
 		MiniIcon.Visible = false
 		UIHidden = false
+		if WindowBackgroundVideo.Visible then
+			pcall(function() WindowBackgroundVideo:Play() end)
+		end
 		if Library.BlurEnabled then SetBlurState(true) end
 	end)
 
@@ -1126,6 +1235,9 @@ function Library:MakeWindow(WindowConfig)
 			MainWindow.ClipsDescendants = false
 			WindowStuff.Visible = true
 			WindowTopBarLine.Visible = true
+			if WindowBackgroundVideo.Visible then
+				pcall(function() WindowBackgroundVideo:Play() end)
+			end
 		else
 			MainWindow.ClipsDescendants = true
 			WindowTopBarLine.Visible = false
@@ -1133,6 +1245,9 @@ function Library:MakeWindow(WindowConfig)
 			TweenService:Create(MainWindow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, math.max(WindowName.TextBounds.X + 210, 320), 0, 50)}):Play()
 			task.wait(0.1)
 			WindowStuff.Visible = false
+			if WindowBackgroundVideo.Visible then
+				pcall(function() WindowBackgroundVideo:Pause() end)
+			end
 		end
 		Minimized = not Minimized
 	end)
@@ -1162,7 +1277,6 @@ function Library:MakeWindow(WindowConfig)
 			Transparency = 0.4
 		})
 
-		-- Logo im Loader (verwendet das geladene Wunsch-Logo - vergrößert)
 		local LogoIcon = Create("ImageLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0.5),
@@ -1240,7 +1354,7 @@ function Library:MakeWindow(WindowConfig)
 		local steps = {
 			{ text = "Loading modules...",  progress = 0.25, delay = 0.25 },
 			{ text = "Building UI...",      progress = 0.55, delay = 0.35 },
-			{ text = "Applying violet...",  progress = 0.80, delay = 0.30 },
+			{ text = "Applying video...",   progress = 0.80, delay = 0.30 },
 			{ text = "Almost ready...",     progress = 0.95, delay = 0.25 },
 		}
 
@@ -1275,6 +1389,9 @@ function Library:MakeWindow(WindowConfig)
 
 		LoaderFrame:Destroy()
 		MainWindow.Visible = true
+		if WindowBackgroundVideo.Visible then
+			pcall(function() WindowBackgroundVideo:Play() end)
+		end
 		if Library.BlurEnabled then SetBlurState(true) end
 	end
 
@@ -1324,7 +1441,6 @@ function Library:MakeWindow(WindowConfig)
 
 		Header("Account & Spiel")
 
-		-- Account Row mit Ping & JobId
 		local AccountRow = Row("Benutzer", 100)
 		local GameName = "Emergency Hamburg"
 		pcall(function()
@@ -1356,19 +1472,20 @@ function Library:MakeWindow(WindowConfig)
 			Font = Enum.Font.GothamSemibold, Parent = AccountRow
 		}), "TextDark")
 
-		Header("Design & Farben")
+		Header("Design & Hintergrund (Video / Bild)")
 
 		-- ╔══════════════════════════════════════════╗
-		-- ║   HINTERGRUNDBILD AUSWAHL (DROPDOWN)     ║
+		-- ║   HINTERGRUND AUSWAHL (VIDEO & BILD)     ║
 		-- ╚══════════════════════════════════════════╝
 		local BgOptions = {
+			{ Name = "Video 1 (Live)",         Url = "https://videotourl.com/videos/1788633377054-79acf20d-454f-48cf-b9d7-ff57fd2cafc8.mp4" },
 			{ Name = "Frau 1",                 Url = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg" },
 			{ Name = "Frau 2",                 Url = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg" },
 			{ Name = "Frau 3",                 Url = "https://s1.directupload.eu/images/260904/qqkkxxbc.jpg" },
 			{ Name = "Frau 4",                 Url = "https://s1.directupload.eu/images/260904/n75cgpa4.jpg" },
 			{ Name = "Kein Hintergrund (Aus)", Url = nil }
 		}
-		local CurrentBgOption = Library.SelectedBackground or "Frau 1"
+		local CurrentBgOption = Library.SelectedBackground or "Video 1 (Live)"
 
 		local BgDropdownList = MakeElement("List")
 		local BgDropdownContainer = AddThemeObject(SetProps(SetChildren(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {BgDropdownList}), {
@@ -1406,7 +1523,7 @@ function Library:MakeWindow(WindowConfig)
 		}), {
 			BgDropdownContainer,
 			SetProps(SetChildren(MakeElement("TFrame"), {
-				AddThemeObject(SetProps(MakeElement("Label", "Hintergrundbild", 15), {
+				AddThemeObject(SetProps(MakeElement("Label", "Hintergrund (Video / Bild)", 15), {
 					Size = UDim2.new(1, -12, 1, 0),
 					Position = UDim2.new(0, 12, 0, 0),
 					Font = Enum.Font.GothamSemibold,
@@ -1436,17 +1553,7 @@ function Library:MakeWindow(WindowConfig)
 					TweenService:Create(btn.Title, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = isSel and 0 or 0.4}):Play()
 				end
 			end
-			if opt.Url and opt.Url ~= "" then
-				task.spawn(function()
-					local asset = LoadCustomAsset(opt.Url, nil)
-					if asset then
-						WindowBackgroundImage.Image = asset
-						WindowBackgroundImage.Visible = true
-					end
-				end)
-			else
-				WindowBackgroundImage.Visible = false
-			end
+			ApplyBackground(opt.Url)
 			SaveUIConfig()
 			Library:MakeNotification({
 				Name = "Hintergrund gewechselt",
@@ -1666,7 +1773,6 @@ function Library:MakeWindow(WindowConfig)
 
 		Header("Steuerung & Tastenkürzel")
 
-		-- Toggle-Taste interaktiv ändern
 		local ToggleKeyRow = Row("Menü-Taste ändern", 38)
 		local KeybindBtn = Create("TextButton", {
 			Parent = ToggleKeyRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
@@ -1700,7 +1806,6 @@ function Library:MakeWindow(WindowConfig)
 			end)
 		end)
 
-		-- Soundeffekte Toggle
 		local SoundRow = Row("Klick-Soundeffekte", 38)
 		local SoundBtn = Create("TextButton", {
 			Parent = SoundRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
@@ -1716,7 +1821,6 @@ function Library:MakeWindow(WindowConfig)
 			SaveUIConfig()
 		end)
 
-		-- Reopen-Modus fuer Mini-Icon
 		local ModeRow = Row("Wieder öffnen per", 38)
 		local ModeBtn = Create("TextButton", {
 			Parent = ModeRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
@@ -1738,7 +1842,6 @@ function Library:MakeWindow(WindowConfig)
 
 		Header("Verwaltung")
 
-		-- Reset Theme Button
 		local ResetRow = Row("Farbe & Theme zurücksetzen", 38)
 		local ResetBtn = Create("TextButton", {
 			Parent = ResetRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
@@ -1758,7 +1861,6 @@ function Library:MakeWindow(WindowConfig)
 			SaveUIConfig()
 		end)
 
-		-- Schließen / Unload Button
 		local UnloadRow = Row("UI komplett entladen", 38)
 		local UnloadBtn = Create("TextButton", {
 			Parent = UnloadRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
