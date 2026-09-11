@@ -37,6 +37,7 @@ local Library = {
 	BlurEnabled = false,
 	WatermarkEnabled = true,
 	AntiAfkEnabled = false,
+	AntiFlingEnabled = false,
 	FullbrightEnabled = false,
 	PotatoModeEnabled = false,
 	TargetFps = 60
@@ -245,6 +246,7 @@ local function SaveUIConfig()
 			BlurEnabled            = Library.BlurEnabled or false,
 			WatermarkEnabled       = Library.WatermarkEnabled or false,
 			AntiAfkEnabled         = Library.AntiAfkEnabled or false,
+			AntiFlingEnabled       = Library.AntiFlingEnabled or false,
 			FullbrightEnabled      = Library.FullbrightEnabled or false,
 			PotatoModeEnabled      = Library.PotatoModeEnabled or false,
 			TargetFps              = Library.TargetFps or 60,
@@ -300,6 +302,7 @@ if savedUI then
 		Library.WatermarkEnabled = true
 	end
 	if savedUI.AntiAfkEnabled ~= nil then Library.AntiAfkEnabled = savedUI.AntiAfkEnabled end
+	if savedUI.AntiFlingEnabled ~= nil then Library.AntiFlingEnabled = savedUI.AntiFlingEnabled end
 	if savedUI.FullbrightEnabled ~= nil then Library.FullbrightEnabled = savedUI.FullbrightEnabled end
 	if savedUI.PotatoModeEnabled ~= nil then Library.PotatoModeEnabled = savedUI.PotatoModeEnabled end
 	if savedUI.TargetFps ~= nil then Library.TargetFps = savedUI.TargetFps end
@@ -1029,7 +1032,7 @@ function Library:MakeWindow(...)
 						VirtualUser:CaptureController()
 						VirtualUser:ClickButton2(Vector2.new())
 					end)
-				end)
+			end)
 			end
 		else
 			if AntiAfkConnection then
@@ -1039,6 +1042,44 @@ function Library:MakeWindow(...)
 		end
 	end
 	if Library.AntiAfkEnabled then SetAntiAfk(true) end
+
+	local AntiFlingConnection = nil
+	local function SetAntiFling(state)
+		Library.AntiFlingEnabled = state
+		if state then
+			if not AntiFlingConnection then
+				AntiFlingConnection = RunService.Stepped:Connect(function()
+					pcall(function()
+						local myChar = LocalPlayer.Character
+						if not myChar then return end
+						for _, p in ipairs(Players:GetPlayers()) do
+							if p ~= LocalPlayer and p.Character then
+								for _, part in ipairs(p.Character:GetDescendants()) do
+									if part:IsA("BasePart") then
+										part.CanCollide = false
+										pcall(function()
+											if part.AssemblyLinearVelocity.Magnitude > 250 then
+												part.AssemblyLinearVelocity = Vector3.zero
+											end
+											if part.AssemblyAngularVelocity.Magnitude > 250 then
+												part.AssemblyAngularVelocity = Vector3.zero
+											end
+										end)
+									end
+								end
+							end
+						end
+					end)
+				end)
+			end
+		else
+			if AntiFlingConnection then
+				AntiFlingConnection:Disconnect()
+				AntiFlingConnection = nil
+			end
+		end
+	end
+	if Library.AntiFlingEnabled then SetAntiFling(true) end
 
 	local FullbrightConnection = nil
 	local origAmbient = Lighting.Ambient
@@ -1778,7 +1819,7 @@ function Library:MakeWindow(...)
 	local InspectorWindow = SetProps(MakeElement("RoundFrame", Color3.fromRGB(18, 14, 26), 0, 10), {
 		Parent = Container,
 		Position = UDim2.new(0.5, 332, 0.5, -169),
-		Size = UDim2.new(0, 520, 0, 338),
+		Size = UDim2.new(0, 400, 0, 338),
 		Visible = false,
 		ZIndex = 45,
 		Name = "InspectorWindow",
@@ -1809,14 +1850,14 @@ function Library:MakeWindow(...)
 		Parent = InspectorDragPoint,
 		Name = "Top"
 	}), {
-		SetProps(MakeElement("Label", "BIOMETRIC INSPECTOR // TELEMETRY", 12), {
-			Size = UDim2.new(0, 240, 0, 18),
+		SetProps(MakeElement("Label", "BIOMETRIC INSPECTOR // TELEMETRY", 11), {
+			Size = UDim2.new(0, 260, 0, 18),
 			Position = UDim2.new(0, 12, 0, 4),
 			Font = Enum.Font.GothamBold,
 			TextColor3 = Color3.fromRGB(255, 255, 255)
 		}),
-		SetProps(MakeElement("Label", "SYSTEM STATUS: ACTIVE // REALTIME CLIENT TELEMETRY", 9), {
-			Size = UDim2.new(0, 300, 0, 12),
+		SetProps(MakeElement("Label", "SYSTEM STATUS: ACTIVE // REALTIME TELEMETRY", 8), {
+			Size = UDim2.new(0, 260, 0, 12),
 			Position = UDim2.new(0, 12, 0, 20),
 			Font = Enum.Font.GothamBold,
 			TextColor3 = Color3.fromRGB(0, 240, 220)
@@ -1833,11 +1874,11 @@ function Library:MakeWindow(...)
 		Size = UDim2.new(0, 24, 0, 24),
 		Position = UDim2.new(1, -30, 0, 7),
 		Parent = InspectorTopBar,
-		BackgroundColor3 = Color3.fromRGB(44, 32, 60),
+		BackgroundColor3 = Color3.fromRGB(40, 30, 60),
 		BackgroundTransparency = 0.2
 	}), {
 		MakeElement("Corner", 0, 6),
-		Create("UIStroke", {Color = Color3.fromRGB(110, 80, 160), Thickness = 1}),
+		Create("UIStroke", {Color = Color3.fromRGB(120, 85, 215), Thickness = 1}),
 		SetProps(MakeElement("Label", "✕", 11), {
 			Size = UDim2.new(1, 0, 1, 0),
 			Font = Enum.Font.GothamBold,
@@ -1849,8 +1890,8 @@ function Library:MakeWindow(...)
 	-- Left Column: Cybernetic Biometric Scanner Pod
 	local EspBoxHolder = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(13, 10, 20), 0, 8), {
 		Parent = InspectorWindow,
-		Position = UDim2.new(0, 12, 0, 44),
-		Size = UDim2.new(0, 185, 0, 282),
+		Position = UDim2.new(0, 10, 0, 44),
+		Size = UDim2.new(0, 160, 0, 282),
 		BackgroundTransparency = 0.15,
 		ClipsDescendants = true,
 		Name = "EspBox"
@@ -1858,7 +1899,7 @@ function Library:MakeWindow(...)
 		Create("UIStroke", {Color = Color3.fromRGB(0, 240, 255), Thickness = 1.3, Transparency = 0.3})
 	})
 
-	-- Illuminated Backlight Halo so dark avatars stand out with high contrast
+	-- Illuminated Backlight Halo
 	local Backlight = Create("Frame", {
 		Parent = EspBoxHolder,
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1908,12 +1949,12 @@ function Library:MakeWindow(...)
 		Parent = EspBoxHolder,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.49, 0),
-		Size = UDim2.new(1, -20, 1, -40),
+		Size = UDim2.new(1, -16, 1, -36),
 		BackgroundTransparency = 1,
 		ZIndex = 2,
 		Name = "CharFrame"
 	})
-	Create("UIAspectRatioConstraint", {AspectRatio = 0.75, AspectType = Enum.AspectType.FitWithinMaxSize, Parent = CharFrame})
+	Create("UIAspectRatioConstraint", {AspectRatio = 0.72, AspectType = Enum.AspectType.FitWithinMaxSize, Parent = CharFrame})
 
 	-- Live Roblox Avatar Image (Native High-Res Loader)
 	local AvatarImg = Create("ImageLabel", {
@@ -2115,7 +2156,7 @@ function Library:MakeWindow(...)
 	SkeleJoint(0.59, 0.90, 5) -- Right Ankle
 
 	-- ESP Badges
-	local EspTagTop = SetProps(MakeElement("Label", "[ BIOMETRIC: LOCKED ]", 9), {
+	local EspTagTop = SetProps(MakeElement("Label", "[ BIOMETRIC: LOCKED ]", 8), {
 		Parent = EspBoxHolder,
 		Size = UDim2.new(1, 0, 0, 14),
 		Position = UDim2.new(0, 0, 0, 5),
@@ -2125,7 +2166,7 @@ function Library:MakeWindow(...)
 		ZIndex = 9
 	})
 
-	local EspTagBottom = SetProps(MakeElement("Label", "STATUS: NOMINAL", 9), {
+	local EspTagBottom = SetProps(MakeElement("Label", "STATUS: NOMINAL", 8), {
 		Parent = EspBoxHolder,
 		Size = UDim2.new(1, 0, 0, 14),
 		Position = UDim2.new(0, 0, 1, -16),
@@ -2137,8 +2178,8 @@ function Library:MakeWindow(...)
 
 	local HealthBarBG = Create("Frame", {
 		Parent = EspBoxHolder,
-		Size = UDim2.new(0, 4, 0.68, 0),
-		Position = UDim2.new(0, 6, 0.16, 0),
+		Size = UDim2.new(0, 4, 0.65, 0),
+		Position = UDim2.new(0, 5, 0.17, 0),
 		BackgroundColor3 = Color3.fromRGB(24, 16, 34),
 		BorderSizePixel = 0,
 		ZIndex = 8
@@ -2157,11 +2198,11 @@ function Library:MakeWindow(...)
 	})
 	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = HealthBarFill})
 
-	-- Right Column: Professional High-Precision Telemetry Panel (NO EMOJIS)
+	-- Right Column: Professional High-Precision Telemetry Panel (NO EMOJIS, UNIFORM THEME)
 	local StatsScroll = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {
 		Parent = InspectorWindow,
-		Position = UDim2.new(0, 208, 0, 44),
-		Size = UDim2.new(1, -220, 0, 282),
+		Position = UDim2.new(0, 178, 0, 44),
+		Size = UDim2.new(1, -188, 0, 282),
 		ClipsDescendants = true
 	}), {
 		MakeElement("List", 0, 5),
@@ -2184,24 +2225,24 @@ function Library:MakeWindow(...)
 
 		Create("TextLabel", {
 			Parent = row,
-			Size = UDim2.new(0, 115, 1, 0),
-			Position = UDim2.new(0, 8, 0, 0),
+			Size = UDim2.new(0, 78, 1, 0),
+			Position = UDim2.new(0, 6, 0, 0),
 			Font = Enum.Font.GothamBold,
 			Text = string.upper(label),
 			TextColor3 = Color3.fromRGB(170, 155, 200),
-			TextSize = 10,
+			TextSize = 9,
 			BackgroundTransparency = 1,
 			TextXAlignment = Enum.TextXAlignment.Left
 		})
 
 		local valLbl = Create("TextLabel", {
 			Parent = row,
-			Size = UDim2.new(1, copyable and -165 or -125, 1, 0),
-			Position = UDim2.new(0, 120, 0, 0),
+			Size = UDim2.new(1, copyable and -126 or -84, 1, 0),
+			Position = UDim2.new(0, 82, 0, 0),
 			Font = Enum.Font.GothamBold,
 			Text = tostring(value or "?"),
 			TextColor3 = Color3.fromRGB(255, 255, 255),
-			TextSize = 11,
+			TextSize = 10,
 			BackgroundTransparency = 1,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Name = "ValText",
@@ -2211,13 +2252,13 @@ function Library:MakeWindow(...)
 		if copyable then
 			local cBtn = Create("TextButton", {
 				Parent = row,
-				Size = UDim2.new(0, 44, 0, 18),
-				Position = UDim2.new(1, -48, 0.5, -9),
-				BackgroundColor3 = Color3.fromRGB(125, 85, 215),
+				Size = UDim2.new(0, 40, 0, 18),
+				Position = UDim2.new(1, -44, 0.5, -9),
+				BackgroundColor3 = Color3.fromRGB(120, 85, 215),
 				Text = "COPY",
 				TextColor3 = Color3.fromRGB(255, 255, 255),
 				Font = Enum.Font.GothamBold,
-				TextSize = 9,
+				TextSize = 8,
 				AutoButtonColor = false
 			})
 			Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = cBtn})
@@ -2250,7 +2291,7 @@ function Library:MakeWindow(...)
 
 	local ActionRow = Create("Frame", {
 		Parent = StatsScroll,
-		Size = UDim2.new(1, 0, 0, 28),
+		Size = UDim2.new(1, 0, 0, 26),
 		BackgroundTransparency = 1
 	})
 	Create("UIListLayout", {
@@ -2267,7 +2308,7 @@ function Library:MakeWindow(...)
 			Text = text,
 			TextColor3 = Color3.fromRGB(255, 255, 255),
 			Font = Enum.Font.GothamBold,
-			TextSize = 10,
+			TextSize = 9,
 			AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = b})
@@ -2278,7 +2319,7 @@ function Library:MakeWindow(...)
 		return b
 	end
 
-	ActionBtn("REJOIN", Color3.fromRGB(115, 75, 210), function()
+	ActionBtn("REJOIN", Color3.fromRGB(120, 85, 215), function()
 		if #Players:GetPlayers() <= 1 then
 			LocalPlayer:Kick("\n[NightSystem] Rejoining...")
 			task.wait(0.2)
@@ -2288,7 +2329,7 @@ function Library:MakeWindow(...)
 		end
 	end)
 
-	ActionBtn("SERVER HOP", Color3.fromRGB(35, 120, 210), function()
+	ActionBtn("SERVER HOP", Color3.fromRGB(100, 75, 205), function()
 		Library:MakeNotification({Name = "Server Hop", Content = "Searching for server...", Time = 3})
 		task.spawn(function()
 			pcall(function()
@@ -2304,7 +2345,7 @@ function Library:MakeWindow(...)
 		end)
 	end)
 
-	ActionBtn("DISCORD", Color3.fromRGB(75, 90, 215), function()
+	ActionBtn("DISCORD", Color3.fromRGB(80, 70, 190), function()
 		CopyToClipboard("https://discord.gg/8nKxKcerCv", "Discord link copied")
 	end)
 
@@ -2353,15 +2394,37 @@ function Library:MakeWindow(...)
 			local mainPos = MainWindow.AbsolutePosition
 			local mainSize = MainWindow.AbsoluteSize
 			local containerSize = Container.AbsoluteSize
-			local spawnX = mainPos.X + mainSize.X + 12
-			local spawnY = mainPos.Y
+			local inspWidth = 400
+			local inspHeight = 338
+			local gap = 14
 
-			-- If it overflows screen on the right, spawn to the left of MainWindow
-			if spawnX + 520 > containerSize.X - 10 then
-				spawnX = math.max(10, mainPos.X - 520 - 12)
+			local spawnX, spawnY
+			if (mainPos.X + mainSize.X + gap + inspWidth) <= (containerSize.X - 10) then
+				spawnX = mainPos.X + mainSize.X + gap
+				spawnY = math.clamp(mainPos.Y, 10, math.max(10, containerSize.Y - inspHeight - 10))
+			elseif (mainPos.X - gap - inspWidth) >= 10 then
+				spawnX = mainPos.X - gap - inspWidth
+				spawnY = math.clamp(mainPos.Y, 10, math.max(10, containerSize.Y - inspHeight - 10))
+			else
+				local totalW = mainSize.X + gap + inspWidth
+				if totalW <= (containerSize.X - 20) then
+					local pairStartX = math.floor((containerSize.X - totalW) / 2)
+					TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+						Position = UDim2.new(0, pairStartX, 0, MainWindow.AbsolutePosition.Y)
+					}):Play()
+					spawnX = pairStartX + mainSize.X + gap
+					spawnY = math.clamp(mainPos.Y, 10, math.max(10, containerSize.Y - inspHeight - 10))
+				else
+					if (containerSize.X - (mainPos.X + mainSize.X)) >= mainPos.X then
+						spawnX = mainPos.X + mainSize.X + gap
+					else
+						spawnX = math.max(10, mainPos.X - gap - inspWidth)
+					end
+					spawnY = math.clamp(mainPos.Y, 10, math.max(10, containerSize.Y - inspHeight - 10))
+				end
 			end
 
-			InspectorWindow.Position = UDim2.new(0, spawnX, 0, spawnY + 8)
+			InspectorWindow.Position = UDim2.new(0, spawnX, 0, spawnY + 10)
 			InspectorWindow.BackgroundTransparency = 0.5
 			InspectorWindow.Visible = true
 			TweenService:Create(InspectorWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
@@ -2370,7 +2433,7 @@ function Library:MakeWindow(...)
 			}):Play()
 		else
 			TweenService:Create(InspectorWindow, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-				Position = UDim2.new(0, InspectorWindow.AbsolutePosition.X, 0, InspectorWindow.AbsolutePosition.Y + 8),
+				Position = UDim2.new(0, InspectorWindow.AbsolutePosition.X, 0, InspectorWindow.AbsolutePosition.Y + 10),
 				BackgroundTransparency = 1
 			}):Play()
 			task.delay(0.2, function()
@@ -2411,7 +2474,7 @@ function Library:MakeWindow(...)
 			}), {
 				AddThemeObject(SetProps(MakeElement("Label", name, 15), {
 					Size = UDim2.new(1, -12, 0, 20), Position = UDim2.new(0, 12, 0, 8),
-					Font = Enum.Font.GothamSemibold
+					Font = Enum.Font.GothamSemibold, Name = "Title"
 				}), "Text"),
 				AddThemeObject(MakeElement("Stroke"), "Stroke")
 			}), "Second")
@@ -2453,9 +2516,9 @@ function Library:MakeWindow(...)
 			Font = Enum.Font.GothamSemibold, Parent = AccountRow
 		}), "TextDark")
 
-		Header("Performance, Grafik & FPS")
+		Header("Performance")
 
-		local AfkRow = Row("Anti-AFK (Disconnect-Schutz)", 38)
+		local AfkRow = Row("Anti-AFK", 38)
 		local AfkBtn = Create("TextButton", {
 			Parent = AfkRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
 			BackgroundColor3 = Library.AntiAfkEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
@@ -2469,10 +2532,10 @@ function Library:MakeWindow(...)
 			AfkBtn.Text = Library.AntiAfkEnabled and "AN" or "Aus"
 			AfkBtn.BackgroundColor3 = Library.AntiAfkEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
 			SaveUIConfig()
-			Library:MakeNotification({Name = "Anti-AFK", Content = Library.AntiAfkEnabled and "Aktiviert (Kein Kick)" or "Deaktiviert", Time = 2.5})
+			Library:MakeNotification({Name = "Anti-AFK", Content = Library.AntiAfkEnabled and "Aktiviert" or "Deaktiviert", Time = 2.5})
 		end)
 
-		local FbRow = Row("Nachtsicht / Fullbright", 38)
+		local FbRow = Row("Fullbright", 38)
 		local FbBtn = Create("TextButton", {
 			Parent = FbRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
 			BackgroundColor3 = Library.FullbrightEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
@@ -2486,9 +2549,27 @@ function Library:MakeWindow(...)
 			FbBtn.Text = Library.FullbrightEnabled and "AN" or "Aus"
 			FbBtn.BackgroundColor3 = Library.FullbrightEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
 			SaveUIConfig()
+			Library:MakeNotification({Name = "Fullbright", Content = Library.FullbrightEnabled and "Aktiviert" or "Deaktiviert", Time = 2.5})
 		end)
 
-		local PotatoRow = Row("Potato Mode (FPS-Boost)", 38)
+		local AntiFlingRow = Row("Anti-Fling", 38)
+		local AntiFlingBtn = Create("TextButton", {
+			Parent = AntiFlingRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Library.AntiFlingEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
+			Text = Library.AntiFlingEnabled and "AN" or "Aus",
+			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = AntiFlingBtn})
+		AntiFlingBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			SetAntiFling(not Library.AntiFlingEnabled)
+			AntiFlingBtn.Text = Library.AntiFlingEnabled and "AN" or "Aus"
+			AntiFlingBtn.BackgroundColor3 = Library.AntiFlingEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+			SaveUIConfig()
+			Library:MakeNotification({Name = "Anti-Fling", Content = Library.AntiFlingEnabled and "Aktiviert" or "Deaktiviert", Time = 2.5})
+		end)
+
+		local PotatoRow = Row("Potato Mode", 38)
 		local PotatoBtn = Create("TextButton", {
 			Parent = PotatoRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
 			BackgroundColor3 = Library.PotatoModeEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
@@ -2502,10 +2583,10 @@ function Library:MakeWindow(...)
 			PotatoBtn.Text = Library.PotatoModeEnabled and "AN" or "Aus"
 			PotatoBtn.BackgroundColor3 = Library.PotatoModeEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
 			SaveUIConfig()
-			Library:MakeNotification({Name = "Potato Mode", Content = Library.PotatoModeEnabled and "Partikel & Schatten aus" or "Normal", Time = 2.5})
+			Library:MakeNotification({Name = "Potato Mode", Content = Library.PotatoModeEnabled and "Aktiviert" or "Deaktiviert", Time = 2.5})
 		end)
 
-		local FpsRow = Row("FPS-Begrenzung (" .. tostring(Library.TargetFps) .. " FPS)", 60)
+		local FpsRow = Row("FPS Cap (" .. tostring(Library.TargetFps) .. " FPS)", 60)
 		local FpsSlider = Create("Frame", {
 			Parent = FpsRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
 			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
@@ -2525,7 +2606,7 @@ function Library:MakeWindow(...)
 				FpsFill.Size = UDim2.new(Rel, 0, 1, 0)
 				local target = math.floor(30 + (Rel * 210) + 0.5)
 				ApplyFpsCap(target)
-				if FpsRow:FindFirstChild("Title") then FpsRow.Title.Text = "FPS-Begrenzung (" .. tostring(target) .. " FPS)" end
+				if FpsRow:FindFirstChild("Title") then FpsRow.Title.Text = "FPS Cap (" .. tostring(target) .. " FPS)" end
 			end
 		end)
 
@@ -2564,7 +2645,7 @@ function Library:MakeWindow(...)
 		}), {
 			BgDropdownContainer,
 			SetProps(SetChildren(MakeElement("TFrame"), {
-				AddThemeObject(SetProps(MakeElement("Label", "Hintergrundbild", 15), {
+				AddThemeObject(SetProps(MakeElement("Label", "Hintergrund", 15), {
 					Size = UDim2.new(1, -12, 1, 0), Position = UDim2.new(0, 12, 0, 0), Font = Enum.Font.GothamSemibold, Name = "Content"
 				}), "Text"),
 				BgIco, BgSelected, BgLine, BgClick
@@ -2716,7 +2797,7 @@ function Library:MakeWindow(...)
 			end
 		end)
 
-		local RainbowRow = Row("Rainbow Chroma-Modus", 38)
+		local RainbowRow = Row("Rainbow Mode", 38)
 		local RainbowBtn = Create("TextButton", {
 			Parent = RainbowRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
 			BackgroundColor3 = Library.RainbowEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
@@ -2747,7 +2828,7 @@ function Library:MakeWindow(...)
 
 		Header("HUD & Transparenz")
 
-		local WatermarkRow = Row("Live Watermark HUD (FPS & Ping)", 38)
+		local WatermarkRow = Row("Watermark", 38)
 		local WatermarkBtn = Create("TextButton", {
 			Parent = WatermarkRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
 			BackgroundColor3 = Library.WatermarkEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
@@ -2809,7 +2890,7 @@ function Library:MakeWindow(...)
 			end
 		end)
 
-		local BlurRow = Row("Hintergrund-Unschärfe (Blur)", 38)
+		local BlurRow = Row("Blur", 38)
 		local BlurBtn = Create("TextButton", {
 			Parent = BlurRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
 			BackgroundColor3 = Library.BlurEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
@@ -2826,15 +2907,16 @@ function Library:MakeWindow(...)
 			SaveUIConfig()
 		end)
 
-		Header("Steuerung & Tastenkürzel")
+		Header("Steuerung")
 
-		local ToggleKeyRow = Row("Menü-Taste ändern", 38)
+		local ToggleKeyRow = Row("Menü-Taste", 38)
 		local KeybindBtn = Create("TextButton", {
 			Parent = ToggleKeyRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = ToggleKeyName,
-			TextColor3 = Color3.fromRGB(230,225,245), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
+			BackgroundColor3 = Color3.fromRGB(44, 32, 64), Text = ToggleKeyName,
+			TextColor3 = Color3.fromRGB(235, 230, 250), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = KeybindBtn})
+		Create("UIStroke", {Color = Color3.fromRGB(90, 65, 145), Thickness = 1, Parent = KeybindBtn})
 		
 		local ListeningForKey = false
 		KeybindBtn.MouseButton1Click:Connect(function()
@@ -2857,7 +2939,7 @@ function Library:MakeWindow(...)
 			end)
 		end)
 
-		local SoundRow = Row("Klick-Soundeffekte", 38)
+		local SoundRow = Row("Sounds", 38)
 		local SoundBtn = Create("TextButton", {
 			Parent = SoundRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
 			BackgroundColor3 = Library.SoundsEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
@@ -2873,14 +2955,15 @@ function Library:MakeWindow(...)
 			SaveUIConfig()
 		end)
 
-		local ModeRow = Row("Wieder öffnen per", 38)
+		local ModeRow = Row("Öffnen per", 38)
 		local ModeBtn = Create("TextButton", {
 			Parent = ModeRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
+			BackgroundColor3 = Color3.fromRGB(44, 32, 64),
 			Text = (Library.MinimizeSettings.ReopenMode == "Click" and "Einfachklick" or "Doppelklick"),
 			TextColor3 = Color3.fromRGB(230,225,245), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = ModeBtn})
+		Create("UIStroke", {Color = Color3.fromRGB(90, 65, 145), Thickness = 1, Parent = ModeBtn})
 		AddConnection(ModeBtn.MouseButton1Click, function()
 			PlayClickSound()
 			if Library.MinimizeSettings.ReopenMode == "DoubleClick" then
@@ -2893,12 +2976,12 @@ function Library:MakeWindow(...)
 			SaveUIConfig()
 		end)
 
-		Header("Verwaltung & Schnelltools")
+		Header("Schnelltools")
 
-		local RejoinRow = Row("Server Rejoin", 38)
+		local RejoinRow = Row("Rejoin", 38)
 		local RejoinBtn = Create("TextButton", {
 			Parent = RejoinRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
-			BackgroundColor3 = ACCENT, Text = "Rejoin",
+			BackgroundColor3 = Color3.fromRGB(120, 85, 215), Text = "Rejoin",
 			TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = RejoinBtn})
@@ -2906,42 +2989,42 @@ function Library:MakeWindow(...)
 			PlayClickSound()
 			if #Players:GetPlayers() <= 1 then
 				LocalPlayer:Kick("\n[NightSystem] Rejoining...")
-				task.wait(0.2)
-				TeleportService:Teleport(game.PlaceId, LocalPlayer)
-			else
-				TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-			end
-		end)
+			task.wait(0.2)
+			TeleportService:Teleport(game.PlaceId, LocalPlayer)
+		else
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+		end
+	end)
 
-		local HopRow = Row("Server Hop (Neuer Server)", 38)
+		local HopRow = Row("Server Hop", 38)
 		local HopBtn = Create("TextButton", {
 			Parent = HopRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
-			BackgroundColor3 = Color3.fromRGB(60, 140, 220), Text = "Hop",
+			BackgroundColor3 = Color3.fromRGB(110, 80, 215), Text = "Hop",
 			TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = HopBtn})
 		HopBtn.MouseButton1Click:Connect(function()
 			PlayClickSound()
 			Library:MakeNotification({Name = "Server Hop", Content = "Suche Server...", Time = 3})
-			task.spawn(function()
-				pcall(function()
-					local raw = game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
-					local servers = HttpService:JSONDecode(raw)
-					for _, s in ipairs(servers.data) do
-						if s.playing < s.maxPlayers and s.id ~= game.JobId then
-							TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
-							break
-						end
+		task.spawn(function()
+			pcall(function()
+				local raw = game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
+				local servers = HttpService:JSONDecode(raw)
+				for _, s in ipairs(servers.data) do
+					if s.playing < s.maxPlayers and s.id ~= game.JobId then
+						TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+						break
 					end
-				end)
+				end
 			end)
 		end)
+	end)
 
-		local ResetRow = Row("Farbe & Theme zurücksetzen", 38)
+		local ResetRow = Row("Reset", 38)
 		local ResetBtn = Create("TextButton", {
 			Parent = ResetRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Reset",
-			TextColor3 = Color3.fromRGB(230,225,245), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+			BackgroundColor3 = Color3.fromRGB(75, 55, 120), Text = "Reset",
+			TextColor3 = Color3.fromRGB(240, 235, 255), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = ResetBtn})
 		AddConnection(ResetBtn.MouseButton1Click, function()
@@ -2956,10 +3039,10 @@ function Library:MakeWindow(...)
 			SaveUIConfig()
 		end)
 
-		local UnloadRow = Row("UI komplett entladen", 38)
+		local UnloadRow = Row("Unload", 38)
 		local UnloadBtn = Create("TextButton", {
 			Parent = UnloadRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
-			BackgroundColor3 = Color3.fromRGB(180, 40, 50), Text = "Entladen",
+			BackgroundColor3 = Color3.fromRGB(130, 45, 100), Text = "Entladen",
 			TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = UnloadBtn})
@@ -2968,6 +3051,7 @@ function Library:MakeWindow(...)
 			SetBlurState(false)
 			SetWatermarkState(false)
 			SetAntiAfk(false)
+			SetAntiFling(false)
 			SetFullbright(false)
 			Library:Destroy()
 		end)
