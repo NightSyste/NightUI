@@ -1774,205 +1774,361 @@ function Library:MakeWindow(...)
 	-- ║   KRASSE CHARAKTER & SPIEL STATUS KARTE (INSPECTOR OVERLAY)  ║
 	-- ╚══════════════════════════════════════════════════════════════╝
 	local UISettingsPanel
-	local ProfileCard = AddThemeObject(SetProps(MakeElement("RoundFrame", Color3.fromRGB(20, 15, 28), 0, 10), {
+	local ProfileCard = SetProps(MakeElement("RoundFrame", Color3.fromRGB(18, 14, 26), 0, 10), {
 		Parent = MainWindow,
 		Position = UDim2.new(0, 155, 0, 54),
 		Size = UDim2.new(1, -160, 1, -58),
 		Visible = false,
 		ZIndex = 40,
 		Name = "ProfileCard",
-		BackgroundTransparency = 0.05
-	}), "Second")
+		BackgroundTransparency = 0.02
+	})
 
 	local ProfileCardStroke = Create("UIStroke", {
 		Color = ACCENT,
-		Thickness = 1.3,
-		Transparency = 0.2,
+		Thickness = 1.5,
+		Transparency = 0.15,
 		Parent = ProfileCard
 	})
 
 	local CardTopBar = SetChildren(SetProps(MakeElement("TFrame"), {
-		Size = UDim2.new(1, 0, 0, 32),
+		Size = UDim2.new(1, 0, 0, 36),
 		Parent = ProfileCard,
 		Name = "Top"
 	}), {
-		SetProps(MakeElement("Label", "⚡ STATUS & INSPECTOR", 13), {
-			Size = UDim2.new(1, -50, 1, 0),
-			Position = UDim2.new(0, 12, 0, 0),
+		SetProps(MakeElement("Label", "⚡ STATUS & BIOMETRICS", 13), {
+			Size = UDim2.new(0, 220, 0, 18),
+			Position = UDim2.new(0, 12, 0, 4),
 			Font = Enum.Font.GothamBold,
-			TextColor3 = ACCENT_TEXT
+			TextColor3 = Color3.fromRGB(255, 255, 255)
 		}),
-		AddThemeObject(SetProps(MakeElement("Frame"), {
+		SetProps(MakeElement("Label", "● REALTIME TELEMETRY & ESP INSPECTOR", 9), {
+			Size = UDim2.new(0, 260, 0, 12),
+			Position = UDim2.new(0, 12, 0, 21),
+			Font = Enum.Font.GothamBold,
+			TextColor3 = Color3.fromRGB(0, 240, 220)
+		}),
+		Create("Frame", {
 			Size = UDim2.new(1, 0, 0, 1),
-			Position = UDim2.new(0, 0, 1, -1)
-		}), "Stroke")
+			Position = UDim2.new(0, 0, 1, -1),
+			BackgroundColor3 = Color3.fromRGB(60, 45, 80),
+			BorderSizePixel = 0
+		})
 	})
 
 	local CardCloseBtn = SetChildren(SetProps(MakeElement("Button"), {
-		Size = UDim2.new(0, 24, 0, 24),
-		Position = UDim2.new(1, -28, 0, 4),
+		Size = UDim2.new(0, 26, 0, 26),
+		Position = UDim2.new(1, -32, 0, 5),
 		Parent = CardTopBar,
-		BackgroundColor3 = Color3.fromRGB(45, 35, 60),
-		BackgroundTransparency = 0.5
+		BackgroundColor3 = Color3.fromRGB(48, 34, 68),
+		BackgroundTransparency = 0.2
 	}), {
 		MakeElement("Corner", 0, 6),
+		Create("UIStroke", {Color = Color3.fromRGB(120, 90, 180), Thickness = 1}),
 		SetProps(MakeElement("Label", "✕", 12), {
 			Size = UDim2.new(1, 0, 1, 0),
 			Font = Enum.Font.GothamBold,
-			TextColor3 = Color3.fromRGB(220, 210, 240),
+			TextColor3 = Color3.fromRGB(255, 255, 255),
 			TextXAlignment = Enum.TextXAlignment.Center
 		})
 	})
 
-	-- Linker Bereich: Cybernetic ESP & Skeleton Box
-	local EspBoxHolder = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(15, 11, 22), 0, 8), {
+	-- Linker Bereich: Cybernetic ESP & Holographic Skeleton Box
+	local EspBoxHolder = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(12, 9, 18), 0, 8), {
 		Parent = ProfileCard,
-		Position = UDim2.new(0, 10, 0, 38),
-		Size = UDim2.new(0, 150, 1, -48),
-		BackgroundTransparency = 0.2,
+		Position = UDim2.new(0, 10, 0, 42),
+		Size = UDim2.new(0, 160, 1, -52),
+		BackgroundTransparency = 0.15,
+		ClipsDescendants = true,
 		Name = "EspBox"
 	}), {
-		Create("UIStroke", {Color = ACCENT, Thickness = 1.2, Transparency = 0.3})
+		Create("UIStroke", {Color = Color3.fromRGB(0, 240, 255), Thickness = 1.4, Transparency = 0.25})
 	})
 
+	-- Ambient Backlight Glow behind character
+	local Backlight = Create("Frame", {
+		Parent = EspBoxHolder,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.new(0.9, 0, 0.9, 0),
+		BackgroundColor3 = Color3.fromRGB(35, 22, 60),
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+		ZIndex = 1
+	})
+	Create("UICorner", {CornerRadius = UDim.new(0.5, 0), Parent = Backlight})
+	Create("UIGradient", {
+		Parent = Backlight,
+		Color = ColorSequence.new{
+			ColorSequenceKeypoint.new(0.0, Color3.fromRGB(0, 180, 255)),
+			ColorSequenceKeypoint.new(1.0, Color3.fromRGB(120, 50, 220))
+		},
+		Transparency = NumberSequence.new{
+			NumberSequenceKeypoint.new(0.0, 0.4),
+			NumberSequenceKeypoint.new(1.0, 0.95)
+		}
+	})
+
+	-- Neon Corner Brackets
 	local function Bracket(pos, rot)
 		local b = Create("Frame", {
 			Parent = EspBoxHolder,
-			Size = UDim2.new(0, 10, 0, 10),
+			Size = UDim2.new(0, 12, 0, 12),
 			Position = pos,
 			BackgroundTransparency = 1,
-			ZIndex = 5
+			ZIndex = 12
 		})
-		Create("Frame", {Parent = b, Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = ACCENT, BorderSizePixel = 0})
-		Create("Frame", {Parent = b, Size = UDim2.new(0, 2, 1, 0), BackgroundColor3 = ACCENT, BorderSizePixel = 0})
+		Create("Frame", {Parent = b, Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = Color3.fromRGB(0, 240, 255), BorderSizePixel = 0})
+		Create("Frame", {Parent = b, Size = UDim2.new(0, 2, 1, 0), BackgroundColor3 = Color3.fromRGB(0, 240, 255), BorderSizePixel = 0})
 		if rot then b.Rotation = rot end
 		return b
 	end
-	Bracket(UDim2.new(0, 3, 0, 3), 0)
-	Bracket(UDim2.new(1, -13, 0, 3), 90)
-	Bracket(UDim2.new(1, -13, 1, -13), 180)
-	Bracket(UDim2.new(0, 3, 1, -13), 270)
+	Bracket(UDim2.new(0, 4, 0, 4), 0)
+	Bracket(UDim2.new(1, -16, 0, 4), 90)
+	Bracket(UDim2.new(1, -16, 1, -16), 180)
+	Bracket(UDim2.new(0, 4, 1, -16), 270)
 
-	Create("ImageLabel", {
+	-- Dedicated Character Container to perfectly align image and skeleton
+	local CharFrame = Create("Frame", {
 		Parent = EspBoxHolder,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.48, 0),
-		Size = UDim2.new(0, 130, 0, 165),
+		Position = UDim2.new(0.5, 0, 0.50, 0),
+		Size = UDim2.new(1, -14, 1, -38),
 		BackgroundTransparency = 1,
-		Image = "https://www.roblox.com/avatar-thumbnail/image?userId="..(LocalPlayer and LocalPlayer.UserId or 0).."&width=420&height=420&format=png",
-		ScaleType = Enum.ScaleType.Fit,
-		ZIndex = 2
+		ZIndex = 2,
+		Name = "CharFrame"
 	})
 
+	-- Live Roblox Avatar Image (Native High-Res Loader)
+	local AvatarImg = Create("ImageLabel", {
+		Parent = CharFrame,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		ScaleType = Enum.ScaleType.Fit,
+		Image = "rbxthumb://type=Avatar&id=" .. (LocalPlayer and tostring(LocalPlayer.UserId) or "0") .. "&w=420&h=420",
+		ZIndex = 3,
+		Name = "AvatarImage"
+	})
+
+	task.spawn(function()
+		pcall(function()
+			if LocalPlayer and LocalPlayer.UserId then
+				local thumb, isReady = Players:GetUserThumbnailAsync(
+					LocalPlayer.UserId,
+					Enum.ThumbnailType.AvatarThumbnail,
+					Enum.ThumbnailSize.Size420x420
+				)
+				if thumb and thumb ~= "" then
+					AvatarImg.Image = thumb
+				end
+			end
+		end)
+	end)
+
+	-- Animated Laser Scanline
+	local ScanLine = Create("Frame", {
+		Parent = CharFrame,
+		Size = UDim2.new(1, 0, 0, 2),
+		Position = UDim2.new(0, 0, 0.05, 0),
+		BackgroundColor3 = Color3.fromRGB(0, 255, 240),
+		BorderSizePixel = 0,
+		ZIndex = 11,
+		Name = "ScanLine"
+	})
+	local ScanGlow = Create("Frame", {
+		Parent = ScanLine,
+		Size = UDim2.new(1, 0, 0, 8),
+		Position = UDim2.new(0, 0, 0, -3),
+		BackgroundColor3 = Color3.fromRGB(0, 220, 255),
+		BackgroundTransparency = 0.65,
+		BorderSizePixel = 0,
+		ZIndex = 10
+	})
+	task.spawn(function()
+		while Library:IsRunning() do
+			if ProfileCard.Visible then
+				local tw1 = TweenService:Create(ScanLine, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 0, 0.92, 0)})
+				tw1:Play()
+				tw1.Completed:Wait()
+				task.wait(0.1)
+				local tw2 = TweenService:Create(ScanLine, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 0, 0.05, 0)})
+				tw2:Play()
+				tw2.Completed:Wait()
+				task.wait(0.1)
+			else
+				task.wait(0.5)
+			end
+		end
+	end)
+
+	-- Skeleton Container strictly bound to CharFrame
 	local SkeletonContainer = Create("Frame", {
-		Parent = EspBoxHolder,
+		Parent = CharFrame,
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		ZIndex = 6,
 		Name = "Skeleton"
 	})
 
+	local SKELE_NEON = Color3.fromRGB(0, 245, 255)
+	local SKELE_CORE = Color3.fromRGB(240, 255, 255)
+
 	local function SkeleJoint(x, y, r)
-		local j = Create("Frame", {
+		local node = Create("Frame", {
 			Parent = SkeletonContainer,
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(x, 0, y, 0),
-			Size = UDim2.new(0, r or 5, 0, r or 5),
-			BackgroundColor3 = ACCENT,
+			Size = UDim2.new(0, r or 6, 0, r or 6),
+			BackgroundColor3 = SKELE_NEON,
 			BorderSizePixel = 0,
-			ZIndex = 8
+			ZIndex = 9
 		})
-		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = j})
-		return j
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = node})
+		local inner = Create("Frame", {
+			Parent = node,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			Size = UDim2.new(0, math.max(2, (r or 6) - 3), 0, math.max(2, (r or 6) - 3)),
+			BackgroundColor3 = SKELE_CORE,
+			BorderSizePixel = 0,
+			ZIndex = 10
+		})
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = inner})
+		return node
 	end
 
 	local function SkeleBone(x1, y1, x2, y2, thick)
-		local bone = Create("Frame", {
+		local glow = Create("Frame", {
 			Parent = SkeletonContainer,
-			BackgroundColor3 = ACCENT,
-			BackgroundTransparency = 0.15,
+			BackgroundColor3 = SKELE_NEON,
+			BackgroundTransparency = 0.5,
 			BorderSizePixel = 0,
 			ZIndex = 7
 		})
+		local core = Create("Frame", {
+			Parent = glow,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			BackgroundColor3 = SKELE_CORE,
+			BackgroundTransparency = 0.05,
+			BorderSizePixel = 0,
+			ZIndex = 8
+		})
 		local function updateBone()
-			local p1 = Vector2.new(x1 * EspBoxHolder.AbsoluteSize.X, y1 * EspBoxHolder.AbsoluteSize.Y)
-			local p2 = Vector2.new(x2 * EspBoxHolder.AbsoluteSize.X, y2 * EspBoxHolder.AbsoluteSize.Y)
+			local p1 = Vector2.new(x1 * CharFrame.AbsoluteSize.X, y1 * CharFrame.AbsoluteSize.Y)
+			local p2 = Vector2.new(x2 * CharFrame.AbsoluteSize.X, y2 * CharFrame.AbsoluteSize.Y)
 			local dist = (p2 - p1).Magnitude
 			local angle = math.deg(math.atan2(p2.Y - p1.Y, p2.X - p1.X))
 			local mid = (p1 + p2) / 2
-			bone.Size = UDim2.new(0, dist, 0, thick or 1.6)
-			bone.Position = UDim2.new(0, mid.X, 0, mid.Y)
-			bone.AnchorPoint = Vector2.new(0.5, 0.5)
-			bone.Rotation = angle
+			glow.Size = UDim2.new(0, dist, 0, (thick or 1.8) + 2)
+			glow.Position = UDim2.new(0, mid.X, 0, mid.Y)
+			glow.AnchorPoint = Vector2.new(0.5, 0.5)
+			glow.Rotation = angle
+			core.Size = UDim2.new(1, 0, 0, thick or 1.6)
 		end
 		task.defer(updateBone)
-		AddConnection(EspBoxHolder:GetPropertyChangedSignal("AbsoluteSize"), updateBone)
-		return bone
+		AddConnection(CharFrame:GetPropertyChangedSignal("AbsoluteSize"), updateBone)
+		return glow
 	end
 
+	-- Cyber Tactical Head Visor HUD
 	local SkeleHead = Create("Frame", {
 		Parent = SkeletonContainer,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.22, 0),
+		Position = UDim2.new(0.50, 0, 0.16, 0),
 		Size = UDim2.new(0, 22, 0, 22),
 		BackgroundTransparency = 1,
-		ZIndex = 8
+		ZIndex = 9
 	})
 	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = SkeleHead})
-	Create("UIStroke", {Color = ACCENT, Thickness = 1.4, Parent = SkeleHead})
+	Create("UIStroke", {Color = SKELE_NEON, Thickness = 1.8, Parent = SkeleHead})
+	local HeadCrosshair = Create("Frame", {
+		Parent = SkeleHead,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.new(0, 4, 0, 4),
+		BackgroundColor3 = SKELE_CORE,
+		BorderSizePixel = 0,
+		ZIndex = 10
+	})
+	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = HeadCrosshair})
 
-	SkeleBone(0.5, 0.27, 0.5, 0.52, 1.8)
-	SkeleBone(0.34, 0.33, 0.66, 0.33, 1.6)
-	SkeleBone(0.34, 0.33, 0.25, 0.46, 1.5)
-	SkeleBone(0.25, 0.46, 0.21, 0.58, 1.5)
-	SkeleBone(0.66, 0.33, 0.75, 0.46, 1.5)
-	SkeleBone(0.75, 0.46, 0.79, 0.58, 1.5)
-	SkeleBone(0.40, 0.52, 0.60, 0.52, 1.6)
-	SkeleBone(0.40, 0.52, 0.37, 0.68, 1.5)
-	SkeleBone(0.37, 0.68, 0.35, 0.85, 1.5)
-	SkeleBone(0.60, 0.52, 0.63, 0.68, 1.5)
-	SkeleBone(0.63, 0.68, 0.65, 0.85, 1.5)
+	-- Anatomically Aligned Bones (Head, Spine, Arms, Ribs, Pelvis, Legs)
+	SkeleBone(0.50, 0.22, 0.50, 0.38, 2.0) -- Spine Upper
+	SkeleBone(0.50, 0.38, 0.50, 0.50, 2.0) -- Spine Lower
 
-	SkeleJoint(0.34, 0.33, 5)
-	SkeleJoint(0.66, 0.33, 5)
-	SkeleJoint(0.25, 0.46, 4)
-	SkeleJoint(0.75, 0.46, 4)
-	SkeleJoint(0.21, 0.58, 4)
-	SkeleJoint(0.79, 0.58, 4)
-	SkeleJoint(0.37, 0.68, 4)
-	SkeleJoint(0.63, 0.68, 4)
-	SkeleJoint(0.35, 0.85, 4)
-	SkeleJoint(0.65, 0.85, 4)
+	-- Collarbones & Shoulders
+	SkeleBone(0.50, 0.25, 0.35, 0.27, 1.8)
+	SkeleBone(0.50, 0.25, 0.65, 0.27, 1.8)
 
-	local EspTagTop = SetProps(MakeElement("Label", "[ STATUS: ACTIVE ]", 10), {
+	-- Cybernetic Ribs
+	SkeleBone(0.40, 0.31, 0.60, 0.31, 1.4)
+	SkeleBone(0.39, 0.36, 0.61, 0.36, 1.4)
+	SkeleBone(0.42, 0.42, 0.58, 0.42, 1.4)
+
+	-- Arms
+	SkeleBone(0.35, 0.27, 0.28, 0.39, 1.8) -- Left Bicep
+	SkeleBone(0.28, 0.39, 0.24, 0.52, 1.6) -- Left Forearm
+	SkeleBone(0.65, 0.27, 0.72, 0.39, 1.8) -- Right Bicep
+	SkeleBone(0.72, 0.39, 0.76, 0.52, 1.6) -- Right Forearm
+
+	-- Pelvis & Legs
+	SkeleBone(0.42, 0.50, 0.58, 0.50, 2.0) -- Pelvis bar
+	SkeleBone(0.42, 0.50, 0.40, 0.68, 1.9) -- Left Thigh
+	SkeleBone(0.40, 0.68, 0.38, 0.88, 1.8) -- Left Shin
+	SkeleBone(0.58, 0.50, 0.60, 0.68, 1.9) -- Right Thigh
+	SkeleBone(0.60, 0.68, 0.62, 0.88, 1.8) -- Right Shin
+
+	-- Glowing Joint Nodes
+	SkeleJoint(0.50, 0.25, 5) -- Neck
+	SkeleJoint(0.50, 0.38, 5) -- Mid Spine
+	SkeleJoint(0.50, 0.50, 6) -- Pelvis Center
+	SkeleJoint(0.35, 0.27, 6) -- Left Shoulder
+	SkeleJoint(0.65, 0.27, 6) -- Right Shoulder
+	SkeleJoint(0.28, 0.39, 5) -- Left Elbow
+	SkeleJoint(0.72, 0.39, 5) -- Right Elbow
+	SkeleJoint(0.24, 0.52, 4) -- Left Wrist
+	SkeleJoint(0.76, 0.52, 4) -- Right Wrist
+	SkeleJoint(0.42, 0.50, 6) -- Left Hip
+	SkeleJoint(0.58, 0.50, 6) -- Right Hip
+	SkeleJoint(0.40, 0.68, 5) -- Left Knee
+	SkeleJoint(0.60, 0.68, 5) -- Right Knee
+	SkeleJoint(0.38, 0.88, 5) -- Left Ankle
+	SkeleJoint(0.62, 0.88, 5) -- Right Ankle
+
+	-- ESP Badges
+	local EspTagTop = SetProps(MakeElement("Label", "[ TARGET: LOCKED ]", 10), {
 		Parent = EspBoxHolder,
 		Size = UDim2.new(1, 0, 0, 14),
 		Position = UDim2.new(0, 0, 0, 4),
 		Font = Enum.Font.GothamBold,
-		TextColor3 = Color3.fromRGB(0, 255, 170),
+		TextColor3 = Color3.fromRGB(0, 255, 180),
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 9
 	})
 
-	local EspTagBottom = SetProps(MakeElement("Label", "HP: 100/100 | DIST: 0m", 9), {
+	local EspTagBottom = SetProps(MakeElement("Label", "HP: 100/100 | STATUS: OK", 9), {
 		Parent = EspBoxHolder,
 		Size = UDim2.new(1, 0, 0, 14),
 		Position = UDim2.new(0, 0, 1, -16),
 		Font = Enum.Font.GothamBold,
-		TextColor3 = ACCENT_TEXT,
+		TextColor3 = Color3.fromRGB(0, 240, 255),
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 9
 	})
 
 	local HealthBarBG = Create("Frame", {
 		Parent = EspBoxHolder,
-		Size = UDim2.new(0, 3, 0.65, 0),
-		Position = UDim2.new(0, 5, 0.20, 0),
-		BackgroundColor3 = Color3.fromRGB(30, 20, 40),
+		Size = UDim2.new(0, 4, 0.68, 0),
+		Position = UDim2.new(0, 6, 0.16, 0),
+		BackgroundColor3 = Color3.fromRGB(24, 16, 34),
 		BorderSizePixel = 0,
 		ZIndex = 8
 	})
 	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = HealthBarBG})
+	Create("UIStroke", {Color = Color3.fromRGB(65, 45, 90), Thickness = 1, Parent = HealthBarBG})
 
 	local HealthBarFill = Create("Frame", {
 		Parent = HealthBarBG,
@@ -1985,48 +2141,64 @@ function Library:MakeWindow(...)
 	})
 	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = HealthBarFill})
 
-	-- Rechter Bereich: Detaillierte Live-Statistiken
+	-- Rechter Bereich: High-Contrast Live-Statistiken
 	local StatsScroll = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {
 		Parent = ProfileCard,
-		Position = UDim2.new(0, 168, 0, 38),
-		Size = UDim2.new(1, -178, 1, -48),
+		Position = UDim2.new(0, 178, 0, 42),
+		Size = UDim2.new(1, -188, 1, -52),
 		ClipsDescendants = true
 	}), {
 		MakeElement("List", 0, 6),
-		MakeElement("Padding", 4, 4, 4, 4)
+		MakeElement("Padding", 2, 4, 2, 4)
 	}), "Divider")
 
 	AddConnection(StatsScroll.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
 		StatsScroll.CanvasSize = UDim2.new(0, 0, 0, StatsScroll.UIListLayout.AbsoluteContentSize.Y + 12)
 	end)
 
-	local function InfoRow(label, value, copyable)
-		local row = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 6), {
+	local function InfoRow(iconLabel, label, value, copyable)
+		local row = Create("Frame", {
 			Parent = StatsScroll,
-			Size = UDim2.new(1, 0, 0, 28)
-		}), {
-			AddThemeObject(SetProps(MakeElement("Label", label, 12), {
-				Size = UDim2.new(0, 100, 1, 0),
-				Position = UDim2.new(0, 8, 0, 0),
-				Font = Enum.Font.GothamSemibold
-			}), "TextDark"),
-			SetProps(MakeElement("Label", tostring(value or "?"), 12), {
-				Size = UDim2.new(1, copyable and -150 or -110, 1, 0),
-				Position = UDim2.new(0, 105, 0, 0),
-				Font = Enum.Font.GothamBold,
-				TextColor3 = Color3.fromRGB(245, 240, 255),
-				Name = "ValText",
-				ClipsDescendants = true
-			}),
-			AddThemeObject(MakeElement("Stroke"), "Stroke")
-		}), "Control")
+			Size = UDim2.new(1, 0, 0, 28),
+			BackgroundColor3 = Color3.fromRGB(28, 22, 42),
+			BackgroundTransparency = 0.25
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = row})
+		Create("UIStroke", {Color = Color3.fromRGB(75, 55, 110), Thickness = 0.9, Parent = row})
+
+		local prefix = iconLabel and (iconLabel .. " ") or ""
+		Create("TextLabel", {
+			Parent = row,
+			Size = UDim2.new(0, 125, 1, 0),
+			Position = UDim2.new(0, 8, 0, 0),
+			Font = Enum.Font.GothamBold,
+			Text = prefix .. label,
+			TextColor3 = Color3.fromRGB(210, 195, 245),
+			TextSize = 12,
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left
+		})
+
+		local valLbl = Create("TextLabel", {
+			Parent = row,
+			Size = UDim2.new(1, copyable and -185 or -135, 1, 0),
+			Position = UDim2.new(0, 130, 0, 0),
+			Font = Enum.Font.GothamBold,
+			Text = tostring(value or "?"),
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			TextSize = 12,
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Name = "ValText",
+			ClipsDescendants = true
+		})
 
 		if copyable then
 			local cBtn = Create("TextButton", {
 				Parent = row,
-				Size = UDim2.new(0, 42, 0, 20),
-				Position = UDim2.new(1, -48, 0.5, -10),
-				BackgroundColor3 = ACCENT,
+				Size = UDim2.new(0, 48, 0, 20),
+				Position = UDim2.new(1, -54, 0.5, -10),
+				BackgroundColor3 = Color3.fromRGB(145, 105, 250),
 				Text = "Kopie",
 				TextColor3 = Color3.fromRGB(255, 255, 255),
 				Font = Enum.Font.GothamBold,
@@ -2048,21 +2220,21 @@ function Library:MakeWindow(...)
 		if Info and Info.Name then GameTitleName = Info.Name end
 	end)
 
-	local RowPlayerName = InfoRow("Name:", (LocalPlayer and LocalPlayer.Name or "?") .. " (@" .. (LocalPlayer and LocalPlayer.DisplayName or "?") .. ")")
-	local RowPlayerId   = InfoRow("User ID:", tostring(LocalPlayer and LocalPlayer.UserId or "?"), true)
-	local RowAccAge     = InfoRow("Account-Alter:", tostring(LocalPlayer and LocalPlayer.AccountAge or 0) .. " Tage")
-	local RowHealth     = InfoRow("Gesundheit:", "100 / 100")
-	local RowWalkSpeed  = InfoRow("Speed / Jump:", "16 / 50")
-	local RowGameName   = InfoRow("Spiel:", GameTitleName)
-	local RowPlaceId    = InfoRow("Place ID:", tostring(game.PlaceId), true)
-	local RowJobId      = InfoRow("Job ID:", tostring(game.JobId), true)
-	local RowPing       = InfoRow("Server Ping:", "... ms")
-	local RowFps        = InfoRow("Server FPS:", "... FPS")
-	local RowPlayers    = InfoRow("Spieler:", tostring(#Players:GetPlayers()) .. " Spieler")
+	local RowPlayerName = InfoRow("👤", "Name:", (LocalPlayer and LocalPlayer.Name or "?") .. " (@" .. (LocalPlayer and LocalPlayer.DisplayName or "?") .. ")")
+	local RowPlayerId   = InfoRow("🆔", "User ID:", tostring(LocalPlayer and LocalPlayer.UserId or "?"), true)
+	local RowAccAge     = InfoRow("📅", "Account-Alter:", tostring(LocalPlayer and LocalPlayer.AccountAge or 0) .. " Tage")
+	local RowHealth     = InfoRow("❤️", "Gesundheit:", "100 / 100")
+	local RowWalkSpeed  = InfoRow("⚡", "Speed / Jump:", "16 / 50")
+	local RowGameName   = InfoRow("🎮", "Spiel:", GameTitleName)
+	local RowPlaceId    = InfoRow("📍", "Place ID:", tostring(game.PlaceId), true)
+	local RowJobId      = InfoRow("🌐", "Job ID:", tostring(game.JobId), true)
+	local RowPing       = InfoRow("📶", "Server Ping:", "... ms")
+	local RowFps        = InfoRow("⏱️", "Server FPS:", "... FPS")
+	local RowPlayers    = InfoRow("👥", "Spieler:", tostring(#Players:GetPlayers()) .. " Spieler")
 
 	local ActionRow = Create("Frame", {
 		Parent = StatsScroll,
-		Size = UDim2.new(1, 0, 0, 30),
+		Size = UDim2.new(1, 0, 0, 32),
 		BackgroundTransparency = 1
 	})
 	Create("UIListLayout", {
@@ -2090,7 +2262,7 @@ function Library:MakeWindow(...)
 		return b
 	end
 
-	ActionBtn("Rejoin", Color3.fromRGB(130, 95, 215), function()
+	ActionBtn("🔄 Rejoin", Color3.fromRGB(130, 85, 230), function()
 		if #Players:GetPlayers() <= 1 then
 			LocalPlayer:Kick("\n[NightSystem] Rejoining...")
 			task.wait(0.2)
@@ -2100,7 +2272,7 @@ function Library:MakeWindow(...)
 		end
 	end)
 
-	ActionBtn("Server Hop", Color3.fromRGB(60, 140, 220), function()
+	ActionBtn("🌐 Server Hop", Color3.fromRGB(40, 140, 225), function()
 		Library:MakeNotification({Name = "Server Hop", Content = "Suche Server...", Time = 3})
 		task.spawn(function()
 			pcall(function()
@@ -2116,7 +2288,7 @@ function Library:MakeWindow(...)
 		end)
 	end)
 
-	ActionBtn("Discord", Color3.fromRGB(88, 101, 242), function()
+	ActionBtn("💬 Discord", Color3.fromRGB(88, 101, 242), function()
 		CopyToClipboard("https://discord.gg/8nKxKcerCv", "Discord-Link kopiert")
 	end)
 
@@ -2148,7 +2320,7 @@ function Library:MakeWindow(...)
 							HealthBarFill.BackgroundColor3 = Color3.fromHSV(ratio * 0.33, 0.9, 1)
 							if RowHealth:FindFirstChild("ValText") then RowHealth.ValText.Text = tostring(hp) .. " / " .. tostring(maxHp) end
 							if RowWalkSpeed:FindFirstChild("ValText") then RowWalkSpeed.ValText.Text = tostring(math.floor(hum.WalkSpeed)) .. " / " .. tostring(math.floor(hum.JumpPower or hum.JumpHeight or 50)) end
-							EspTagBottom.Text = "HP: " .. tostring(hp) .. "/" .. tostring(maxHp) .. " | DIST: 0m"
+							EspTagBottom.Text = "HP: " .. tostring(hp) .. "/" .. tostring(maxHp) .. " | STATUS: OK"
 						end
 					end)
 				end
@@ -2173,7 +2345,7 @@ function Library:MakeWindow(...)
 			TweenService:Create(ProfileCard, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
 				Size = UDim2.new(1, -160, 1, -58),
 				Position = UDim2.new(0, 155, 0, 54),
-				BackgroundTransparency = 0.05
+				BackgroundTransparency = 0.02
 			}):Play()
 		else
 			TweenService:Create(ProfileCard, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
