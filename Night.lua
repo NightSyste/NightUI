@@ -87,21 +87,17 @@ local function LoadCustomAsset(urlOrAsset, fallback)
 		return fallback or Library.FixedIconId
 	end
 	local str = tostring(urlOrAsset)
-	-- Wenn es bereits eine Roblox-Asset-ID oder Asset-Nummer ist
 	if string.sub(str, 1, 13) == "rbxassetid://" or tonumber(str) then
 		return (tonumber(str) and ("rbxassetid://" .. str)) or str
 	end
-	-- Wenn es eine direkte Roblox-URL ist (z.B. Avatar Headshot)
 	if string.find(str, "roblox.com") then
 		return str
 	end
-	-- Wenn es ein Web-Link (HTTP/HTTPS) ist (Imgur, Discord, GitHub etc.)
 	if string.sub(str, 1, 4) == "http" then
 		local success, result = pcall(function()
 			if not (isfile and writefile and getcustomasset) then
 				return str
 			end
-			-- Hash aus der URL erzeugen für eindeutigen lokalen Cache
 			local hash = 0
 			for i = 1, #str do
 				hash = (hash * 31 + string.byte(str, i)) % 2147483647
@@ -572,7 +568,394 @@ local NotificationHolder = SetProps(SetChildren(MakeElement("TFrame"), {
 	Parent = Container
 })
 
-function Library:MakeNotification(NotificationConfig)
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║   UNIVERSAL ALIAS & ARGUMENT RESOLVER                        ║
+-- ╚══════════════════════════════════════════════════════════════╝
+local function ResolveArgs(callerTbl, signatureKey, a1, a2, ...)
+	if a1 == callerTbl or (type(a1) == "table" and signatureKey and rawget(a1, signatureKey) ~= nil) then
+		return a2, ...
+	end
+	return a1, a2, ...
+end
+
+local function ParseWindowArgs(...)
+	local cfg = ...
+	if type(cfg) == "string" then
+		return { Name = cfg }
+	elseif type(cfg) == "table" then
+		return cfg
+	end
+	return { Name = "NightSystem" }
+end
+
+local function ParseNotifArgs(...)
+	local cfg, content, time, img = ...
+	if type(cfg) == "string" then
+		return {
+			Name = cfg,
+			Content = content or "",
+			Time = tonumber(time) or 5,
+			Image = img or "rbxassetid://4384403532"
+		}
+	elseif type(cfg) == "table" then
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Notification",
+			Content = cfg.Content or cfg.content or cfg.Text or cfg.text or cfg.Desc or cfg.desc or content or "",
+			Time = tonumber(cfg.Time or cfg.time or cfg.Duration or cfg.duration or time) or 5,
+			Image = cfg.Image or cfg.image or cfg.Icon or cfg.icon or img or "rbxassetid://4384403532"
+		}
+	end
+	return { Name = "Notification", Content = "", Time = 5, Image = "rbxassetid://4384403532" }
+end
+
+local function ParseTabArgs(...)
+	local cfg, ico, prem = ...
+	if type(cfg) == "string" then
+		return {
+			Name = cfg,
+			Icon = ico or "",
+			PremiumOnly = (prem == true)
+		}
+	elseif type(cfg) == "table" then
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Tab",
+			Icon = cfg.Icon or cfg.icon or cfg.Image or cfg.image or ico or "",
+			PremiumOnly = (cfg.PremiumOnly ~= nil and cfg.PremiumOnly) or (cfg.premiumOnly ~= nil and cfg.premiumOnly) or (cfg.Premium ~= nil and cfg.Premium) or (cfg.premium ~= nil and cfg.premium) or (prem == true)
+		}
+	end
+	return { Name = "Tab", Icon = "", PremiumOnly = false }
+end
+
+local function ParseGroupArgs(...)
+	local cfg, col = ...
+	if type(cfg) == "string" then
+		return {
+			Name = cfg,
+			Collapsed = (col == true)
+		}
+	elseif type(cfg) == "table" then
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Group",
+			Collapsed = (cfg.Collapsed ~= nil and cfg.Collapsed) or (cfg.collapsed ~= nil and cfg.collapsed) or (col == true)
+		}
+	end
+	return { Name = "Group", Collapsed = false }
+end
+
+local function ParseButtonArgs(...)
+	local cfg, cb, ico = ...
+	if type(cfg) == "string" then
+		return {
+			Name = cfg,
+			Callback = cb or function() end,
+			Icon = ico or "rbxassetid://3944703587"
+		}
+	elseif type(cfg) == "table" then
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or cfg.Text or cfg.text or "Button",
+			Callback = cfg.Callback or cfg.callback or cfg.Func or cfg.func or cb or function() end,
+			Icon = cfg.Icon or cfg.icon or cfg.Image or cfg.image or ico or "rbxassetid://3944703587"
+		}
+	end
+	return { Name = "Button", Callback = function() end, Icon = "rbxassetid://3944703587" }
+end
+
+local function ParseToggleArgs(...)
+	local cfg, def, cb, col, flag, save = ...
+	if type(cfg) == "string" then
+		if type(def) == "function" then
+			cb = def
+			def = false
+		end
+		return {
+			Name = cfg,
+			Default = (def == true),
+			Callback = cb or function() end,
+			Color = col or ACCENT,
+			Flag = flag,
+			Save = (save == true)
+		}
+	elseif type(cfg) == "table" then
+		local d = cfg.Default
+		if d == nil then d = cfg.default end
+		if d == nil then d = cfg.Value end
+		if d == nil then d = cfg.value end
+		if d == nil then d = cfg.State end
+		if d == nil then d = cfg.state end
+		if d == nil then d = false end
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or cfg.Text or cfg.text or "Toggle",
+			Default = (d == true),
+			Callback = cfg.Callback or cfg.callback or cfg.Func or cfg.func or cb or function() end,
+			Color = cfg.Color or cfg.color or col or ACCENT,
+			Flag = cfg.Flag or cfg.flag or flag,
+			Save = (cfg.Save ~= nil and cfg.Save) or (cfg.save ~= nil and cfg.save) or (save == true)
+		}
+	end
+	return { Name = "Toggle", Default = false, Callback = function() end, Color = ACCENT }
+end
+
+local function ParseSliderArgs(...)
+	local cfg, min, max, def, inc, cb, valName = ...
+	if type(cfg) == "string" then
+		if type(inc) == "function" then
+			cb = inc
+			inc = 1
+		end
+		return {
+			Name = cfg,
+			Min = tonumber(min) or 0,
+			Max = tonumber(max) or 100,
+			Default = tonumber(def) or tonumber(min) or 0,
+			Increment = tonumber(inc) or 1,
+			Callback = cb or function() end,
+			ValueName = valName or ""
+		}
+	elseif type(cfg) == "table" then
+		local minV = cfg.Min or cfg.min or 0
+		local maxV = cfg.Max or cfg.max or 100
+		local defV = cfg.Default or cfg.default or cfg.Value or cfg.value or minV
+		local incV = cfg.Increment or cfg.increment or cfg.Step or cfg.step or cfg.Precise or cfg.precise or 1
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Slider",
+			Min = tonumber(minV) or 0,
+			Max = tonumber(maxV) or 100,
+			Default = tonumber(defV) or tonumber(minV) or 0,
+			Increment = tonumber(incV) or 1,
+			ValueName = cfg.ValueName or cfg.valueName or cfg.Suffix or cfg.suffix or valName or "",
+			Callback = cfg.Callback or cfg.callback or cfg.Func or cfg.func or cb or function() end,
+			Color = cfg.Color or cfg.color or ACCENT,
+			Flag = cfg.Flag or cfg.flag,
+			Save = (cfg.Save ~= nil and cfg.Save) or (cfg.save ~= nil and cfg.save) or false
+		}
+	end
+	return { Name = "Slider", Min = 0, Max = 100, Default = 0, Increment = 1, Callback = function() end }
+end
+
+local function ParseDropdownArgs(...)
+	local cfg, opts, def, cb = ...
+	if type(cfg) == "string" then
+		opts = opts or {}
+		return {
+			Name = cfg,
+			Options = opts,
+			Default = def or opts[1] or "",
+			Callback = cb or function() end
+		}
+	elseif type(cfg) == "table" then
+		local optsT = cfg.Options or cfg.options or cfg.List or cfg.list or opts or {}
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Dropdown",
+			Options = optsT,
+			Default = cfg.Default or cfg.default or cfg.Value or cfg.value or def or optsT[1] or "",
+			Callback = cfg.Callback or cfg.callback or cfg.Func or cfg.func or cb or function() end,
+			Flag = cfg.Flag or cfg.flag,
+			Save = (cfg.Save ~= nil and cfg.Save) or (cfg.save ~= nil and cfg.save) or false
+		}
+	end
+	return { Name = "Dropdown", Options = {}, Default = "", Callback = function() end }
+end
+
+local function ParseBindArgs(...)
+	local cfg, def, hold, cb = ...
+	if type(cfg) == "string" then
+		if type(hold) == "function" then
+			cb = hold
+			hold = false
+		end
+		return {
+			Name = cfg,
+			Default = def or Enum.KeyCode.Unknown,
+			Hold = (hold == true),
+			Callback = cb or function() end
+		}
+	elseif type(cfg) == "table" then
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Bind",
+			Default = cfg.Default or cfg.default or cfg.Key or cfg.key or cfg.Bind or cfg.bind or def or Enum.KeyCode.Unknown,
+			Hold = (cfg.Hold ~= nil and cfg.Hold) or (cfg.hold ~= nil and cfg.hold) or (hold == true),
+			Callback = cfg.Callback or cfg.callback or cfg.Func or cfg.func or cb or function() end,
+			Flag = cfg.Flag or cfg.flag,
+			Save = (cfg.Save ~= nil and cfg.Save) or (cfg.save ~= nil and cfg.save) or false
+		}
+	end
+	return { Name = "Bind", Default = Enum.KeyCode.Unknown, Hold = false, Callback = function() end }
+end
+
+local function ParseTextboxArgs(...)
+	local cfg, def, dis, cb = ...
+	if type(cfg) == "string" then
+		if type(dis) == "function" then
+			cb = dis
+			dis = false
+		end
+		return {
+			Name = cfg,
+			Default = def or "",
+			TextDisappear = (dis == true),
+			Callback = cb or function() end
+		}
+	elseif type(cfg) == "table" then
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or cfg.Placeholder or cfg.placeholder or "Textbox",
+			Default = cfg.Default or cfg.default or cfg.Text or cfg.text or cfg.Value or cfg.value or def or "",
+			TextDisappear = (cfg.TextDisappear ~= nil and cfg.TextDisappear) or (cfg.textDisappear ~= nil and cfg.textDisappear) or (cfg.ClearText ~= nil and cfg.ClearText) or (cfg.clearText ~= nil and cfg.clearText) or (dis == true),
+			Callback = cfg.Callback or cfg.callback or cfg.Func or cfg.func or cb or function() end
+		}
+	end
+	return { Name = "Textbox", Default = "", TextDisappear = false, Callback = function() end }
+end
+
+local function ParseColorpickerArgs(...)
+	local cfg, def, cb = ...
+	if type(cfg) == "string" then
+		return {
+			Name = cfg,
+			Default = def or Color3.fromRGB(255, 255, 255),
+			Callback = cb or function() end
+		}
+	elseif type(cfg) == "table" then
+		return {
+			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Colorpicker",
+			Default = cfg.Default or cfg.default or cfg.Color or cfg.color or def or Color3.fromRGB(255, 255, 255),
+			Callback = cfg.Callback or cfg.callback or cfg.Func or cfg.func or cb or function() end,
+			Flag = cfg.Flag or cfg.flag,
+			Save = (cfg.Save ~= nil and cfg.Save) or (cfg.save ~= nil and cfg.save) or false
+		}
+	end
+	return { Name = "Colorpicker", Default = Color3.fromRGB(255, 255, 255), Callback = function() end }
+end
+
+local function ParseLabelArgs(...)
+	local text = ...
+	if type(text) == "table" then
+		return tostring(text.Text or text.text or text.Content or text.content or text.Name or text.name or text.Title or text.title or "")
+	end
+	return tostring(text or "")
+end
+
+local function ParseParagraphArgs(...)
+	local title, content = ...
+	if type(title) == "table" then
+		local c = title.Content or title.content or title.Body or title.body or title.Desc or title.desc or title.Description or title.description or content or ""
+		local t = title.Title or title.title or title.Text or title.text or title.Name or title.name or "Title"
+		return tostring(t), tostring(c)
+	end
+	return tostring(title or "Title"), tostring(content or "Content")
+end
+
+local function ParseSectionArgs(...)
+	local cfg = ...
+	if type(cfg) == "string" then
+		return { Name = cfg }
+	elseif type(cfg) == "table" then
+		return { Name = cfg.Name or cfg.name or cfg.Title or cfg.title or cfg.Text or cfg.text or "Section" }
+	end
+	return { Name = "Section" }
+end
+
+local function AttachElementAliases(target)
+	local aliases = {
+		AddButton      = {"CreateButton", "MakeButton", "NewButton", "Button"},
+		AddToggle      = {"CreateToggle", "MakeToggle", "NewToggle", "Toggle"},
+		AddSlider      = {"CreateSlider", "MakeSlider", "NewSlider", "Slider"},
+		AddDropdown    = {"CreateDropdown", "MakeDropdown", "NewDropdown", "Dropdown"},
+		AddBind        = {"CreateBind", "MakeBind", "NewBind", "Bind", "AddKeybind", "CreateKeybind", "MakeKeybind", "NewKeybind", "Keybind"},
+		AddTextbox     = {"CreateTextbox", "MakeTextbox", "NewTextbox", "Textbox", "AddTextBox", "CreateTextBox", "MakeTextBox", "NewTextBox", "TextBox", "AddInput", "CreateInput", "MakeInput", "NewInput", "Input"},
+		AddColorpicker = {"CreateColorpicker", "MakeColorpicker", "NewColorpicker", "Colorpicker", "AddColorPicker", "CreateColorPicker", "MakeColorPicker", "NewColorPicker", "ColorPicker"},
+		AddLabel       = {"CreateLabel", "MakeLabel", "NewLabel", "Label"},
+		AddParagraph   = {"CreateParagraph", "MakeParagraph", "NewParagraph", "Paragraph"},
+		AddSection     = {"CreateSection", "MakeSection", "NewSection", "Section"}
+	}
+	for base, list in pairs(aliases) do
+		local fn = rawget(target, base)
+		if fn then
+			for _, alias in ipairs(list) do
+				target[alias] = fn
+			end
+		end
+	end
+	local mt = getmetatable(target) or {}
+	local oldIndex = mt.__index
+	mt.__index = function(t, key)
+		if type(key) == "string" then
+			local clean = key:lower():gsub("^make", ""):gsub("^create", ""):gsub("^new", ""):gsub("^add", "")
+			for base, list in pairs(aliases) do
+				if base:lower():find(clean, 1, true) then
+					return rawget(t, base)
+				end
+				for _, a in ipairs(list) do
+					if a:lower():find(clean, 1, true) then
+						return rawget(t, base)
+					end
+				end
+			end
+		end
+		if type(oldIndex) == "function" then return oldIndex(t, key) elseif type(oldIndex) == "table" then return oldIndex[key] end
+		return rawget(t, key)
+	end
+	setmetatable(target, mt)
+	return target
+end
+
+local function AttachWindowAliases(target)
+	local aliases = {
+		MakeTab      = {"CreateTab", "NewTab", "AddTab", "Tab"},
+		MakeTabGroup = {"CreateTabGroup", "NewTabGroup", "AddTabGroup", "TabGroup", "MakeGroup", "CreateGroup", "NewGroup", "AddGroup", "Group"}
+	}
+	for base, list in pairs(aliases) do
+		local fn = rawget(target, base)
+		if fn then
+			for _, alias in ipairs(list) do
+				target[alias] = fn
+			end
+		end
+	end
+	local mt = getmetatable(target) or {}
+	local oldIndex = mt.__index
+	mt.__index = function(t, key)
+		if type(key) == "string" then
+			local lk = key:lower()
+			if lk:find("group") then
+				return rawget(t, "MakeTabGroup")
+			elseif lk:find("tab") then
+				return rawget(t, "MakeTab")
+			end
+		end
+		if type(oldIndex) == "function" then return oldIndex(t, key) elseif type(oldIndex) == "table" then return oldIndex[key] end
+		return rawget(t, key)
+	end
+	setmetatable(target, mt)
+	return target
+end
+
+local function AttachGroupAliases(target)
+	local aliases = {
+		MakeTab = {"CreateTab", "NewTab", "AddTab", "Tab"}
+	}
+	for base, list in pairs(aliases) do
+		local fn = rawget(target, base)
+		if fn then
+			for _, alias in ipairs(list) do
+				target[alias] = fn
+			end
+		end
+	end
+	local mt = getmetatable(target) or {}
+	local oldIndex = mt.__index
+	mt.__index = function(t, key)
+		if type(key) == "string" and key:lower():find("tab") then
+			return rawget(t, "MakeTab")
+		end
+		if type(oldIndex) == "function" then return oldIndex(t, key) elseif type(oldIndex) == "table" then return oldIndex[key] end
+		return rawget(t, key)
+	end
+	setmetatable(target, mt)
+	return target
+end
+
+function Library:MakeNotification(...)
+	local NotificationConfig = ParseNotifArgs(ResolveArgs(Library, "MakeNotification", ...))
 	task.spawn(function()
 		NotificationConfig.Name    = NotificationConfig.Name    or "Notification"
 		NotificationConfig.Content = NotificationConfig.Content or "Test"
@@ -625,50 +1008,40 @@ function Library:MakeNotification(NotificationConfig)
 	end)
 end
 
-function Library:MakeWindow(WindowConfig)
+function Library:MakeWindow(...)
 	local FirstTab = true
 	local Minimized = false
 	local UIHidden = false
 
+	local WindowConfig = ParseWindowArgs(ResolveArgs(Library, "MakeWindow", ...))
 	WindowConfig = WindowConfig or {}
-	WindowConfig.Name            = WindowConfig.Name            or "NightSystem"
-	WindowConfig.HidePremium     = WindowConfig.HidePremium     or false
-	WindowConfig.ConfigFolder    = WindowConfig.ConfigFolder    or WindowConfig.Name
-	WindowConfig.SaveConfig      = WindowConfig.SaveConfig      or false
-	if WindowConfig.IntroEnabled == nil then WindowConfig.IntroEnabled = true end
-	WindowConfig.CloseCallback   = WindowConfig.CloseCallback   or function() end
-	if WindowConfig.ShowIcon == nil then WindowConfig.ShowIcon = true end
+	WindowConfig.Name            = WindowConfig.Name or WindowConfig.name or WindowConfig.Title or WindowConfig.title or "NightSystem"
+	WindowConfig.HidePremium     = WindowConfig.HidePremium or WindowConfig.hidePremium or false
+	WindowConfig.ConfigFolder    = WindowConfig.ConfigFolder or WindowConfig.configFolder or WindowConfig.Folder or WindowConfig.folder or WindowConfig.Name
+	WindowConfig.SaveConfig      = (WindowConfig.SaveConfig ~= nil and WindowConfig.SaveConfig) or (WindowConfig.saveConfig ~= nil and WindowConfig.saveConfig) or false
+	if WindowConfig.IntroEnabled == nil and WindowConfig.introEnabled == nil then WindowConfig.IntroEnabled = true else WindowConfig.IntroEnabled = (WindowConfig.IntroEnabled or WindowConfig.introEnabled) end
+	WindowConfig.CloseCallback   = WindowConfig.CloseCallback or WindowConfig.closeCallback or function() end
+	if WindowConfig.ShowIcon == nil and WindowConfig.showIcon == nil then WindowConfig.ShowIcon = true else WindowConfig.ShowIcon = (WindowConfig.ShowIcon or WindowConfig.showIcon) end
 	
-	-- Priorität für das Logo:
-	-- 1. WindowConfig.CustomLogo (direkt im MakeWindow übergeben)
-	-- 2. Library.CustomLogoUrl (oben im Skript definiert)
-	-- 3. WindowConfig.Icon
-	-- 4. Fallback Library.FixedIconId
-	local activeLogoUrl = WindowConfig.CustomLogo or (Library.CustomLogoUrl ~= "" and Library.CustomLogoUrl) or WindowConfig.Icon or Library.FixedIconId
+	local activeLogoUrl = WindowConfig.CustomLogo or WindowConfig.customLogo or (Library.CustomLogoUrl ~= "" and Library.CustomLogoUrl) or WindowConfig.Icon or WindowConfig.icon or Library.FixedIconId
 	local ResolvedLogo = LoadCustomAsset(activeLogoUrl, Library.FixedIconId)
 
-	local activeBgUrl = (Library.SelectedBackground == "Kein Hintergrund (Aus)" and nil) or Library.ActiveBackgroundUrl or WindowConfig.CustomBackground or (Library.CustomBackgroundUrl ~= "" and Library.CustomBackgroundUrl)
+	local activeBgUrl = (Library.SelectedBackground == "Kein Hintergrund (Aus)" and nil) or Library.ActiveBackgroundUrl or WindowConfig.CustomBackground or WindowConfig.customBackground or (Library.CustomBackgroundUrl ~= "" and Library.CustomBackgroundUrl)
 	local ResolvedBackground = activeBgUrl and LoadCustomAsset(activeBgUrl, nil) or nil
 
-	-- Priorität für das Settings-Icon:
-	-- 1. WindowConfig.CustomSettingsIcon / WindowConfig.CustomSettings (direkt im MakeWindow übergeben)
-	-- 2. Library.ActiveSettingsUrl
-	-- 3. Library.CustomSettingsUrl / Library.CustomSettingsIconUrl (oben im Skript definiert)
-	-- 4. WindowConfig.SettingsIcon
-	-- 5. Fallback Library.FixedSettingsIconId
-	local activeSettingsUrl = WindowConfig.CustomSettingsIcon or WindowConfig.CustomSettings or WindowConfig.CustomSettingsUrl or Library.ActiveSettingsUrl or (Library.CustomSettingsUrl ~= "" and Library.CustomSettingsUrl) or (Library.CustomSettingsIconUrl ~= "" and Library.CustomSettingsIconUrl) or WindowConfig.SettingsIcon or Library.FixedSettingsIconId
+	local activeSettingsUrl = WindowConfig.CustomSettingsIcon or WindowConfig.CustomSettings or WindowConfig.customSettingsIcon or WindowConfig.CustomSettingsUrl or Library.ActiveSettingsUrl or (Library.CustomSettingsUrl ~= "" and Library.CustomSettingsUrl) or (Library.CustomSettingsIconUrl ~= "" and Library.CustomSettingsIconUrl) or WindowConfig.SettingsIcon or WindowConfig.settingsIcon or Library.FixedSettingsIconId
 	local ResolvedSettingsIcon = LoadCustomAsset(activeSettingsUrl, Library.FixedSettingsIconId)
 
 	if savedUI and savedUI.ToggleKey and Enum.KeyCode[savedUI.ToggleKey] then
 		WindowConfig.ToggleKey = Enum.KeyCode[savedUI.ToggleKey]
 	end
-	Library.ToggleKey = WindowConfig.ToggleKey or Enum.KeyCode.LeftControl
+	Library.ToggleKey = WindowConfig.ToggleKey or WindowConfig.toggleKey or Enum.KeyCode.LeftControl
 
 	WindowConfig.Icon            = ResolvedLogo
 	WindowConfig.IntroIcon       = ResolvedLogo
 	WindowConfig.IntroToggleIcon = ResolvedLogo
-	WindowConfig.SearchCallback  = WindowConfig.SearchCallback  or function() end
-	WindowConfig.ToggleKey       = WindowConfig.ToggleKey       or Enum.KeyCode.LeftControl
+	WindowConfig.SearchCallback  = WindowConfig.SearchCallback or WindowConfig.searchCallback or function() end
+	WindowConfig.ToggleKey       = WindowConfig.ToggleKey or Enum.KeyCode.LeftControl
 
 	Library.SearchRegistry = {}
 	local ToggleKeyName = (typeof(WindowConfig.ToggleKey) == "EnumItem" and WindowConfig.ToggleKey.Name or tostring(WindowConfig.ToggleKey))
@@ -683,7 +1056,6 @@ function Library:MakeWindow(WindowConfig)
 		end)
 	end
 
-	-- Optionaler Background Blur Effect
 	local BlurEffect = nil
 	local function SetBlurState(enabled)
 		if enabled then
@@ -719,7 +1091,6 @@ function Library:MakeWindow(WindowConfig)
 		})
 	end
 
-	-- Lupe
 	local SearchBtn = SetChildren(TopIcon(-165), {
 		SetChildren(SetProps(MakeElement("TFrame"), {
 			Size = UDim2.new(0, 12, 0, 12),
@@ -737,7 +1108,6 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Zahnrad / Settings-Button (Custom URL oder Vektor-Zahnrad)
 	local SettingsBtn = SetChildren(TopIcon(-133), {
 		AddThemeObject(SetProps(MakeElement("Image", ResolvedSettingsIcon), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -747,7 +1117,6 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Chevron
 	local MinimizeBtn = SetChildren(TopIcon(-101), {
 		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -758,7 +1127,6 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Minus
 	local HideBtn = SetChildren(TopIcon(-69), {
 		AddThemeObject(SetProps(MakeElement("Frame"), {
 			Size = UDim2.new(0, 13, 0, 1.6),
@@ -833,13 +1201,10 @@ function Library:MakeWindow(WindowConfig)
 		}),
 	}), "Sidebar")
 
-	-- ╔══════════════════════════════════════════╗
-	-- ║   WINDOW LOGO OBEN LINKS NEBEN TITEL     ║
-	-- ╚══════════════════════════════════════════╝
 	local WindowIcon = SetProps(MakeElement("Image", ResolvedLogo), {
 		Size = UDim2.new(0, 32, 0, 32),
 		Position = UDim2.new(0, 14, 0, 9),
-		ImageColor3 = Color3.fromRGB(255, 255, 255), -- Natürliche Farben des Logos beibehalten
+		ImageColor3 = Color3.fromRGB(255, 255, 255),
 		Visible = WindowConfig.ShowIcon and true or false,
 		Name = "WindowIcon"
 	})
@@ -883,9 +1248,6 @@ function Library:MakeWindow(WindowConfig)
 		Position = UDim2.new(0,0,1,-1)
 	}), "Stroke")
 
-	-- ╔══════════════════════════════════════════╗
-	-- ║   CUSTOM HINTERGRUNDBILD FÜR DIE UI      ║
-	-- ╚══════════════════════════════════════════╝
 	local WindowBackgroundImage = Create("ImageLabel", {
 		Size = UDim2.new(1, 0, 1, 0),
 		Position = UDim2.new(0, 0, 0, 0),
@@ -924,9 +1286,6 @@ function Library:MakeWindow(WindowConfig)
 
 	local SetResizingCallback = MakeDraggable(DragPoint, MainWindow)
 
-	-- ╔══════════════════════════════════════════╗
-	-- ║   MINI-ICON                              ║
-	-- ╚══════════════════════════════════════════╝
 	Library.MinimizeSettings = {
 		ReopenMode = "DoubleClick",
 		IconSize   = 46,
@@ -1166,9 +1525,6 @@ function Library:MakeWindow(WindowConfig)
 		Minimized = not Minimized
 	end)
 
-	-- ╔══════════════════════════════════════════╗
-	-- ║   LOADER MIT ECHT-LOGO & VIOLETT-DESIGN  ║
-	-- ╚══════════════════════════════════════════╝
 	local function LoadSequence()
 		MainWindow.Visible = false
 
@@ -1191,7 +1547,6 @@ function Library:MakeWindow(WindowConfig)
 			Transparency = 0.4
 		})
 
-		-- Logo im Loader (verwendet das geladene Wunsch-Logo - vergrößert)
 		local LogoIcon = Create("ImageLabel", {
 			Parent = LoaderFrame,
 			AnchorPoint = Vector2.new(0, 0.5),
@@ -1309,9 +1664,6 @@ function Library:MakeWindow(WindowConfig)
 
 	if WindowConfig.IntroEnabled then LoadSequence() end
 
-	-- ╔══════════════════════════════════════════════════════════════╗
-	-- ║   ERWEITERTES UI-EINSTELLUNGSPANEL (PRO-SETTINGS)            ║
-	-- ╚══════════════════════════════════════════════════════════════╝
 	local UISettingsPanel = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 5), {
 		Size = UDim2.new(1, -150, 1, -50),
 		Position = UDim2.new(0, 150, 0, 50),
@@ -1353,7 +1705,6 @@ function Library:MakeWindow(WindowConfig)
 
 		Header("Account & Spiel")
 
-		-- Account Row mit Ping & JobId
 		local AccountRow = Row("Benutzer", 100)
 		local GameName = "Emergency Hamburg"
 		pcall(function()
@@ -1387,9 +1738,6 @@ function Library:MakeWindow(WindowConfig)
 
 		Header("Design & Farben")
 
-		-- ╔══════════════════════════════════════════╗
-		-- ║   HINTERGRUNDBILD AUSWAHL (DROPDOWN)     ║
-		-- ╚══════════════════════════════════════════╝
 		local BgOptions = {
 			{ Name = "Frau 1",                 Url = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg" },
 			{ Name = "Frau 2",                 Url = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg" },
@@ -1523,7 +1871,6 @@ function Library:MakeWindow(WindowConfig)
 			TweenService:Create(BgDropdownFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
 		end)
 
-		-- Akzentfarbe Live Picker
 		local ColorRow = Row("Akzentfarbe", 66)
 		local ColorBar = Create("Frame", {
 			Parent = ColorRow, Size = UDim2.new(1, -24, 0, 22),
@@ -1583,7 +1930,6 @@ function Library:MakeWindow(WindowConfig)
 			end
 		end)
 
-		-- Rainbow / Chroma Mode Toggle
 		local RainbowRow = Row("Rainbow Chroma-Modus", 38)
 		local RainbowBtn = Create("TextButton", {
 			Parent = RainbowRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
@@ -1614,7 +1960,6 @@ function Library:MakeWindow(WindowConfig)
 
 		Header("Transparenz & Effekte")
 
-		-- Fenster-Transparenz Slider
 		local TransRow = Row("Fenster-Transparenz", 60)
 		local TSlider = Create("Frame", {
 			Parent = TransRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
@@ -1645,7 +1990,6 @@ function Library:MakeWindow(WindowConfig)
 			end
 		end)
 
-		-- Sidebar-Transparenz Slider
 		local SideRow = Row("Sidebar-Transparenz", 60)
 		local SSlider = Create("Frame", {
 			Parent = SideRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
@@ -1676,7 +2020,6 @@ function Library:MakeWindow(WindowConfig)
 			end
 		end)
 
-		-- Blur-Effekt Toggle
 		local BlurRow = Row("Hintergrund-Unschärfe (Blur)", 38)
 		local BlurBtn = Create("TextButton", {
 			Parent = BlurRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
@@ -1695,7 +2038,6 @@ function Library:MakeWindow(WindowConfig)
 
 		Header("Steuerung & Tastenkürzel")
 
-		-- Toggle-Taste interaktiv ändern
 		local ToggleKeyRow = Row("Menü-Taste ändern", 38)
 		local KeybindBtn = Create("TextButton", {
 			Parent = ToggleKeyRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
@@ -1729,7 +2071,6 @@ function Library:MakeWindow(WindowConfig)
 			end)
 		end)
 
-		-- Soundeffekte Toggle
 		local SoundRow = Row("Klick-Soundeffekte", 38)
 		local SoundBtn = Create("TextButton", {
 			Parent = SoundRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
@@ -1745,7 +2086,6 @@ function Library:MakeWindow(WindowConfig)
 			SaveUIConfig()
 		end)
 
-		-- Reopen-Modus fuer Mini-Icon
 		local ModeRow = Row("Wieder öffnen per", 38)
 		local ModeBtn = Create("TextButton", {
 			Parent = ModeRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
@@ -1767,7 +2107,6 @@ function Library:MakeWindow(WindowConfig)
 
 		Header("Verwaltung")
 
-		-- Reset Theme Button
 		local ResetRow = Row("Farbe & Theme zurücksetzen", 38)
 		local ResetBtn = Create("TextButton", {
 			Parent = ResetRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
@@ -1787,7 +2126,6 @@ function Library:MakeWindow(WindowConfig)
 			SaveUIConfig()
 		end)
 
-		-- Schließen / Unload Button
 		local UnloadRow = Row("UI komplett entladen", 38)
 		local UnloadBtn = Create("TextButton", {
 			Parent = UnloadRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
@@ -1892,7 +2230,8 @@ function Library:MakeWindow(WindowConfig)
 		local function GetElements(ItemParent, InPanel)
 			local ElementFunction = {}
 
-			function ElementFunction:AddLabel(Text)
+			function ElementFunction:AddLabel(...)
+				local Text = ParseLabelArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local LabelFrame = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 8), {
 					Size = UDim2.new(1,-16,0,30),
 					Position = UDim2.new(0,8,0,0),
@@ -1909,14 +2248,13 @@ function Library:MakeWindow(WindowConfig)
 				SetupElement(LabelFrame, InPanel, TabItemContainer, ActivateTab, ItemParent)
 				local LabelFunction = {}
 				function LabelFunction:Set(ToChange)
-					if LabelFrame:FindFirstChild("Content") then LabelFrame.Content.Text = ToChange end
+					if LabelFrame:FindFirstChild("Content") then LabelFrame.Content.Text = tostring(ToChange or "") end
 				end
 				return LabelFunction
 			end
 
-			function ElementFunction:AddParagraph(Text, Content)
-				Text    = Text    or "Text"
-				Content = Content or "Content"
+			function ElementFunction:AddParagraph(...)
+				local Text, Content = ParseParagraphArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local ParagraphFrame = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 8), {
 					Size = UDim2.new(1,-16,0,30),
 					Position = UDim2.new(0,8,0,0),
@@ -1944,15 +2282,12 @@ function Library:MakeWindow(WindowConfig)
 				end)
 				ParagraphFrame.Content.Text = Content
 				local ParagraphFunction = {}
-				function ParagraphFunction:Set(ToChange) ParagraphFrame.Content.Text = ToChange end
+				function ParagraphFunction:Set(ToChange) ParagraphFrame.Content.Text = tostring(ToChange or "") end
 				return ParagraphFunction
 			end
 
-			function ElementFunction:AddButton(ButtonConfig)
-				ButtonConfig = ButtonConfig or {}
-				ButtonConfig.Name     = ButtonConfig.Name     or "Button"
-				ButtonConfig.Callback = ButtonConfig.Callback or function() end
-				ButtonConfig.Icon     = ButtonConfig.Icon     or "rbxassetid://3944703587"
+			function ElementFunction:AddButton(...)
+				local ButtonConfig = ParseButtonArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local Button = {}
 				local Click = SetProps(MakeElement("Button"), {Size = UDim2.new(1,0,1,0)})
 				local ButtonFrame = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 8), {
@@ -1981,19 +2316,12 @@ function Library:MakeWindow(WindowConfig)
 					task.spawn(function() ButtonConfig.Callback() end)
 				end)
 				AddConnection(Click.MouseButton1Down, function() TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+8, Library.Themes[Library.SelectedTheme].Second.G*255+8, Library.Themes[Library.SelectedTheme].Second.B*255+8)}):Play() end)
-				function Button:Set(ButtonText) ButtonFrame.Content.Text = ButtonText end
+				function Button:Set(ButtonText) ButtonFrame.Content.Text = tostring(ButtonText or "") end
 				return Button
 			end
 
-			function ElementFunction:AddToggle(ToggleConfig)
-				ToggleConfig = ToggleConfig or {}
-				ToggleConfig.Name     = ToggleConfig.Name     or "Toggle"
-				ToggleConfig.Default  = ToggleConfig.Default  or false
-				ToggleConfig.Callback = ToggleConfig.Callback or function() end
-				ToggleConfig.Color    = ToggleConfig.Color    or ACCENT
-				ToggleConfig.Flag     = ToggleConfig.Flag     or nil
-				ToggleConfig.Save     = ToggleConfig.Save     or false
-
+			function ElementFunction:AddToggle(...)
+				local ToggleConfig = ParseToggleArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local Toggle = {Value = ToggleConfig.Default, Save = ToggleConfig.Save, Type = "Toggle"}
 				local Click = SetProps(MakeElement("Button"), {Size = UDim2.new(1,0,1,0)})
 				local ToggleBox = SetChildren(SetProps(MakeElement("RoundFrame", ToggleConfig.Color, 0, 7), {
@@ -2050,19 +2378,8 @@ function Library:MakeWindow(WindowConfig)
 				return Toggle
 			end
 
-			function ElementFunction:AddSlider(SliderConfig)
-				SliderConfig = SliderConfig or {}
-				SliderConfig.Name      = SliderConfig.Name      or "Slider"
-				SliderConfig.Min       = SliderConfig.Min       or 0
-				SliderConfig.Max       = SliderConfig.Max       or 100
-				SliderConfig.Increment = SliderConfig.Increment or 1
-				SliderConfig.Default   = SliderConfig.Default   or 50
-				SliderConfig.Callback  = SliderConfig.Callback  or function() end
-				SliderConfig.ValueName = SliderConfig.ValueName or ""
-				SliderConfig.Color     = SliderConfig.Color     or ACCENT
-				SliderConfig.Flag      = SliderConfig.Flag      or nil
-				SliderConfig.Save      = SliderConfig.Save      or false
-
+			function ElementFunction:AddSlider(...)
+				local SliderConfig = ParseSliderArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local Slider = {Value = SliderConfig.Default, Save = SliderConfig.Save, Type = "Slider"}
 				local Dragging = false
 
@@ -2145,15 +2462,8 @@ function Library:MakeWindow(WindowConfig)
 				return Slider
 			end
 
-			function ElementFunction:AddDropdown(DropdownConfig)
-				DropdownConfig = DropdownConfig or {}
-				DropdownConfig.Name     = DropdownConfig.Name     or "Dropdown"
-				DropdownConfig.Options  = DropdownConfig.Options  or {}
-				DropdownConfig.Default  = DropdownConfig.Default  or ""
-				DropdownConfig.Callback = DropdownConfig.Callback or function() end
-				DropdownConfig.Flag     = DropdownConfig.Flag     or nil
-				DropdownConfig.Save     = DropdownConfig.Save     or false
-
+			function ElementFunction:AddDropdown(...)
+				local DropdownConfig = ParseDropdownArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local Dropdown = {Value = DropdownConfig.Default, Options = DropdownConfig.Options, Buttons = {}, Toggled = false, Type = "Dropdown", Save = DropdownConfig.Save}
 				local MaxElements = 5
 
@@ -2259,15 +2569,8 @@ function Library:MakeWindow(WindowConfig)
 				return Dropdown
 			end
 
-			function ElementFunction:AddBind(BindConfig)
-				BindConfig = BindConfig or {}
-				BindConfig.Name     = BindConfig.Name     or "Bind"
-				BindConfig.Default  = BindConfig.Default  or Enum.KeyCode.Unknown
-				BindConfig.Hold     = BindConfig.Hold     or false
-				BindConfig.Callback = BindConfig.Callback or function() end
-				BindConfig.Flag     = BindConfig.Flag     or nil
-				BindConfig.Save     = BindConfig.Save     or false
-
+			function ElementFunction:AddBind(...)
+				local BindConfig = ParseBindArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local Bind = {Value = nil, Binding = false, Type = "Bind", Save = BindConfig.Save}
 				local Holding = false
 				local Click = SetProps(MakeElement("Button"), {Size = UDim2.new(1,0,1,0)})
@@ -2356,13 +2659,8 @@ function Library:MakeWindow(WindowConfig)
 				return Bind
 			end
 
-			function ElementFunction:AddTextbox(TextboxConfig)
-				TextboxConfig = TextboxConfig or {}
-				TextboxConfig.Name          = TextboxConfig.Name          or "Textbox"
-				TextboxConfig.Default       = TextboxConfig.Default       or ""
-				TextboxConfig.TextDisappear = TextboxConfig.TextDisappear or false
-				TextboxConfig.Callback      = TextboxConfig.Callback      or function() end
-
+			function ElementFunction:AddTextbox(...)
+				local TextboxConfig = ParseTextboxArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local Click = SetProps(MakeElement("Button"), {Size = UDim2.new(1,0,1,0)})
 				local TextboxActual = AddThemeObject(Create("TextBox", {
 					Size = UDim2.new(1,0,1,0),
@@ -2420,14 +2718,8 @@ function Library:MakeWindow(WindowConfig)
 				AddConnection(Click.MouseButton1Down, function() TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(Library.Themes[Library.SelectedTheme].Second.R*255+8, Library.Themes[Library.SelectedTheme].Second.G*255+8, Library.Themes[Library.SelectedTheme].Second.B*255+8)}):Play() end)
 			end
 
-			function ElementFunction:AddColorpicker(ColorpickerConfig)
-				ColorpickerConfig = ColorpickerConfig or {}
-				ColorpickerConfig.Name     = ColorpickerConfig.Name     or "Colorpicker"
-				ColorpickerConfig.Default  = ColorpickerConfig.Default  or Color3.fromRGB(255,255,255)
-				ColorpickerConfig.Callback = ColorpickerConfig.Callback or function() end
-				ColorpickerConfig.Flag     = ColorpickerConfig.Flag     or nil
-				ColorpickerConfig.Save     = ColorpickerConfig.Save     or false
-
+			function ElementFunction:AddColorpicker(...)
+				local ColorpickerConfig = ParseColorpickerArgs(ResolveArgs(ElementFunction, "AddButton", ...))
 				local ColorH, ColorS, ColorV = 1, 1, 1
 				local ColorInput, HueInput
 				local Colorpicker = {Value = ColorpickerConfig.Default, Toggled = false, Type = "Colorpicker", Save = ColorpickerConfig.Save}
@@ -2563,43 +2855,41 @@ function Library:MakeWindow(WindowConfig)
 				return Colorpicker
 			end
 
-			return ElementFunction
+			function ElementFunction:AddSection(...)
+				local SectionConfig = ParseSectionArgs(ResolveArgs(ElementFunction, "AddButton", ...))
+				local SectionFrame = SetChildren(SetProps(MakeElement("TFrame"), {
+					Size = UDim2.new(1,0,0,26),
+					Parent = TabItemContainer
+				}), {
+					AddThemeObject(SetProps(MakeElement("Label", SectionConfig.Name, 12), {
+						Size = UDim2.new(1,-12,0,14),
+						Position = UDim2.new(0,6,0,2),
+						Font = Enum.Font.GothamSemibold
+					}), "TextDark"),
+					AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 8), {
+						AnchorPoint = Vector2.new(0,0),
+						Size = UDim2.new(1,0,1,-24),
+						Position = UDim2.new(0,0,0,22),
+						ClipsDescendants = true,
+						Name = "Holder"
+					}), {
+						MakeElement("List", 0, 0),
+						AddThemeObject(MakeElement("Stroke"), "Stroke")
+					}), "Second"),
+				})
+				AddConnection(SectionFrame.Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+					SectionFrame.Size        = UDim2.new(1, 0, 0, SectionFrame.Holder.UIListLayout.AbsoluteContentSize.Y + 31)
+					SectionFrame.Holder.Size = UDim2.new(1, 0, 0, SectionFrame.Holder.UIListLayout.AbsoluteContentSize.Y)
+				end)
+				local SectionFunction = {}
+				for i, v in next, GetElements(SectionFrame.Holder, true) do SectionFunction[i] = v end
+				return AttachElementAliases(SectionFunction)
+			end
+
+			return AttachElementAliases(ElementFunction)
 		end
 
 		local ElementFunction = {}
-
-		function ElementFunction:AddSection(SectionConfig)
-			SectionConfig = SectionConfig or {}
-			SectionConfig.Name = SectionConfig.Name or "Section"
-			local SectionFrame = SetChildren(SetProps(MakeElement("TFrame"), {
-				Size = UDim2.new(1,0,0,26),
-				Parent = TabItemContainer
-			}), {
-				AddThemeObject(SetProps(MakeElement("Label", SectionConfig.Name, 12), {
-					Size = UDim2.new(1,-12,0,14),
-					Position = UDim2.new(0,6,0,2),
-					Font = Enum.Font.GothamSemibold
-				}), "TextDark"),
-				AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 8), {
-					AnchorPoint = Vector2.new(0,0),
-					Size = UDim2.new(1,0,1,-24),
-					Position = UDim2.new(0,0,0,22),
-					ClipsDescendants = true,
-					Name = "Holder"
-				}), {
-					MakeElement("List", 0, 0),
-					AddThemeObject(MakeElement("Stroke"), "Stroke")
-				}), "Second"),
-			})
-			AddConnection(SectionFrame.Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-				SectionFrame.Size        = UDim2.new(1, 0, 0, SectionFrame.Holder.UIListLayout.AbsoluteContentSize.Y + 31)
-				SectionFrame.Holder.Size = UDim2.new(1, 0, 0, SectionFrame.Holder.UIListLayout.AbsoluteContentSize.Y)
-			end)
-			local SectionFunction = {}
-			for i, v in next, GetElements(SectionFrame.Holder, true) do SectionFunction[i] = v end
-			return SectionFunction
-		end
-
 		for i, v in next, GetElements(TabItemContainer) do ElementFunction[i] = v end
 
 		if TabConfig.PremiumOnly then
@@ -2611,7 +2901,7 @@ function Library:MakeWindow(WindowConfig)
 				AddThemeObject(SetProps(MakeElement("Label", "Unauthorised Access", 14), {Size=UDim2.new(1,-38,0,14), Position=UDim2.new(0,38,0,18), TextTransparency=0.4}), "Text"),
 			})
 		end
-		return ElementFunction, TabFrame
+		return AttachElementAliases(ElementFunction), TabFrame
 	end
 
 	local TabFunction    = {}
@@ -2786,7 +3076,8 @@ function Library:MakeWindow(WindowConfig)
 		end)
 	end
 
-	function TabFunction:MakeTab(TabConfig)
+	function TabFunction:MakeTab(...)
+		local TabConfig = ParseTabArgs(ResolveArgs(TabFunction, "MakeTab", ...))
 		local ef, frame = BuildTab(TabConfig, TabHolder)
 		if frame then
 			frame.LayoutOrder = NextOrder()
@@ -2795,11 +3086,8 @@ function Library:MakeWindow(WindowConfig)
 		return ef
 	end
 
-	function TabFunction:MakeTabGroup(GroupConfig)
-		GroupConfig = GroupConfig or {}
-		GroupConfig.Name      = GroupConfig.Name      or "Group"
-		GroupConfig.Collapsed = GroupConfig.Collapsed or false
-
+	function TabFunction:MakeTabGroup(...)
+		local GroupConfig = ParseGroupArgs(ResolveArgs(TabFunction, "MakeTabGroup", ...))
 		local collapsed     = GroupConfig.Collapsed
 		local groupFrames   = {}
 		local headerCreated = false
@@ -2843,7 +3131,8 @@ function Library:MakeWindow(WindowConfig)
 		end
 
 		local GroupFunction = {}
-		function GroupFunction:MakeTab(TabConfig)
+		function GroupFunction:MakeTab(...)
+			local TabConfig = ParseTabArgs(ResolveArgs(GroupFunction, "MakeTab", ...))
 			EnsureHeader()
 			local tabEF, tabBtn = BuildTab(TabConfig, TabHolder)
 			if tabBtn then
@@ -2858,10 +3147,10 @@ function Library:MakeWindow(WindowConfig)
 			end
 			return tabEF
 		end
-		return GroupFunction
+		return AttachGroupAliases(GroupFunction)
 	end
 
-	return TabFunction
+	return AttachWindowAliases(TabFunction)
 end
 
 local Configs_HUB = {
@@ -2926,69 +3215,55 @@ local ListLayout = Create2("UIListLayout", Menu_Notifi, {
 	VerticalAlignment = "Bottom"
 })
 
-function Library:MakeNotifi(Configs)
-	local Title    = Configs.Title or "Title!"
-	local text     = Configs.Text  or "Notification content... what will it say??"
-	local timewait = Configs.Time  or 5
-
-	local Frame1 = Create2("Frame", Menu_Notifi, {Size=UDim2.new(2,0,0,0), BackgroundTransparency=1, AutomaticSize="Y", Name="Title"})
-	local Frame2 = Create2("Frame", Frame1, {
-		Size=UDim2.new(0, Menu_Notifi.Size.X.Offset-50, 0, 0),
-		BackgroundColor3=Configs_HUB.Cor_Hub,
-		Position=UDim2.new(0, Menu_Notifi.Size.X.Offset, 0, 0),
-		AutomaticSize="Y",
-		BackgroundTransparency=0.15
-	}) Corner2(Frame2)
-	Stroke2(Frame2)
-
-	local TextLabel = Create2("TextLabel", Frame2, {
-		Size=UDim2.new(1,0,0,25), Font=Configs_HUB.Text_Font,
-		BackgroundTransparency=1, Text=Title, TextSize=18,
-		Position=UDim2.new(0,20,0,5), TextXAlignment="Left", TextColor3=Configs_HUB.Cor_Text
-	})
-	local TextButton = Create2("TextButton", Frame2, {
-		Text="X", Font=Configs_HUB.Text_Font, TextSize=18,
-		BackgroundTransparency=1, TextColor3=Color3.fromRGB(200,200,200),
-		Position=UDim2.new(1,-5,0,5), AnchorPoint=Vector2.new(1,0), Size=UDim2.new(0,25,0,25)
-	})
-	local TextLabel2 = Create2("TextLabel", Frame2, {
-		Size=UDim2.new(1,-30,0,0),
-		Position=UDim2.new(0,20,0,TextButton.Size.Y.Offset+10),
-		TextSize=14, TextColor3=Configs_HUB.Cor_DarkText,
-		TextXAlignment="Left", TextYAlignment="Top",
-		AutomaticSize=Enum.AutomaticSize.Y, Text=text,
-		Font=Configs_HUB.Text_Font, BackgroundTransparency=1, TextWrapped=true
-	})
-
-	local FrameSize = Create2("Frame", Frame2, {
-		Size=UDim2.new(1,0,0,2), BackgroundColor3=ACCENT,
-		Position=UDim2.new(0,2,0,30), BorderSizePixel=0
-	}) Corner2(FrameSize)
-	Create2("Frame", Frame2, {Size=UDim2.new(0,0,0,5), Position=UDim2.new(0,0,1,5), BackgroundTransparency=1})
-
-	task.spawn(function() CreateTween(FrameSize, "Size", UDim2.new(0,0,0,2), timewait, true) end)
-
-	TextButton.MouseButton1Click:Connect(function()
-		CreateTween(Frame2, "Position", UDim2.new(0,-20,0,0), 0.1, true)
-		CreateTween(Frame2, "Position", UDim2.new(0,Menu_Notifi.Size.X.Offset,0,0), 0.5, true)
-		Frame1:Destroy()
-	end)
-
-	task.spawn(function()
-		CreateTween(Frame2, "Position", UDim2.new(0,-20,0,0), 0.5, true)
-		CreateTween(Frame2, "Position", UDim2.new(), 0.1, true)
-		task.wait(timewait)
-		if Frame2 then
-			CreateTween(Frame2, "Position", UDim2.new(0,-20,0,0), 0.1, true)
-			CreateTween(Frame2, "Position", UDim2.new(0,Menu_Notifi.Size.X.Offset,0,0), 0.5, true)
-			Frame1:Destroy()
-		end
-	end)
+function Library:MakeNotifi(...)
+	return self:MakeNotification(...)
 end
 
 function Library:Destroy()
 	Library.SearchRegistry = {}
 	Container:Destroy()
 end
+
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║   LIBRARY-LEVEL ALIASES & COMPATIBILITY LAYER                ║
+-- ╚══════════════════════════════════════════════════════════════╝
+local windowAliases = {"CreateWindow", "NewWindow", "AddWindow", "Window", "InitWindow", "CreateLib", "Create"}
+for _, alias in ipairs(windowAliases) do
+	Library[alias] = function(self, ...)
+		return self:MakeWindow(...)
+	end
+end
+
+local notifAliases = {"CreateNotification", "Notify", "Notification", "SendNotification", "AddNotification", "Alert"}
+for _, alias in ipairs(notifAliases) do
+	Library[alias] = function(self, ...)
+		return self:MakeNotification(...)
+	end
+end
+
+local destroyAliases = {"Unload", "Close", "Stop"}
+for _, alias in ipairs(destroyAliases) do
+	Library[alias] = function(self, ...)
+		return self:Destroy(...)
+	end
+end
+
+local libMt = getmetatable(Library) or {}
+local oldLibIndex = libMt.__index
+libMt.__index = function(t, key)
+	if type(key) == "string" then
+		local lk = key:lower()
+		if lk:find("window") or lk:find("lib") then
+			return rawget(t, "MakeWindow")
+		elseif lk:find("notif") or lk:find("notify") or lk:find("alert") then
+			return rawget(t, "MakeNotification")
+		elseif lk:find("destroy") or lk:find("unload") or lk:find("close") then
+			return rawget(t, "Destroy")
+		end
+	end
+	if type(oldLibIndex) == "function" then return oldLibIndex(t, key) elseif type(oldLibIndex) == "table" then return oldLibIndex[key] end
+	return rawget(t, key)
+end
+setmetatable(Library, libMt)
 
 return Library
