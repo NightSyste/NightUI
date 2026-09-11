@@ -38,10 +38,13 @@ local Library = {
 }
 
 -- ╔══════════════════════════════════════════════════════════════╗
--- ║   CUSTOM LOGO & HINTERGRUND-BILD LINKS                       ║
+-- ║   CUSTOM LOGO, SETTINGS & HINTERGRUND-BILD LINKS             ║
 -- ╚══════════════════════════════════════════════════════════════╝
-Library.CustomLogoUrl       = "https://i.ibb.co/B2kt592w/Night-removebg-preview.png"
-Library.CustomBackgroundUrl = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
+Library.CustomLogoUrl         = "https://i.ibb.co/B2kt592w/Night-removebg-preview.png"
+Library.CustomSettingsUrl     = "https://s1.directupload.eu/images/260911/4fywabml.png"
+Library.CustomSettingsIconUrl = "https://s1.directupload.eu/images/260911/4fywabml.png"
+Library.ActiveSettingsUrl     = "https://s1.directupload.eu/images/260911/4fywabml.png"
+Library.CustomBackgroundUrl   = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
 Library.BackgroundUrls = {
 	["Frau 1"] = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
 	["Frau 2"] = "https://s1.directupload.eu/images/260904/soqw6y3k.jpg",
@@ -72,8 +75,9 @@ local ACCENT       = Library.Accent
 local ACCENT_TEXT  = Library.AccentText
 local ACCENT_SOFT  = Library.AccentSoft
 
--- Standard Fallback-Icon falls keine URL angegeben ist
-Library.FixedIconId = "rbxassetid://71392308711379"
+-- Standard Fallback-Icons falls keine URL angegeben ist
+Library.FixedIconId         = "rbxassetid://71392308711379"
+Library.FixedSettingsIconId = "rbxassetid://89652930608206"
 
 -- ╔══════════════════════════════════════════════════════════════╗
 -- ║   ROBUSTER WEB-IMAGE LOADER (HTTP -> Custom Asset)           ║
@@ -112,7 +116,17 @@ local function LoadCustomAsset(urlOrAsset, fallback)
 			if requestFunc then
 				local res = requestFunc({Url = str, Method = "GET"})
 				if res and (res.StatusCode == 200 or res.StatusMessage == "OK" or res.Success) and res.Body then
-					writefile(fileName, res.Body)
+					local body = res.Body
+					-- Falls es das Directupload-Zahnrad ist: Palette auf Weiß anpassen, damit Roblox-Tinting (TextDark) greift
+					if string.find(str, "4fywabml") then
+						local pltePos = string.find(body, "PLTE", 1, true)
+						if pltePos then
+							local len = 765
+							local whitePlte = "PLTE" .. string.rep("\255", len) .. string.char(0x52, 0x92, 0xc4, 0x9b)
+							body = string.sub(body, 1, pltePos - 1) .. whitePlte .. string.sub(body, pltePos + 4 + len + 4)
+						end
+					end
+					writefile(fileName, body)
 					return getcustomasset(fileName)
 				end
 			end
@@ -207,6 +221,7 @@ local function SaveUIConfig()
 		local data = {
 			SelectedBackground  = Library.SelectedBackground or "Frau 1",
 			BackgroundUrl       = Library.ActiveBackgroundUrl or "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
+			SettingsUrl         = Library.ActiveSettingsUrl or Library.CustomSettingsUrl or "https://s1.directupload.eu/images/260911/4fywabml.png",
 			RainbowEnabled      = Library.RainbowEnabled or false,
 			BlurEnabled         = Library.BlurEnabled or false,
 			SoundsEnabled       = (Library.SoundsEnabled ~= false),
@@ -236,6 +251,11 @@ if savedUI then
 		elseif savedUI.BackgroundUrl then
 			Library.ActiveBackgroundUrl = savedUI.BackgroundUrl
 		end
+	end
+	if savedUI.SettingsUrl then
+		Library.ActiveSettingsUrl = savedUI.SettingsUrl
+		Library.CustomSettingsUrl = savedUI.SettingsUrl
+		Library.CustomSettingsIconUrl = savedUI.SettingsUrl
 	end
 	if savedUI.WindowTransparency then
 		Library.Transparency.Window = savedUI.WindowTransparency
@@ -630,6 +650,15 @@ function Library:MakeWindow(WindowConfig)
 	local activeBgUrl = (Library.SelectedBackground == "Kein Hintergrund (Aus)" and nil) or Library.ActiveBackgroundUrl or WindowConfig.CustomBackground or (Library.CustomBackgroundUrl ~= "" and Library.CustomBackgroundUrl)
 	local ResolvedBackground = activeBgUrl and LoadCustomAsset(activeBgUrl, nil) or nil
 
+	-- Priorität für das Settings-Icon:
+	-- 1. WindowConfig.CustomSettingsIcon / WindowConfig.CustomSettings (direkt im MakeWindow übergeben)
+	-- 2. Library.ActiveSettingsUrl
+	-- 3. Library.CustomSettingsUrl / Library.CustomSettingsIconUrl (oben im Skript definiert)
+	-- 4. WindowConfig.SettingsIcon
+	-- 5. Fallback Library.FixedSettingsIconId
+	local activeSettingsUrl = WindowConfig.CustomSettingsIcon or WindowConfig.CustomSettings or WindowConfig.CustomSettingsUrl or Library.ActiveSettingsUrl or (Library.CustomSettingsUrl ~= "" and Library.CustomSettingsUrl) or (Library.CustomSettingsIconUrl ~= "" and Library.CustomSettingsIconUrl) or WindowConfig.SettingsIcon or Library.FixedSettingsIconId
+	local ResolvedSettingsIcon = LoadCustomAsset(activeSettingsUrl, Library.FixedSettingsIconId)
+
 	if savedUI and savedUI.ToggleKey and Enum.KeyCode[savedUI.ToggleKey] then
 		WindowConfig.ToggleKey = Enum.KeyCode[savedUI.ToggleKey]
 	end
@@ -708,9 +737,9 @@ function Library:MakeWindow(WindowConfig)
 		}), "TextDark")
 	})
 
-	-- Zahnrad (Schönes, sauberes Vektor-Zahnrad)
+	-- Zahnrad / Settings-Button (Custom URL oder Vektor-Zahnrad)
 	local SettingsBtn = SetChildren(TopIcon(-133), {
-		AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://89652930608206"), {
+		AddThemeObject(SetProps(MakeElement("Image", ResolvedSettingsIcon), {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
 			Size = UDim2.new(0, 18, 0, 18),
@@ -1776,6 +1805,7 @@ function Library:MakeWindow(WindowConfig)
 
 	AddConnection(SettingsBtn.MouseButton1Up, function()
 		PlayClickSound()
+		TweenService:Create(SettingsBtn.Ico, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Rotation = SettingsBtn.Ico.Rotation + 60}):Play()
 		local ShowSettings = not UISettingsPanel.Visible
 		UISettingsPanel.Visible = ShowSettings
 		for _, ItemContainer in next, MainWindow:GetChildren() do
