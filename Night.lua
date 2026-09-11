@@ -35,7 +35,7 @@ local Library = {
 	SoundsEnabled = true,
 	RainbowEnabled = false,
 	BlurEnabled = false,
-	WatermarkEnabled = false,
+	WatermarkEnabled = true,
 	AntiAfkEnabled = false,
 	FullbrightEnabled = false,
 	PotatoModeEnabled = false,
@@ -294,7 +294,11 @@ if savedUI then
 	end
 	if savedUI.RainbowEnabled ~= nil then Library.RainbowEnabled = savedUI.RainbowEnabled end
 	if savedUI.BlurEnabled ~= nil then Library.BlurEnabled = savedUI.BlurEnabled end
-	if savedUI.WatermarkEnabled ~= nil then Library.WatermarkEnabled = savedUI.WatermarkEnabled end
+	if savedUI.WatermarkEnabled ~= nil then
+		Library.WatermarkEnabled = savedUI.WatermarkEnabled
+	else
+		Library.WatermarkEnabled = true
+	end
 	if savedUI.AntiAfkEnabled ~= nil then Library.AntiAfkEnabled = savedUI.AntiAfkEnabled end
 	if savedUI.FullbrightEnabled ~= nil then Library.FullbrightEnabled = savedUI.FullbrightEnabled end
 	if savedUI.PotatoModeEnabled ~= nil then Library.PotatoModeEnabled = savedUI.PotatoModeEnabled end
@@ -1145,7 +1149,7 @@ function Library:MakeWindow(...)
 			if WatermarkFrame then WatermarkFrame:Destroy(); WatermarkFrame = nil end
 		end
 	end
-	if Library.WatermarkEnabled then SetWatermarkState(true) end
+	if Library.WatermarkEnabled ~= false then SetWatermarkState(true) end
 
 	local TabHolder = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {
 		Size = UDim2.new(1, 0, 1, -50)
@@ -1768,6 +1772,7 @@ function Library:MakeWindow(...)
 	-- ╔══════════════════════════════════════════════════════════════╗
 	-- ║   KRASSE CHARAKTER & SPIEL STATUS KARTE (INSPECTOR OVERLAY)  ║
 	-- ╚══════════════════════════════════════════════════════════════╝
+	local UISettingsPanel
 	local ProfileCard = AddThemeObject(SetProps(MakeElement("RoundFrame", Color3.fromRGB(20, 15, 28), 0, 10), {
 		Parent = MainWindow,
 		Position = UDim2.new(0, 155, 0, 54),
@@ -2156,7 +2161,7 @@ function Library:MakeWindow(...)
 		ProfileCardOpen = not ProfileCardOpen
 		PlayClickSound()
 		if ProfileCardOpen then
-			UISettingsPanel.Visible = false
+			if UISettingsPanel then UISettingsPanel.Visible = false end
 			for _, ItemContainer in next, MainWindow:GetChildren() do
 				if ItemContainer.Name == "ItemContainer" then ItemContainer.Visible = false end
 			end
@@ -2197,7 +2202,7 @@ function Library:MakeWindow(...)
 	-- ╔══════════════════════════════════════════════════════════════╗
 	-- ║   MASSIV ERWEITERTES UI-EINSTELLUNGSPANEL                    ║
 	-- ╚══════════════════════════════════════════════════════════════╝
-	local UISettingsPanel = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 5), {
+	UISettingsPanel = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 5), {
 		Size = UDim2.new(1, -150, 1, -50),
 		Position = UDim2.new(0, 150, 0, 50),
 		Parent = MainWindow,
@@ -2444,42 +2449,6 @@ function Library:MakeWindow(...)
 			TweenService:Create(BgDropdownFrame, TweenInfo.new(0.15), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
 		end)
 
-		local CustomBgRow = Row("Eigene Hintergrund-URL", 66)
-		local CustomBgInput = AddThemeObject(Create("TextBox", {
-			Parent = CustomBgRow,
-			Size = UDim2.new(1, -24, 0, 26),
-			Position = UDim2.new(0, 12, 0, 32),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
-			BackgroundTransparency = 0.3,
-			Text = Library.ActiveBackgroundUrl or "",
-			PlaceholderText = "https://... Bild-URL einfügen & Enter",
-			PlaceholderColor3 = Color3.fromRGB(140, 130, 160),
-			Font = Enum.Font.GothamSemibold,
-			TextSize = 12,
-			TextColor3 = Color3.fromRGB(240, 235, 255),
-			ClearTextOnFocus = false
-		}), "Control")
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = CustomBgInput})
-		Create("UIStroke", {Color = ACCENT, Thickness = 0.8, Parent = CustomBgInput})
-
-		CustomBgInput.FocusLost:Connect(function(enter)
-			if enter and CustomBgInput.Text ~= "" then
-				local url = CustomBgInput.Text
-				Library.ActiveBackgroundUrl = url
-				Library.SelectedBackground = "Custom"
-				BgSelected.Text = "Custom"
-				task.spawn(function()
-					local asset = LoadCustomAsset(url, nil)
-					if asset then
-						WindowBackgroundImage.Image = asset
-						WindowBackgroundImage.Visible = true
-						Library:MakeNotification({Name = "Hintergrund aktualisiert", Content = "Eigene URL geladen", Time = 2.5})
-					end
-				end)
-				SaveUIConfig()
-			end
-		end)
-
 		local BgTransRow = Row("Hintergrund-Transparenz", 60)
 		local BgTransSlider = Create("Frame", {
 			Parent = BgTransRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
@@ -2500,75 +2469,6 @@ function Library:MakeWindow(...)
 				BgTransFill.Size = UDim2.new(Rel, 0, 1, 0)
 				Library.BackgroundTransparency = Rel
 				WindowBackgroundImage.ImageTransparency = Rel
-			end
-		end)
-
-		local CustomLogoRow = Row("Eigene Logo-URL (Oben Links)", 66)
-		local CustomLogoInput = AddThemeObject(Create("TextBox", {
-			Parent = CustomLogoRow,
-			Size = UDim2.new(1, -24, 0, 26),
-			Position = UDim2.new(0, 12, 0, 32),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
-			BackgroundTransparency = 0.3,
-			Text = Library.CustomLogoUrl or "",
-			PlaceholderText = "https://... Logo-URL einfügen & Enter",
-			PlaceholderColor3 = Color3.fromRGB(140, 130, 160),
-			Font = Enum.Font.GothamSemibold,
-			TextSize = 12,
-			TextColor3 = Color3.fromRGB(240, 235, 255),
-			ClearTextOnFocus = false
-		}), "Control")
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = CustomLogoInput})
-		Create("UIStroke", {Color = ACCENT, Thickness = 0.8, Parent = CustomLogoInput})
-
-		CustomLogoInput.FocusLost:Connect(function(enter)
-			if enter and CustomLogoInput.Text ~= "" then
-				local url = CustomLogoInput.Text
-				Library.CustomLogoUrl = url
-				task.spawn(function()
-					local asset = LoadCustomAsset(url, Library.FixedIconId)
-					if asset then
-						WindowIcon.Image = asset
-						MiniIconBadge.Image = asset
-						Library:MakeNotification({Name = "Logo aktualisiert", Content = "Neues Logo gesetzt", Time = 2.5})
-					end
-				end)
-				SaveUIConfig()
-			end
-		end)
-
-		local CustomSettingsRow = Row("Eigenes Settings-Icon (URL)", 66)
-		local CustomSettingsInput = AddThemeObject(Create("TextBox", {
-			Parent = CustomSettingsRow,
-			Size = UDim2.new(1, -24, 0, 26),
-			Position = UDim2.new(0, 12, 0, 32),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
-			BackgroundTransparency = 0.3,
-			Text = Library.ActiveSettingsUrl or Library.CustomSettingsUrl or "",
-			PlaceholderText = "https://... Settings-Icon URL einfügen & Enter",
-			PlaceholderColor3 = Color3.fromRGB(140, 130, 160),
-			Font = Enum.Font.GothamSemibold,
-			TextSize = 12,
-			TextColor3 = Color3.fromRGB(240, 235, 255),
-			ClearTextOnFocus = false
-		}), "Control")
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = CustomSettingsInput})
-		Create("UIStroke", {Color = ACCENT, Thickness = 0.8, Parent = CustomSettingsInput})
-
-		CustomSettingsInput.FocusLost:Connect(function(enter)
-			if enter and CustomSettingsInput.Text ~= "" then
-				local url = CustomSettingsInput.Text
-				Library.ActiveSettingsUrl = url
-				Library.CustomSettingsUrl = url
-				Library.CustomSettingsIconUrl = url
-				task.spawn(function()
-					local asset = LoadCustomAsset(url, Library.FixedSettingsIconId)
-					if asset and SettingsBtn:FindFirstChild("Ico") then
-						SettingsBtn.Ico.Image = asset
-						Library:MakeNotification({Name = "Settings-Icon geändert", Content = "Neues Icon geladen", Time = 2.5})
-					end
-				end)
-				SaveUIConfig()
 			end
 		end)
 
@@ -2892,6 +2792,7 @@ function Library:MakeWindow(...)
 		PlayClickSound()
 		TweenService:Create(SettingsBtn.Ico, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Rotation = SettingsBtn.Ico.Rotation + 60}):Play()
 		ProfileCard.Visible = false
+		ProfileCardOpen = false
 		local ShowSettings = not UISettingsPanel.Visible
 		UISettingsPanel.Visible = ShowSettings
 		for _, ItemContainer in next, MainWindow:GetChildren() do
@@ -2954,6 +2855,7 @@ function Library:MakeWindow(...)
 
 		local function ActivateTab()
 			ProfileCard.Visible = false
+			ProfileCardOpen = false
 			for _, Tab in next, TabHolder:GetChildren() do
 				if Tab:IsA("TextButton") and Tab:FindFirstChild("Ico") and Tab:FindFirstChild("Title") then
 					Tab.Title.Font = Enum.Font.GothamSemibold
