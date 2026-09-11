@@ -7,6 +7,7 @@ local Mouse = LocalPlayer:GetMouse()
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local Stats = game:GetService("Stats")
+local TeleportService = game:GetService("TeleportService")
 
 local Library = {
 	Elements = {},
@@ -34,7 +35,11 @@ local Library = {
 	SoundsEnabled = true,
 	RainbowEnabled = false,
 	BlurEnabled = false,
-	WatermarkEnabled = false
+	WatermarkEnabled = false,
+	AntiAfkEnabled = false,
+	FullbrightEnabled = false,
+	PotatoModeEnabled = false,
+	TargetFps = 60
 }
 
 -- ╔══════════════════════════════════════════════════════════════╗
@@ -53,29 +58,28 @@ Library.BackgroundUrls = {
 }
 Library.SelectedBackground = "Frau 1"
 Library.ActiveBackgroundUrl = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg"
-Library.BackgroundTransparency = 0.35 -- Wie stark das Hintergrundbild durchscheint (0 = voll sichtbar, 1 = unsichtbar)
+Library.BackgroundTransparency = 0.35
 
 -- ╔══════════════════════════════════════════════════════════════╗
 -- ║   TRANSPARENZ (Dunkel-Lila Glas-Optik)                       ║
 -- ╚══════════════════════════════════════════════════════════════╝
 Library.Transparency = {
-	Window  = 0.22, -- Fenster + Content-Bereich (durchscheinender Glas-Look)
-	Sidebar = 0.14, -- linke Tab-Leiste
-	Second  = 0,    -- Element-Panel (deckend für perfekte Lesbarkeit)
-	Control = 0.40, -- Keybind-Feld, Textbox-Feld, Farbfeld
+	Window  = 0.22,
+	Sidebar = 0.14,
+	Second  = 0,
+	Control = 0.40,
 }
 
 -- ╔══════════════════════════════════════════════════════════════╗
 -- ║        AKZENTFARBE (Neon / Cyber Lila)                       ║
 -- ╚══════════════════════════════════════════════════════════════╝
-Library.Accent     = Color3.fromRGB(145, 115, 245) -- Leuchtendes Lila (Toggles, Slider)
-Library.AccentText = Color3.fromRGB(185, 165, 255) -- Aktiver Tab & Überschriften
-Library.AccentSoft = Color3.fromRGB(155, 135, 220) -- Gruppen-Titel
+Library.Accent     = Color3.fromRGB(145, 115, 245)
+Library.AccentText = Color3.fromRGB(185, 165, 255)
+Library.AccentSoft = Color3.fromRGB(155, 135, 220)
 local ACCENT       = Library.Accent
 local ACCENT_TEXT  = Library.AccentText
 local ACCENT_SOFT  = Library.AccentSoft
 
--- Standard Fallback-Icons falls keine URL angegeben ist
 Library.FixedIconId         = "rbxassetid://71392308711379"
 Library.FixedSettingsIconId = "rbxassetid://89652930608206"
 
@@ -113,7 +117,6 @@ local function LoadCustomAsset(urlOrAsset, fallback)
 				local res = requestFunc({Url = str, Method = "GET"})
 				if res and (res.StatusCode == 200 or res.StatusMessage == "OK" or res.Success) and res.Body then
 					local body = res.Body
-					-- Falls es das Directupload-Zahnrad ist: Palette auf Weiß anpassen, damit Roblox-Tinting (TextDark) greift
 					if string.find(str, "4fywabml") then
 						local pltePos = string.find(body, "PLTE", 1, true)
 						if pltePos then
@@ -144,6 +147,24 @@ local function PlayClickSound()
 		sound:Play()
 		game:GetService("Debris"):AddItem(sound, 1)
 	end)
+end
+
+local function CopyToClipboard(text, notifName)
+	local setclip = setclipboard or toclipboard or (syn and syn.write_clipboard) or (Clipboard and Clipboard.set)
+	if setclip then
+		setclip(tostring(text))
+		Library:MakeNotification({
+			Name = notifName or "Kopiert",
+			Content = tostring(text):sub(1, 38) .. (string.len(tostring(text)) > 38 and "..." or ""),
+			Time = 2.5
+		})
+	else
+		Library:MakeNotification({
+			Name = "Hinweis",
+			Content = tostring(text),
+			Time = 4
+		})
+	end
 end
 
 local function PackColor(Color)
@@ -215,17 +236,24 @@ local function SaveUIConfig()
 	pcall(function()
 		if not (writefile and HttpService) then return end
 		local data = {
-			SelectedBackground  = Library.SelectedBackground or "Frau 1",
-			BackgroundUrl       = Library.ActiveBackgroundUrl or "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
-			SettingsUrl         = Library.ActiveSettingsUrl or Library.CustomSettingsUrl or "https://s1.directupload.eu/images/260911/4fywabml.png",
-			RainbowEnabled      = Library.RainbowEnabled or false,
-			BlurEnabled         = Library.BlurEnabled or false,
-			SoundsEnabled       = (Library.SoundsEnabled ~= false),
-			WindowTransparency  = Library.Transparency.Window or 0.22,
-			SidebarTransparency = Library.Transparency.Sidebar or 0.14,
-			ReopenMode          = (Library.MinimizeSettings and Library.MinimizeSettings.ReopenMode) or "DoubleClick",
-			ToggleKey           = (typeof(Library.ToggleKey) == "EnumItem" and Library.ToggleKey.Name) or (typeof(Library.ToggleKey) == "string" and Library.ToggleKey) or "LeftControl",
-			AccentColor         = {
+			SelectedBackground     = Library.SelectedBackground or "Frau 1",
+			BackgroundUrl          = Library.ActiveBackgroundUrl or "https://s1.directupload.eu/images/260904/3m9x7lao.jpg",
+			BackgroundTransparency = Library.BackgroundTransparency or 0.35,
+			SettingsUrl            = Library.ActiveSettingsUrl or Library.CustomSettingsUrl or "https://s1.directupload.eu/images/260911/4fywabml.png",
+			CustomLogoUrl          = Library.CustomLogoUrl or "https://i.ibb.co/B2kt592w/Night-removebg-preview.png",
+			RainbowEnabled         = Library.RainbowEnabled or false,
+			BlurEnabled            = Library.BlurEnabled or false,
+			WatermarkEnabled       = Library.WatermarkEnabled or false,
+			AntiAfkEnabled         = Library.AntiAfkEnabled or false,
+			FullbrightEnabled      = Library.FullbrightEnabled or false,
+			PotatoModeEnabled      = Library.PotatoModeEnabled or false,
+			TargetFps              = Library.TargetFps or 60,
+			SoundsEnabled          = (Library.SoundsEnabled ~= false),
+			WindowTransparency     = Library.Transparency.Window or 0.22,
+			SidebarTransparency    = Library.Transparency.Sidebar or 0.14,
+			ReopenMode             = (Library.MinimizeSettings and Library.MinimizeSettings.ReopenMode) or "DoubleClick",
+			ToggleKey              = (typeof(Library.ToggleKey) == "EnumItem" and Library.ToggleKey.Name) or (typeof(Library.ToggleKey) == "string" and Library.ToggleKey) or "LeftControl",
+			AccentColor            = {
 				R = math.floor((Library.Accent.R or 1) * 255 + 0.5),
 				G = math.floor((Library.Accent.G or 1) * 255 + 0.5),
 				B = math.floor((Library.Accent.B or 1) * 255 + 0.5)
@@ -235,7 +263,6 @@ local function SaveUIConfig()
 	end)
 end
 
--- Beim Start sofort gespeicherte UI-Einstellungen laden
 local savedUI = LoadUIConfig()
 if savedUI then
 	if savedUI.SelectedBackground then
@@ -248,10 +275,16 @@ if savedUI then
 			Library.ActiveBackgroundUrl = savedUI.BackgroundUrl
 		end
 	end
+	if savedUI.BackgroundTransparency then
+		Library.BackgroundTransparency = savedUI.BackgroundTransparency
+	end
 	if savedUI.SettingsUrl then
 		Library.ActiveSettingsUrl = savedUI.SettingsUrl
 		Library.CustomSettingsUrl = savedUI.SettingsUrl
 		Library.CustomSettingsIconUrl = savedUI.SettingsUrl
+	end
+	if savedUI.CustomLogoUrl then
+		Library.CustomLogoUrl = savedUI.CustomLogoUrl
 	end
 	if savedUI.WindowTransparency then
 		Library.Transparency.Window = savedUI.WindowTransparency
@@ -259,15 +292,14 @@ if savedUI then
 	if savedUI.SidebarTransparency then
 		Library.Transparency.Sidebar = savedUI.SidebarTransparency
 	end
-	if savedUI.RainbowEnabled ~= nil then
-		Library.RainbowEnabled = savedUI.RainbowEnabled
-	end
-	if savedUI.BlurEnabled ~= nil then
-		Library.BlurEnabled = savedUI.BlurEnabled
-	end
-	if savedUI.SoundsEnabled ~= nil then
-		Library.SoundsEnabled = savedUI.SoundsEnabled
-	end
+	if savedUI.RainbowEnabled ~= nil then Library.RainbowEnabled = savedUI.RainbowEnabled end
+	if savedUI.BlurEnabled ~= nil then Library.BlurEnabled = savedUI.BlurEnabled end
+	if savedUI.WatermarkEnabled ~= nil then Library.WatermarkEnabled = savedUI.WatermarkEnabled end
+	if savedUI.AntiAfkEnabled ~= nil then Library.AntiAfkEnabled = savedUI.AntiAfkEnabled end
+	if savedUI.FullbrightEnabled ~= nil then Library.FullbrightEnabled = savedUI.FullbrightEnabled end
+	if savedUI.PotatoModeEnabled ~= nil then Library.PotatoModeEnabled = savedUI.PotatoModeEnabled end
+	if savedUI.TargetFps ~= nil then Library.TargetFps = savedUI.TargetFps end
+	if savedUI.SoundsEnabled ~= nil then Library.SoundsEnabled = savedUI.SoundsEnabled end
 	if savedUI.AccentColor and type(savedUI.AccentColor) == "table" then
 		local c = Color3.fromRGB(savedUI.AccentColor.R or 145, savedUI.AccentColor.G or 115, savedUI.AccentColor.B or 245)
 		Library.Accent = c
@@ -580,23 +612,15 @@ end
 
 local function ParseWindowArgs(...)
 	local cfg = ...
-	if type(cfg) == "string" then
-		return { Name = cfg }
-	elseif type(cfg) == "table" then
-		return cfg
-	end
+	if type(cfg) == "string" then return { Name = cfg }
+	elseif type(cfg) == "table" then return cfg end
 	return { Name = "NightSystem" }
 end
 
 local function ParseNotifArgs(...)
 	local cfg, content, time, img = ...
 	if type(cfg) == "string" then
-		return {
-			Name = cfg,
-			Content = content or "",
-			Time = tonumber(time) or 5,
-			Image = img or "rbxassetid://4384403532"
-		}
+		return { Name = cfg, Content = content or "", Time = tonumber(time) or 5, Image = img or "rbxassetid://4384403532" }
 	elseif type(cfg) == "table" then
 		return {
 			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Notification",
@@ -611,11 +635,7 @@ end
 local function ParseTabArgs(...)
 	local cfg, ico, prem = ...
 	if type(cfg) == "string" then
-		return {
-			Name = cfg,
-			Icon = ico or "",
-			PremiumOnly = (prem == true)
-		}
+		return { Name = cfg, Icon = ico or "", PremiumOnly = (prem == true) }
 	elseif type(cfg) == "table" then
 		return {
 			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Tab",
@@ -629,10 +649,7 @@ end
 local function ParseGroupArgs(...)
 	local cfg, col = ...
 	if type(cfg) == "string" then
-		return {
-			Name = cfg,
-			Collapsed = (col == true)
-		}
+		return { Name = cfg, Collapsed = (col == true) }
 	elseif type(cfg) == "table" then
 		return {
 			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Group",
@@ -645,11 +662,7 @@ end
 local function ParseButtonArgs(...)
 	local cfg, cb, ico = ...
 	if type(cfg) == "string" then
-		return {
-			Name = cfg,
-			Callback = cb or function() end,
-			Icon = ico or "rbxassetid://3944703587"
-		}
+		return { Name = cfg, Callback = cb or function() end, Icon = ico or "rbxassetid://3944703587" }
 	elseif type(cfg) == "table" then
 		return {
 			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or cfg.Text or cfg.text or "Button",
@@ -663,18 +676,8 @@ end
 local function ParseToggleArgs(...)
 	local cfg, def, cb, col, flag, save = ...
 	if type(cfg) == "string" then
-		if type(def) == "function" then
-			cb = def
-			def = false
-		end
-		return {
-			Name = cfg,
-			Default = (def == true),
-			Callback = cb or function() end,
-			Color = col or ACCENT,
-			Flag = flag,
-			Save = (save == true)
-		}
+		if type(def) == "function" then cb = def; def = false end
+		return { Name = cfg, Default = (def == true), Callback = cb or function() end, Color = col or ACCENT, Flag = flag, Save = (save == true) }
 	elseif type(cfg) == "table" then
 		local d = cfg.Default
 		if d == nil then d = cfg.default end
@@ -698,19 +701,8 @@ end
 local function ParseSliderArgs(...)
 	local cfg, min, max, def, inc, cb, valName = ...
 	if type(cfg) == "string" then
-		if type(inc) == "function" then
-			cb = inc
-			inc = 1
-		end
-		return {
-			Name = cfg,
-			Min = tonumber(min) or 0,
-			Max = tonumber(max) or 100,
-			Default = tonumber(def) or tonumber(min) or 0,
-			Increment = tonumber(inc) or 1,
-			Callback = cb or function() end,
-			ValueName = valName or ""
-		}
+		if type(inc) == "function" then cb = inc; inc = 1 end
+		return { Name = cfg, Min = tonumber(min) or 0, Max = tonumber(max) or 100, Default = tonumber(def) or tonumber(min) or 0, Increment = tonumber(inc) or 1, Callback = cb or function() end, ValueName = valName or "" }
 	elseif type(cfg) == "table" then
 		local minV = cfg.Min or cfg.min or 0
 		local maxV = cfg.Max or cfg.max or 100
@@ -736,12 +728,7 @@ local function ParseDropdownArgs(...)
 	local cfg, opts, def, cb = ...
 	if type(cfg) == "string" then
 		opts = opts or {}
-		return {
-			Name = cfg,
-			Options = opts,
-			Default = def or opts[1] or "",
-			Callback = cb or function() end
-		}
+		return { Name = cfg, Options = opts, Default = def or opts[1] or "", Callback = cb or function() end }
 	elseif type(cfg) == "table" then
 		local optsT = cfg.Options or cfg.options or cfg.List or cfg.list or opts or {}
 		return {
@@ -759,16 +746,8 @@ end
 local function ParseBindArgs(...)
 	local cfg, def, hold, cb = ...
 	if type(cfg) == "string" then
-		if type(hold) == "function" then
-			cb = hold
-			hold = false
-		end
-		return {
-			Name = cfg,
-			Default = def or Enum.KeyCode.Unknown,
-			Hold = (hold == true),
-			Callback = cb or function() end
-		}
+		if type(hold) == "function" then cb = hold; hold = false end
+		return { Name = cfg, Default = def or Enum.KeyCode.Unknown, Hold = (hold == true), Callback = cb or function() end }
 	elseif type(cfg) == "table" then
 		return {
 			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Bind",
@@ -785,16 +764,8 @@ end
 local function ParseTextboxArgs(...)
 	local cfg, def, dis, cb = ...
 	if type(cfg) == "string" then
-		if type(dis) == "function" then
-			cb = dis
-			dis = false
-		end
-		return {
-			Name = cfg,
-			Default = def or "",
-			TextDisappear = (dis == true),
-			Callback = cb or function() end
-		}
+		if type(dis) == "function" then cb = dis; dis = false end
+		return { Name = cfg, Default = def or "", TextDisappear = (dis == true), Callback = cb or function() end }
 	elseif type(cfg) == "table" then
 		return {
 			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or cfg.Placeholder or cfg.placeholder or "Textbox",
@@ -809,11 +780,7 @@ end
 local function ParseColorpickerArgs(...)
 	local cfg, def, cb = ...
 	if type(cfg) == "string" then
-		return {
-			Name = cfg,
-			Default = def or Color3.fromRGB(255, 255, 255),
-			Callback = cb or function() end
-		}
+		return { Name = cfg, Default = def or Color3.fromRGB(255, 255, 255), Callback = cb or function() end }
 	elseif type(cfg) == "table" then
 		return {
 			Name = cfg.Name or cfg.name or cfg.Title or cfg.title or "Colorpicker",
@@ -870,9 +837,7 @@ local function AttachElementAliases(target)
 	for base, list in pairs(aliases) do
 		local fn = rawget(target, base)
 		if fn then
-			for _, alias in ipairs(list) do
-				target[alias] = fn
-			end
+			for _, alias in ipairs(list) do target[alias] = fn end
 		end
 	end
 	local mt = getmetatable(target) or {}
@@ -881,13 +846,9 @@ local function AttachElementAliases(target)
 		if type(key) == "string" then
 			local clean = key:lower():gsub("^make", ""):gsub("^create", ""):gsub("^new", ""):gsub("^add", "")
 			for base, list in pairs(aliases) do
-				if base:lower():find(clean, 1, true) then
-					return rawget(t, base)
-				end
+				if base:lower():find(clean, 1, true) then return rawget(t, base) end
 				for _, a in ipairs(list) do
-					if a:lower():find(clean, 1, true) then
-						return rawget(t, base)
-					end
+					if a:lower():find(clean, 1, true) then return rawget(t, base) end
 				end
 			end
 		end
@@ -906,9 +867,7 @@ local function AttachWindowAliases(target)
 	for base, list in pairs(aliases) do
 		local fn = rawget(target, base)
 		if fn then
-			for _, alias in ipairs(list) do
-				target[alias] = fn
-			end
+			for _, alias in ipairs(list) do target[alias] = fn end
 		end
 	end
 	local mt = getmetatable(target) or {}
@@ -916,11 +875,8 @@ local function AttachWindowAliases(target)
 	mt.__index = function(t, key)
 		if type(key) == "string" then
 			local lk = key:lower()
-			if lk:find("group") then
-				return rawget(t, "MakeTabGroup")
-			elseif lk:find("tab") then
-				return rawget(t, "MakeTab")
-			end
+			if lk:find("group") then return rawget(t, "MakeTabGroup")
+			elseif lk:find("tab") then return rawget(t, "MakeTab") end
 		end
 		if type(oldIndex) == "function" then return oldIndex(t, key) elseif type(oldIndex) == "table" then return oldIndex[key] end
 		return rawget(t, key)
@@ -936,9 +892,7 @@ local function AttachGroupAliases(target)
 	for base, list in pairs(aliases) do
 		local fn = rawget(target, base)
 		if fn then
-			for _, alias in ipairs(list) do
-				target[alias] = fn
-			end
+			for _, alias in ipairs(list) do target[alias] = fn end
 		end
 	end
 	local mt = getmetatable(target) or {}
@@ -1056,6 +1010,81 @@ function Library:MakeWindow(...)
 		end)
 	end
 
+	-- ╔══════════════════════════════════════════════════════════════╗
+	-- ║   GLOBAL FEATURES (Anti-AFK, Fullbright, Potato, etc.)       ║
+	-- ╚══════════════════════════════════════════════════════════════╝
+	local AntiAfkConnection = nil
+	local function SetAntiAfk(state)
+		Library.AntiAfkEnabled = state
+		if state then
+			if not AntiAfkConnection then
+				pcall(function()
+					local VirtualUser = game:GetService("VirtualUser")
+					AntiAfkConnection = LocalPlayer.Idled:Connect(function()
+						VirtualUser:CaptureController()
+						VirtualUser:ClickButton2(Vector2.new())
+					end)
+				end)
+			end
+		else
+			if AntiAfkConnection then
+				AntiAfkConnection:Disconnect()
+				AntiAfkConnection = nil
+			end
+		end
+	end
+	if Library.AntiAfkEnabled then SetAntiAfk(true) end
+
+	local FullbrightConnection = nil
+	local origAmbient = Lighting.Ambient
+	local origOutdoor = Lighting.OutdoorAmbient
+	local origBrightness = Lighting.Brightness
+	local origClockTime = Lighting.ClockTime
+	local function SetFullbright(state)
+		Library.FullbrightEnabled = state
+		if state then
+			if not FullbrightConnection then
+				FullbrightConnection = RunService.RenderStepped:Connect(function()
+					Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+					Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+					Lighting.Brightness = 2
+					Lighting.ClockTime = 14
+				end)
+			end
+		else
+			if FullbrightConnection then
+				FullbrightConnection:Disconnect()
+				FullbrightConnection = nil
+				Lighting.Ambient = origAmbient
+				Lighting.OutdoorAmbient = origOutdoor
+				Lighting.Brightness = origBrightness
+				Lighting.ClockTime = origClockTime
+			end
+		end
+	end
+	if Library.FullbrightEnabled then SetFullbright(true) end
+
+	local function SetPotatoMode(state)
+		Library.PotatoModeEnabled = state
+		pcall(function()
+			Lighting.GlobalShadows = not state
+			for _, v in pairs(game:GetService("Workspace"):GetDescendants()) do
+				if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+					v.Enabled = not state
+				end
+			end
+		end)
+	end
+	if Library.PotatoModeEnabled then SetPotatoMode(true) end
+
+	local function ApplyFpsCap(cap)
+		Library.TargetFps = cap
+		pcall(function()
+			if setfpscap then setfpscap(cap) end
+		end)
+	end
+	if Library.TargetFps and Library.TargetFps ~= 60 then ApplyFpsCap(Library.TargetFps) end
+
 	local BlurEffect = nil
 	local function SetBlurState(enabled)
 		if enabled then
@@ -1071,6 +1100,52 @@ function Library:MakeWindow(...)
 			end
 		end
 	end
+
+	-- Live Watermark HUD
+	local WatermarkFrame = nil
+	local WatermarkConn = nil
+	local function SetWatermarkState(enabled)
+		Library.WatermarkEnabled = enabled
+		if enabled then
+			if not WatermarkFrame then
+				WatermarkFrame = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(16, 12, 22), 0, 8), {
+					Parent = Container,
+					Size = UDim2.new(0, 240, 0, 26),
+					Position = UDim2.new(1, -260, 0, 15),
+					BackgroundTransparency = 0.25,
+					ZIndex = 999
+				}), {
+					MakeElement("Stroke", ACCENT, 1),
+					SetProps(MakeElement("Label", "NightSystem | FPS: ... | Ping: ...", 12), {
+						Size = UDim2.new(1, -12, 1, 0),
+						Position = UDim2.new(0, 10, 0, 0),
+						TextColor3 = Color3.fromRGB(240, 235, 250),
+						Name = "HUDText"
+					})
+				})
+				local lastT = tick()
+				local frames = 0
+				WatermarkConn = RunService.RenderStepped:Connect(function()
+					frames = frames + 1
+					local now = tick()
+					if now - lastT >= 0.5 then
+						local fps = math.floor(frames / (now - lastT))
+						frames = 0
+						lastT = now
+						local ping = 0
+						pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
+						if WatermarkFrame and WatermarkFrame:FindFirstChild("HUDText") then
+							WatermarkFrame.HUDText.Text = "NightSystem | " .. tostring(fps) .. " FPS | " .. tostring(ping) .. " ms"
+						end
+					end
+				end)
+			end
+		else
+			if WatermarkConn then WatermarkConn:Disconnect(); WatermarkConn = nil end
+			if WatermarkFrame then WatermarkFrame:Destroy(); WatermarkFrame = nil end
+		end
+	end
+	if Library.WatermarkEnabled then SetWatermarkState(true) end
 
 	local TabHolder = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {
 		Size = UDim2.new(1, 0, 1, -50)
@@ -1158,6 +1233,64 @@ function Library:MakeWindow(...)
 
 	local DragPoint = SetProps(MakeElement("TFrame"), {Size = UDim2.new(1, 0, 0, 50)})
 
+	-- ╔══════════════════════════════════════════════════════════════╗
+	-- ║   BOTTOM AVATAR & NIGHTSYSTEM PROFILE BUTTON                 ║
+	-- ╚══════════════════════════════════════════════════════════════╝
+	local ProfileBg = AddThemeObject(SetProps(MakeElement("Frame"), {
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1
+	}), "Control")
+
+	local ProfileButton = SetChildren(SetProps(MakeElement("Button"), {
+		Size = UDim2.new(1, 0, 0, 50),
+		Position = UDim2.new(0, 0, 1, -50),
+		BackgroundTransparency = 1,
+		Name = "ProfileButton"
+	}), {
+		ProfileBg,
+		AddThemeObject(SetProps(MakeElement("Frame"), {Size = UDim2.new(1,0,0,1)}), "Stroke"),
+		AddThemeObject(SetChildren(SetProps(MakeElement("Frame"), {
+			AnchorPoint = Vector2.new(0,0.5),
+			Size = UDim2.new(0,32,0,32),
+			Position = UDim2.new(0,10,0.5,0),
+			BackgroundTransparency = 0.2,
+			Name = "AvatarFrame"
+		}), {
+			SetProps(MakeElement("Image", "https://www.roblox.com/headshot-thumbnail/image?userId="..(LocalPlayer and LocalPlayer.UserId or 0).."&width=420&height=420&format=png"), {Size = UDim2.new(1,0,1,0)}),
+			AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://4031889928"), {Size = UDim2.new(1,0,1,0)}), "Sidebar"),
+			MakeElement("Corner", 1)
+		}), "Divider"),
+		SetChildren(SetProps(MakeElement("TFrame"), {
+			AnchorPoint = Vector2.new(0,0.5),
+			Size = UDim2.new(0,32,0,32),
+			Position = UDim2.new(0,10,0.5,0)
+		}), {
+			AddThemeObject(MakeElement("Stroke"), "Stroke"),
+			MakeElement("Corner", 1)
+		}),
+		AddThemeObject(SetProps(MakeElement("Label", "NightSystem", WindowConfig.HidePremium and 14 or 13), {
+			Size = UDim2.new(1,-60,0,13),
+			Position = WindowConfig.HidePremium and UDim2.new(0,50,0,19) or UDim2.new(0,50,0,12),
+			Font = Enum.Font.GothamSemibold,
+			ClipsDescendants = true,
+			Name = "LabelTitle"
+		}), "Text"),
+		SetProps(MakeElement("Label", ".gg/8nKxKcerCv", 12), {
+			Size = UDim2.new(1,-60,0,12),
+			Position = UDim2.new(0,50,1,-25),
+			Visible = not WindowConfig.HidePremium,
+			TextColor3 = ACCENT,
+			Name = "LabelLink"
+		})
+	})
+
+	AddConnection(ProfileButton.MouseEnter, function()
+		TweenService:Create(ProfileBg, TweenInfo.new(0.18), {BackgroundTransparency = 0.6}):Play()
+	end)
+	AddConnection(ProfileButton.MouseLeave, function()
+		TweenService:Create(ProfileBg, TweenInfo.new(0.18), {BackgroundTransparency = 1}):Play()
+	end)
+
 	local WindowStuff = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 10), {
 		Size = UDim2.new(0, 150, 1, -50),
 		Position = UDim2.new(0, 0, 0, 50)
@@ -1166,39 +1299,7 @@ function Library:MakeWindow(...)
 		AddThemeObject(SetProps(MakeElement("Frame"), {Size = UDim2.new(0,10,1,0), Position = UDim2.new(1,-10,0,0)}), "Sidebar"),
 		AddThemeObject(SetProps(MakeElement("Frame"), {Size = UDim2.new(0,1,1,0), Position = UDim2.new(1,-1,0,0)}), "Stroke"),
 		TabHolder,
-		SetChildren(SetProps(MakeElement("TFrame"), {Size = UDim2.new(1,0,0,50), Position = UDim2.new(0,0,1,-50)}), {
-			AddThemeObject(SetProps(MakeElement("Frame"), {Size = UDim2.new(1,0,0,1)}), "Stroke"),
-			AddThemeObject(SetChildren(SetProps(MakeElement("Frame"), {
-				AnchorPoint = Vector2.new(0,0.5),
-				Size = UDim2.new(0,32,0,32),
-				Position = UDim2.new(0,10,0.5,0),
-				BackgroundTransparency = 0.2
-			}), {
-				SetProps(MakeElement("Image", "https://www.roblox.com/headshot-thumbnail/image?userId="..(LocalPlayer and LocalPlayer.UserId or 0).."&width=420&height=420&format=png"), {Size = UDim2.new(1,0,1,0)}),
-				AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://4031889928"), {Size = UDim2.new(1,0,1,0)}), "Sidebar"),
-				MakeElement("Corner", 1)
-			}), "Divider"),
-			SetChildren(SetProps(MakeElement("TFrame"), {
-				AnchorPoint = Vector2.new(0,0.5),
-				Size = UDim2.new(0,32,0,32),
-				Position = UDim2.new(0,10,0.5,0)
-			}), {
-				AddThemeObject(MakeElement("Stroke"), "Stroke"),
-				MakeElement("Corner", 1)
-			}),
-			AddThemeObject(SetProps(MakeElement("Label", "NightSystem", WindowConfig.HidePremium and 14 or 13), {
-				Size = UDim2.new(1,-60,0,13),
-				Position = WindowConfig.HidePremium and UDim2.new(0,50,0,19) or UDim2.new(0,50,0,12),
-				Font = Enum.Font.GothamSemibold,
-				ClipsDescendants = true
-			}), "Text"),
-			SetProps(MakeElement("Label", ".gg/8nKxKcerCv", 12), {
-				Size = UDim2.new(1,-60,0,12),
-				Position = UDim2.new(0,50,1,-25),
-				Visible = not WindowConfig.HidePremium,
-				TextColor3 = ACCENT
-			})
-		}),
+		ProfileButton
 	}), "Sidebar")
 
 	local WindowIcon = SetProps(MakeElement("Image", ResolvedLogo), {
@@ -1664,6 +1765,438 @@ function Library:MakeWindow(...)
 
 	if WindowConfig.IntroEnabled then LoadSequence() end
 
+	-- ╔══════════════════════════════════════════════════════════════╗
+	-- ║   KRASSE CHARAKTER & SPIEL STATUS KARTE (INSPECTOR OVERLAY)  ║
+	-- ╚══════════════════════════════════════════════════════════════╝
+	local ProfileCard = AddThemeObject(SetProps(MakeElement("RoundFrame", Color3.fromRGB(20, 15, 28), 0, 10), {
+		Parent = MainWindow,
+		Position = UDim2.new(0, 155, 0, 54),
+		Size = UDim2.new(1, -160, 1, -58),
+		Visible = false,
+		ZIndex = 40,
+		Name = "ProfileCard",
+		BackgroundTransparency = 0.05
+	}), "Second")
+
+	local ProfileCardStroke = Create("UIStroke", {
+		Color = ACCENT,
+		Thickness = 1.3,
+		Transparency = 0.2,
+		Parent = ProfileCard
+	})
+
+	local CardTopBar = SetChildren(SetProps(MakeElement("TFrame"), {
+		Size = UDim2.new(1, 0, 0, 32),
+		Parent = ProfileCard,
+		Name = "Top"
+	}), {
+		SetProps(MakeElement("Label", "⚡ STATUS & INSPECTOR", 13), {
+			Size = UDim2.new(1, -50, 1, 0),
+			Position = UDim2.new(0, 12, 0, 0),
+			Font = Enum.Font.GothamBold,
+			TextColor3 = ACCENT_TEXT
+		}),
+		AddThemeObject(SetProps(MakeElement("Frame"), {
+			Size = UDim2.new(1, 0, 0, 1),
+			Position = UDim2.new(0, 0, 1, -1)
+		}), "Stroke")
+	})
+
+	local CardCloseBtn = SetChildren(SetProps(MakeElement("Button"), {
+		Size = UDim2.new(0, 24, 0, 24),
+		Position = UDim2.new(1, -28, 0, 4),
+		Parent = CardTopBar,
+		BackgroundColor3 = Color3.fromRGB(45, 35, 60),
+		BackgroundTransparency = 0.5
+	}), {
+		MakeElement("Corner", 0, 6),
+		SetProps(MakeElement("Label", "✕", 12), {
+			Size = UDim2.new(1, 0, 1, 0),
+			Font = Enum.Font.GothamBold,
+			TextColor3 = Color3.fromRGB(220, 210, 240),
+			TextXAlignment = Enum.TextXAlignment.Center
+		})
+	})
+
+	-- Linker Bereich: Cybernetic ESP & Skeleton Box
+	local EspBoxHolder = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(15, 11, 22), 0, 8), {
+		Parent = ProfileCard,
+		Position = UDim2.new(0, 10, 0, 38),
+		Size = UDim2.new(0, 150, 1, -48),
+		BackgroundTransparency = 0.2,
+		Name = "EspBox"
+	}), {
+		Create("UIStroke", {Color = ACCENT, Thickness = 1.2, Transparency = 0.3})
+	})
+
+	local function Bracket(pos, rot)
+		local b = Create("Frame", {
+			Parent = EspBoxHolder,
+			Size = UDim2.new(0, 10, 0, 10),
+			Position = pos,
+			BackgroundTransparency = 1,
+			ZIndex = 5
+		})
+		Create("Frame", {Parent = b, Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = ACCENT, BorderSizePixel = 0})
+		Create("Frame", {Parent = b, Size = UDim2.new(0, 2, 1, 0), BackgroundColor3 = ACCENT, BorderSizePixel = 0})
+		if rot then b.Rotation = rot end
+		return b
+	end
+	Bracket(UDim2.new(0, 3, 0, 3), 0)
+	Bracket(UDim2.new(1, -13, 0, 3), 90)
+	Bracket(UDim2.new(1, -13, 1, -13), 180)
+	Bracket(UDim2.new(0, 3, 1, -13), 270)
+
+	Create("ImageLabel", {
+		Parent = EspBoxHolder,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.48, 0),
+		Size = UDim2.new(0, 130, 0, 165),
+		BackgroundTransparency = 1,
+		Image = "https://www.roblox.com/avatar-thumbnail/image?userId="..(LocalPlayer and LocalPlayer.UserId or 0).."&width=420&height=420&format=png",
+		ScaleType = Enum.ScaleType.Fit,
+		ZIndex = 2
+	})
+
+	local SkeletonContainer = Create("Frame", {
+		Parent = EspBoxHolder,
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		ZIndex = 6,
+		Name = "Skeleton"
+	})
+
+	local function SkeleJoint(x, y, r)
+		local j = Create("Frame", {
+			Parent = SkeletonContainer,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(x, 0, y, 0),
+			Size = UDim2.new(0, r or 5, 0, r or 5),
+			BackgroundColor3 = ACCENT,
+			BorderSizePixel = 0,
+			ZIndex = 8
+		})
+		Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = j})
+		return j
+	end
+
+	local function SkeleBone(x1, y1, x2, y2, thick)
+		local bone = Create("Frame", {
+			Parent = SkeletonContainer,
+			BackgroundColor3 = ACCENT,
+			BackgroundTransparency = 0.15,
+			BorderSizePixel = 0,
+			ZIndex = 7
+		})
+		local function updateBone()
+			local p1 = Vector2.new(x1 * EspBoxHolder.AbsoluteSize.X, y1 * EspBoxHolder.AbsoluteSize.Y)
+			local p2 = Vector2.new(x2 * EspBoxHolder.AbsoluteSize.X, y2 * EspBoxHolder.AbsoluteSize.Y)
+			local dist = (p2 - p1).Magnitude
+			local angle = math.deg(math.atan2(p2.Y - p1.Y, p2.X - p1.X))
+			local mid = (p1 + p2) / 2
+			bone.Size = UDim2.new(0, dist, 0, thick or 1.6)
+			bone.Position = UDim2.new(0, mid.X, 0, mid.Y)
+			bone.AnchorPoint = Vector2.new(0.5, 0.5)
+			bone.Rotation = angle
+		end
+		task.defer(updateBone)
+		AddConnection(EspBoxHolder:GetPropertyChangedSignal("AbsoluteSize"), updateBone)
+		return bone
+	end
+
+	local SkeleHead = Create("Frame", {
+		Parent = SkeletonContainer,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.22, 0),
+		Size = UDim2.new(0, 22, 0, 22),
+		BackgroundTransparency = 1,
+		ZIndex = 8
+	})
+	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = SkeleHead})
+	Create("UIStroke", {Color = ACCENT, Thickness = 1.4, Parent = SkeleHead})
+
+	SkeleBone(0.5, 0.27, 0.5, 0.52, 1.8)
+	SkeleBone(0.34, 0.33, 0.66, 0.33, 1.6)
+	SkeleBone(0.34, 0.33, 0.25, 0.46, 1.5)
+	SkeleBone(0.25, 0.46, 0.21, 0.58, 1.5)
+	SkeleBone(0.66, 0.33, 0.75, 0.46, 1.5)
+	SkeleBone(0.75, 0.46, 0.79, 0.58, 1.5)
+	SkeleBone(0.40, 0.52, 0.60, 0.52, 1.6)
+	SkeleBone(0.40, 0.52, 0.37, 0.68, 1.5)
+	SkeleBone(0.37, 0.68, 0.35, 0.85, 1.5)
+	SkeleBone(0.60, 0.52, 0.63, 0.68, 1.5)
+	SkeleBone(0.63, 0.68, 0.65, 0.85, 1.5)
+
+	SkeleJoint(0.34, 0.33, 5)
+	SkeleJoint(0.66, 0.33, 5)
+	SkeleJoint(0.25, 0.46, 4)
+	SkeleJoint(0.75, 0.46, 4)
+	SkeleJoint(0.21, 0.58, 4)
+	SkeleJoint(0.79, 0.58, 4)
+	SkeleJoint(0.37, 0.68, 4)
+	SkeleJoint(0.63, 0.68, 4)
+	SkeleJoint(0.35, 0.85, 4)
+	SkeleJoint(0.65, 0.85, 4)
+
+	local EspTagTop = SetProps(MakeElement("Label", "[ STATUS: ACTIVE ]", 10), {
+		Parent = EspBoxHolder,
+		Size = UDim2.new(1, 0, 0, 14),
+		Position = UDim2.new(0, 0, 0, 4),
+		Font = Enum.Font.GothamBold,
+		TextColor3 = Color3.fromRGB(0, 255, 170),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 9
+	})
+
+	local EspTagBottom = SetProps(MakeElement("Label", "HP: 100/100 | DIST: 0m", 9), {
+		Parent = EspBoxHolder,
+		Size = UDim2.new(1, 0, 0, 14),
+		Position = UDim2.new(0, 0, 1, -16),
+		Font = Enum.Font.GothamBold,
+		TextColor3 = ACCENT_TEXT,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 9
+	})
+
+	local HealthBarBG = Create("Frame", {
+		Parent = EspBoxHolder,
+		Size = UDim2.new(0, 3, 0.65, 0),
+		Position = UDim2.new(0, 5, 0.20, 0),
+		BackgroundColor3 = Color3.fromRGB(30, 20, 40),
+		BorderSizePixel = 0,
+		ZIndex = 8
+	})
+	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = HealthBarBG})
+
+	local HealthBarFill = Create("Frame", {
+		Parent = HealthBarBG,
+		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.new(0, 0, 1, 0),
+		AnchorPoint = Vector2.new(0, 1),
+		BackgroundColor3 = Color3.fromRGB(0, 255, 140),
+		BorderSizePixel = 0,
+		ZIndex = 9
+	})
+	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = HealthBarFill})
+
+	-- Rechter Bereich: Detaillierte Live-Statistiken
+	local StatsScroll = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {
+		Parent = ProfileCard,
+		Position = UDim2.new(0, 168, 0, 38),
+		Size = UDim2.new(1, -178, 1, -48),
+		ClipsDescendants = true
+	}), {
+		MakeElement("List", 0, 6),
+		MakeElement("Padding", 4, 4, 4, 4)
+	}), "Divider")
+
+	AddConnection(StatsScroll.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+		StatsScroll.CanvasSize = UDim2.new(0, 0, 0, StatsScroll.UIListLayout.AbsoluteContentSize.Y + 12)
+	end)
+
+	local function InfoRow(label, value, copyable)
+		local row = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 6), {
+			Parent = StatsScroll,
+			Size = UDim2.new(1, 0, 0, 28)
+		}), {
+			AddThemeObject(SetProps(MakeElement("Label", label, 12), {
+				Size = UDim2.new(0, 100, 1, 0),
+				Position = UDim2.new(0, 8, 0, 0),
+				Font = Enum.Font.GothamSemibold
+			}), "TextDark"),
+			SetProps(MakeElement("Label", tostring(value or "?"), 12), {
+				Size = UDim2.new(1, copyable and -150 or -110, 1, 0),
+				Position = UDim2.new(0, 105, 0, 0),
+				Font = Enum.Font.GothamBold,
+				TextColor3 = Color3.fromRGB(245, 240, 255),
+				Name = "ValText",
+				ClipsDescendants = true
+			}),
+			AddThemeObject(MakeElement("Stroke"), "Stroke")
+		}), "Control")
+
+		if copyable then
+			local cBtn = Create("TextButton", {
+				Parent = row,
+				Size = UDim2.new(0, 42, 0, 20),
+				Position = UDim2.new(1, -48, 0.5, -10),
+				BackgroundColor3 = ACCENT,
+				Text = "Kopie",
+				TextColor3 = Color3.fromRGB(255, 255, 255),
+				Font = Enum.Font.GothamBold,
+				TextSize = 10,
+				AutoButtonColor = false
+			})
+			Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = cBtn})
+			cBtn.MouseButton1Click:Connect(function()
+				PlayClickSound()
+				CopyToClipboard(value, label)
+			end)
+		end
+		return row
+	end
+
+	local GameTitleName = "Roblox Experience"
+	pcall(function()
+		local Info = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+		if Info and Info.Name then GameTitleName = Info.Name end
+	end)
+
+	local RowPlayerName = InfoRow("Name:", (LocalPlayer and LocalPlayer.Name or "?") .. " (@" .. (LocalPlayer and LocalPlayer.DisplayName or "?") .. ")")
+	local RowPlayerId   = InfoRow("User ID:", tostring(LocalPlayer and LocalPlayer.UserId or "?"), true)
+	local RowAccAge     = InfoRow("Account-Alter:", tostring(LocalPlayer and LocalPlayer.AccountAge or 0) .. " Tage")
+	local RowHealth     = InfoRow("Gesundheit:", "100 / 100")
+	local RowWalkSpeed  = InfoRow("Speed / Jump:", "16 / 50")
+	local RowGameName   = InfoRow("Spiel:", GameTitleName)
+	local RowPlaceId    = InfoRow("Place ID:", tostring(game.PlaceId), true)
+	local RowJobId      = InfoRow("Job ID:", tostring(game.JobId), true)
+	local RowPing       = InfoRow("Server Ping:", "... ms")
+	local RowFps        = InfoRow("Server FPS:", "... FPS")
+	local RowPlayers    = InfoRow("Spieler:", tostring(#Players:GetPlayers()) .. " Spieler")
+
+	local ActionRow = Create("Frame", {
+		Parent = StatsScroll,
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundTransparency = 1
+	})
+	Create("UIListLayout", {
+		Parent = ActionRow,
+		FillDirection = Enum.FillDirection.Horizontal,
+		Padding = UDim.new(0, 6)
+	})
+
+	local function ActionBtn(text, color, cb)
+		local b = Create("TextButton", {
+			Parent = ActionRow,
+			Size = UDim2.new(0.32, -4, 1, 0),
+			BackgroundColor3 = color or ACCENT,
+			Text = text,
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			Font = Enum.Font.GothamBold,
+			TextSize = 11,
+			AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = b})
+		b.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			cb()
+		end)
+		return b
+	end
+
+	ActionBtn("Rejoin", Color3.fromRGB(130, 95, 215), function()
+		if #Players:GetPlayers() <= 1 then
+			LocalPlayer:Kick("\n[NightSystem] Rejoining...")
+			task.wait(0.2)
+			TeleportService:Teleport(game.PlaceId, LocalPlayer)
+		else
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+		end
+	end)
+
+	ActionBtn("Server Hop", Color3.fromRGB(60, 140, 220), function()
+		Library:MakeNotification({Name = "Server Hop", Content = "Suche Server...", Time = 3})
+		task.spawn(function()
+			pcall(function()
+				local raw = game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
+				local servers = HttpService:JSONDecode(raw)
+				for _, s in ipairs(servers.data) do
+					if s.playing < s.maxPlayers and s.id ~= game.JobId then
+						TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+						break
+					end
+				end
+			end)
+		end)
+	end)
+
+	ActionBtn("Discord", Color3.fromRGB(88, 101, 242), function()
+		CopyToClipboard("https://discord.gg/8nKxKcerCv", "Discord-Link kopiert")
+	end)
+
+	task.spawn(function()
+		local fCount = 0
+		local lTime = tick()
+		while Library:IsRunning() do
+			fCount = fCount + 1
+			local cur = tick()
+			if cur - lTime >= 0.5 then
+				local fps = math.floor(fCount / (cur - lTime))
+				fCount = 0
+				lTime = cur
+				local ping = 0
+				pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
+				if ProfileCard.Visible then
+					if RowPing:FindFirstChild("ValText") then RowPing.ValText.Text = tostring(ping) .. " ms" end
+					if RowFps:FindFirstChild("ValText") then RowFps.ValText.Text = tostring(fps) .. " FPS" end
+					if RowPlayers:FindFirstChild("ValText") then RowPlayers.ValText.Text = tostring(#Players:GetPlayers()) .. " Spieler" end
+
+					pcall(function()
+						local char = LocalPlayer.Character
+						local hum = char and char:FindFirstChildOfClass("Humanoid")
+						if hum then
+							local hp = math.floor(hum.Health)
+							local maxHp = math.floor(hum.MaxHealth)
+							local ratio = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+							HealthBarFill.Size = UDim2.new(1, 0, ratio, 0)
+							HealthBarFill.BackgroundColor3 = Color3.fromHSV(ratio * 0.33, 0.9, 1)
+							if RowHealth:FindFirstChild("ValText") then RowHealth.ValText.Text = tostring(hp) .. " / " .. tostring(maxHp) end
+							if RowWalkSpeed:FindFirstChild("ValText") then RowWalkSpeed.ValText.Text = tostring(math.floor(hum.WalkSpeed)) .. " / " .. tostring(math.floor(hum.JumpPower or hum.JumpHeight or 50)) end
+							EspTagBottom.Text = "HP: " .. tostring(hp) .. "/" .. tostring(maxHp) .. " | DIST: 0m"
+						end
+					end)
+				end
+			end
+			task.wait(0.25)
+		end
+	end)
+
+	local ProfileCardOpen = false
+	local function ToggleProfileCard()
+		ProfileCardOpen = not ProfileCardOpen
+		PlayClickSound()
+		if ProfileCardOpen then
+			UISettingsPanel.Visible = false
+			for _, ItemContainer in next, MainWindow:GetChildren() do
+				if ItemContainer.Name == "ItemContainer" then ItemContainer.Visible = false end
+			end
+			ProfileCard.Visible = true
+			ProfileCard.Size = UDim2.new(1, -170, 1, -68)
+			ProfileCard.Position = UDim2.new(0, 160, 0, 59)
+			ProfileCard.BackgroundTransparency = 0.5
+			TweenService:Create(ProfileCard, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+				Size = UDim2.new(1, -160, 1, -58),
+				Position = UDim2.new(0, 155, 0, 54),
+				BackgroundTransparency = 0.05
+			}):Play()
+		else
+			TweenService:Create(ProfileCard, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+				Size = UDim2.new(1, -170, 1, -68),
+				Position = UDim2.new(0, 160, 0, 59),
+				BackgroundTransparency = 1
+			}):Play()
+			task.delay(0.2, function()
+				if not ProfileCardOpen then
+					ProfileCard.Visible = false
+					for _, Tab in next, TabHolder:GetChildren() do
+						if Tab:IsA("TextButton") and Tab:FindFirstChild("Title") and Tab.Title.Font == Enum.Font.GothamBold then
+							for _, ic in next, MainWindow:GetChildren() do
+								if ic.Name == "ItemContainer" then ic.Visible = true break end
+							end
+							break
+						end
+					end
+				end
+			end)
+		end
+	end
+
+	AddConnection(ProfileButton.MouseButton1Click, ToggleProfileCard)
+	AddConnection(CardCloseBtn.MouseButton1Click, ToggleProfileCard)
+
+	-- ╔══════════════════════════════════════════════════════════════╗
+	-- ║   MASSIV ERWEITERTES UI-EINSTELLUNGSPANEL                    ║
+	-- ╚══════════════════════════════════════════════════════════════╝
 	local UISettingsPanel = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 5), {
 		Size = UDim2.new(1, -150, 1, -50),
 		Position = UDim2.new(0, 150, 0, 50),
@@ -1706,13 +2239,6 @@ function Library:MakeWindow(...)
 		Header("Account & Spiel")
 
 		local AccountRow = Row("Benutzer", 100)
-		local GameName = "Emergency Hamburg"
-		pcall(function()
-			local MarketplaceService = game:GetService("MarketplaceService")
-			local Info = MarketplaceService:GetProductInfo(game.PlaceId)
-			if Info and Info.Name then GameName = Info.Name end
-		end)
-
 		Create("ImageLabel", {
 			Parent = AccountRow,
 			Position = UDim2.new(0, 12, 0, 30),
@@ -1731,12 +2257,88 @@ function Library:MakeWindow(...)
 			Size = UDim2.new(1, -70, 0, 16), Position = UDim2.new(0, 64, 0, 48),
 			Font = Enum.Font.GothamSemibold, Parent = AccountRow
 		}), "TextDark")
-		AddThemeObject(SetProps(MakeElement("Label", "Spiel: " .. GameName, 12), {
+		AddThemeObject(SetProps(MakeElement("Label", "Spiel: " .. GameTitleName, 12), {
 			Size = UDim2.new(1, -70, 0, 16), Position = UDim2.new(0, 64, 0, 68),
 			Font = Enum.Font.GothamSemibold, Parent = AccountRow
 		}), "TextDark")
 
-		Header("Design & Farben")
+		Header("Performance, Grafik & FPS")
+
+		local AfkRow = Row("Anti-AFK (Disconnect-Schutz)", 38)
+		local AfkBtn = Create("TextButton", {
+			Parent = AfkRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Library.AntiAfkEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
+			Text = Library.AntiAfkEnabled and "AN" or "Aus",
+			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = AfkBtn})
+		AfkBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			SetAntiAfk(not Library.AntiAfkEnabled)
+			AfkBtn.Text = Library.AntiAfkEnabled and "AN" or "Aus"
+			AfkBtn.BackgroundColor3 = Library.AntiAfkEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+			SaveUIConfig()
+			Library:MakeNotification({Name = "Anti-AFK", Content = Library.AntiAfkEnabled and "Aktiviert (Kein Kick)" or "Deaktiviert", Time = 2.5})
+		end)
+
+		local FbRow = Row("Nachtsicht / Fullbright", 38)
+		local FbBtn = Create("TextButton", {
+			Parent = FbRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Library.FullbrightEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
+			Text = Library.FullbrightEnabled and "AN" or "Aus",
+			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = FbBtn})
+		FbBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			SetFullbright(not Library.FullbrightEnabled)
+			FbBtn.Text = Library.FullbrightEnabled and "AN" or "Aus"
+			FbBtn.BackgroundColor3 = Library.FullbrightEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+			SaveUIConfig()
+		end)
+
+		local PotatoRow = Row("Potato Mode (FPS-Boost)", 38)
+		local PotatoBtn = Create("TextButton", {
+			Parent = PotatoRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Library.PotatoModeEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
+			Text = Library.PotatoModeEnabled and "AN" or "Aus",
+			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = PotatoBtn})
+		PotatoBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			SetPotatoMode(not Library.PotatoModeEnabled)
+			PotatoBtn.Text = Library.PotatoModeEnabled and "AN" or "Aus"
+			PotatoBtn.BackgroundColor3 = Library.PotatoModeEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+			SaveUIConfig()
+			Library:MakeNotification({Name = "Potato Mode", Content = Library.PotatoModeEnabled and "Partikel & Schatten aus" or "Normal", Time = 2.5})
+		end)
+
+		local FpsRow = Row("FPS-Begrenzung (" .. tostring(Library.TargetFps) .. " FPS)", 60)
+		local FpsSlider = Create("Frame", {
+			Parent = FpsRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = FpsSlider})
+		local FpsFill = Create("Frame", {
+			Parent = FpsSlider, Size = UDim2.new((Library.TargetFps - 30) / 210, 0, 1, 0),
+			BackgroundColor3 = ACCENT
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = FpsFill})
+		local DraggingFps = false
+		AddConnection(FpsSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingFps = true end end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 and DraggingFps then DraggingFps = false; SaveUIConfig() end end)
+		AddConnection(UserInputService.InputChanged, function(i)
+			if DraggingFps and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local Rel = math.clamp((Mouse.X - FpsSlider.AbsolutePosition.X) / FpsSlider.AbsoluteSize.X, 0, 1)
+				FpsFill.Size = UDim2.new(Rel, 0, 1, 0)
+				local target = math.floor(30 + (Rel * 210) + 0.5)
+				ApplyFpsCap(target)
+				if FpsRow:FindFirstChild("Title") then FpsRow.Title.Text = "FPS-Begrenzung (" .. tostring(target) .. " FPS)" end
+			end
+		end)
+
+		Header("Design, Farben & Custom Media")
 
 		local BgOptions = {
 			{ Name = "Frau 1",                 Url = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg" },
@@ -1756,43 +2358,25 @@ function Library:MakeWindow(...)
 
 		local BgClick = SetProps(MakeElement("Button"), {Size = UDim2.new(1, 0, 1, 0)})
 		local BgIco = AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
-			Size = UDim2.new(0, 20, 0, 20),
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(1, -30, 0.5, 0),
-			ImageColor3 = Color3.fromRGB(240, 240, 240),
-			Name = "Ico"
+			Size = UDim2.new(0, 20, 0, 20), AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(1, -30, 0.5, 0),
+			ImageColor3 = Color3.fromRGB(240, 240, 240), Name = "Ico"
 		}), "TextDark")
 		local BgSelected = AddThemeObject(SetProps(MakeElement("Label", CurrentBgOption, 13), {
-			Size = UDim2.new(1, -40, 1, 0),
-			Font = Enum.Font.GothamSemibold,
-			Name = "Selected",
-			TextXAlignment = Enum.TextXAlignment.Right
+			Size = UDim2.new(1, -40, 1, 0), Font = Enum.Font.GothamSemibold, Name = "Selected", TextXAlignment = Enum.TextXAlignment.Right
 		}), "TextDark")
 		local BgLine = AddThemeObject(SetProps(MakeElement("Frame"), {
-			Size = UDim2.new(1, 0, 0, 1),
-			Position = UDim2.new(0, 0, 1, -1),
-			Name = "Line",
-			Visible = false
+			Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, -1), Name = "Line", Visible = false
 		}), "Stroke")
 
 		local BgDropdownFrame = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 8), {
-			Size = UDim2.new(1, 0, 0, 38),
-			Parent = UISettingsPanel,
-			ClipsDescendants = true,
-			Name = "BgDropdownFrame"
+			Size = UDim2.new(1, 0, 0, 38), Parent = UISettingsPanel, ClipsDescendants = true, Name = "BgDropdownFrame"
 		}), {
 			BgDropdownContainer,
 			SetProps(SetChildren(MakeElement("TFrame"), {
 				AddThemeObject(SetProps(MakeElement("Label", "Hintergrundbild", 15), {
-					Size = UDim2.new(1, -12, 1, 0),
-					Position = UDim2.new(0, 12, 0, 0),
-					Font = Enum.Font.GothamSemibold,
-					Name = "Content"
+					Size = UDim2.new(1, -12, 1, 0), Position = UDim2.new(0, 12, 0, 0), Font = Enum.Font.GothamSemibold, Name = "Content"
 				}), "Text"),
-				BgIco,
-				BgSelected,
-				BgLine,
-				BgClick
+				BgIco, BgSelected, BgLine, BgClick
 			}), {Size = UDim2.new(1, 0, 0, 38), ClipsDescendants = true, Name = "F"}),
 			AddThemeObject(MakeElement("Stroke"), "Stroke"),
 			MakeElement("Corner")
@@ -1809,9 +2393,7 @@ function Library:MakeWindow(...)
 			for name, btn in pairs(BgButtons) do
 				local isSel = (name == opt.Name)
 				TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = isSel and 0 or 0.2}):Play()
-				if btn:FindFirstChild("Title") then
-					TweenService:Create(btn.Title, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = isSel and 0 or 0.4}):Play()
-				end
+				if btn:FindFirstChild("Title") then TweenService:Create(btn.Title, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = isSel and 0 or 0.4}):Play() end
 			end
 			if opt.Url and opt.Url ~= "" then
 				task.spawn(function()
@@ -1825,25 +2407,16 @@ function Library:MakeWindow(...)
 				WindowBackgroundImage.Visible = false
 			end
 			SaveUIConfig()
-			Library:MakeNotification({
-				Name = "Hintergrund gewechselt",
-				Content = opt.Name,
-				Time = 2.5
-			})
+			Library:MakeNotification({Name = "Hintergrund gewechselt", Content = opt.Name, Time = 2.5})
 		end
 
 		for _, opt in ipairs(BgOptions) do
 			local optBtn = AddThemeObject(SetChildren(SetProps(MakeElement("Button"), {
-				Parent = BgDropdownContainer,
-				Size = UDim2.new(1, 0, 0, 28),
-				BackgroundTransparency = (opt.Name == CurrentBgOption) and 0 or 0.2,
-				ClipsDescendants = true
+				Parent = BgDropdownContainer, Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = (opt.Name == CurrentBgOption) and 0 or 0.2, ClipsDescendants = true
 			}), {
 				MakeElement("Corner", 0, 6),
 				AddThemeObject(SetProps(MakeElement("Label", opt.Name, 13, (opt.Name == CurrentBgOption) and 0 or 0.4), {
-					Position = UDim2.new(0, 8, 0, 0),
-					Size = UDim2.new(1, -8, 1, 0),
-					Name = "Title"
+					Position = UDim2.new(0, 8, 0, 0), Size = UDim2.new(1, -8, 1, 0), Name = "Title"
 				}), "Text")
 			}), "Second")
 
@@ -1852,8 +2425,8 @@ function Library:MakeWindow(...)
 				SetBackgroundByOption(opt)
 				BgToggled = false
 				BgLine.Visible = false
-				TweenService:Create(BgIco, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
-				TweenService:Create(BgDropdownFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, 38)}):Play()
+				TweenService:Create(BgIco, TweenInfo.new(0.15), {Rotation = 0}):Play()
+				TweenService:Create(BgDropdownFrame, TweenInfo.new(0.15), {Size = UDim2.new(1, 0, 0, 38)}):Play()
 			end)
 			BgButtons[opt.Name] = optBtn
 		end
@@ -1866,9 +2439,137 @@ function Library:MakeWindow(...)
 			PlayClickSound()
 			BgToggled = not BgToggled
 			BgLine.Visible = BgToggled
-			TweenService:Create(BgIco, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = BgToggled and 180 or 0}):Play()
+			TweenService:Create(BgIco, TweenInfo.new(0.15), {Rotation = BgToggled and 180 or 0}):Play()
 			local targetH = BgToggled and (38 + (#BgOptions * 28)) or 38
-			TweenService:Create(BgDropdownFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
+			TweenService:Create(BgDropdownFrame, TweenInfo.new(0.15), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
+		end)
+
+		local CustomBgRow = Row("Eigene Hintergrund-URL", 66)
+		local CustomBgInput = AddThemeObject(Create("TextBox", {
+			Parent = CustomBgRow,
+			Size = UDim2.new(1, -24, 0, 26),
+			Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
+			BackgroundTransparency = 0.3,
+			Text = Library.ActiveBackgroundUrl or "",
+			PlaceholderText = "https://... Bild-URL einfügen & Enter",
+			PlaceholderColor3 = Color3.fromRGB(140, 130, 160),
+			Font = Enum.Font.GothamSemibold,
+			TextSize = 12,
+			TextColor3 = Color3.fromRGB(240, 235, 255),
+			ClearTextOnFocus = false
+		}), "Control")
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = CustomBgInput})
+		Create("UIStroke", {Color = ACCENT, Thickness = 0.8, Parent = CustomBgInput})
+
+		CustomBgInput.FocusLost:Connect(function(enter)
+			if enter and CustomBgInput.Text ~= "" then
+				local url = CustomBgInput.Text
+				Library.ActiveBackgroundUrl = url
+				Library.SelectedBackground = "Custom"
+				BgSelected.Text = "Custom"
+				task.spawn(function()
+					local asset = LoadCustomAsset(url, nil)
+					if asset then
+						WindowBackgroundImage.Image = asset
+						WindowBackgroundImage.Visible = true
+						Library:MakeNotification({Name = "Hintergrund aktualisiert", Content = "Eigene URL geladen", Time = 2.5})
+					end
+				end)
+				SaveUIConfig()
+			end
+		end)
+
+		local BgTransRow = Row("Hintergrund-Transparenz", 60)
+		local BgTransSlider = Create("Frame", {
+			Parent = BgTransRow, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = BgTransSlider})
+		local BgTransFill = Create("Frame", {
+			Parent = BgTransSlider, Size = UDim2.new(Library.BackgroundTransparency, 0, 1, 0),
+			BackgroundColor3 = ACCENT
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = BgTransFill})
+		local DraggingBgT = false
+		AddConnection(BgTransSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingBgT = true end end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 and DraggingBgT then DraggingBgT = false; SaveUIConfig() end end)
+		AddConnection(UserInputService.InputChanged, function(i)
+			if DraggingBgT and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local Rel = math.clamp((Mouse.X - BgTransSlider.AbsolutePosition.X) / BgTransSlider.AbsoluteSize.X, 0, 1)
+				BgTransFill.Size = UDim2.new(Rel, 0, 1, 0)
+				Library.BackgroundTransparency = Rel
+				WindowBackgroundImage.ImageTransparency = Rel
+			end
+		end)
+
+		local CustomLogoRow = Row("Eigene Logo-URL (Oben Links)", 66)
+		local CustomLogoInput = AddThemeObject(Create("TextBox", {
+			Parent = CustomLogoRow,
+			Size = UDim2.new(1, -24, 0, 26),
+			Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
+			BackgroundTransparency = 0.3,
+			Text = Library.CustomLogoUrl or "",
+			PlaceholderText = "https://... Logo-URL einfügen & Enter",
+			PlaceholderColor3 = Color3.fromRGB(140, 130, 160),
+			Font = Enum.Font.GothamSemibold,
+			TextSize = 12,
+			TextColor3 = Color3.fromRGB(240, 235, 255),
+			ClearTextOnFocus = false
+		}), "Control")
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = CustomLogoInput})
+		Create("UIStroke", {Color = ACCENT, Thickness = 0.8, Parent = CustomLogoInput})
+
+		CustomLogoInput.FocusLost:Connect(function(enter)
+			if enter and CustomLogoInput.Text ~= "" then
+				local url = CustomLogoInput.Text
+				Library.CustomLogoUrl = url
+				task.spawn(function()
+					local asset = LoadCustomAsset(url, Library.FixedIconId)
+					if asset then
+						WindowIcon.Image = asset
+						MiniIconBadge.Image = asset
+						Library:MakeNotification({Name = "Logo aktualisiert", Content = "Neues Logo gesetzt", Time = 2.5})
+					end
+				end)
+				SaveUIConfig()
+			end
+		end)
+
+		local CustomSettingsRow = Row("Eigenes Settings-Icon (URL)", 66)
+		local CustomSettingsInput = AddThemeObject(Create("TextBox", {
+			Parent = CustomSettingsRow,
+			Size = UDim2.new(1, -24, 0, 26),
+			Position = UDim2.new(0, 12, 0, 32),
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
+			BackgroundTransparency = 0.3,
+			Text = Library.ActiveSettingsUrl or Library.CustomSettingsUrl or "",
+			PlaceholderText = "https://... Settings-Icon URL einfügen & Enter",
+			PlaceholderColor3 = Color3.fromRGB(140, 130, 160),
+			Font = Enum.Font.GothamSemibold,
+			TextSize = 12,
+			TextColor3 = Color3.fromRGB(240, 235, 255),
+			ClearTextOnFocus = false
+		}), "Control")
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = CustomSettingsInput})
+		Create("UIStroke", {Color = ACCENT, Thickness = 0.8, Parent = CustomSettingsInput})
+
+		CustomSettingsInput.FocusLost:Connect(function(enter)
+			if enter and CustomSettingsInput.Text ~= "" then
+				local url = CustomSettingsInput.Text
+				Library.ActiveSettingsUrl = url
+				Library.CustomSettingsUrl = url
+				Library.CustomSettingsIconUrl = url
+				task.spawn(function()
+					local asset = LoadCustomAsset(url, Library.FixedSettingsIconId)
+					if asset and SettingsBtn:FindFirstChild("Ico") then
+						SettingsBtn.Ico.Image = asset
+						Library:MakeNotification({Name = "Settings-Icon geändert", Content = "Neues Icon geladen", Time = 2.5})
+					end
+				end)
+				SaveUIConfig()
+			end
 		end)
 
 		local ColorRow = Row("Akzentfarbe", 66)
@@ -1901,6 +2602,7 @@ function Library:MakeWindow(...)
 			Library.Accent, Library.AccentText, Library.AccentSoft = ACCENT, ACCENT_TEXT, ACCENT_SOFT
 			MiniStroke.Color = ACCENT
 			PulseRing.Color = ACCENT
+			ProfileCardStroke.Color = ACCENT
 			for _, Tab in next, TabHolder:GetChildren() do
 				if Tab:IsA("TextButton") and Tab:FindFirstChild("Ico") and Tab:FindFirstChild("Title") then
 					if Tab.Title.Font == Enum.Font.GothamBold then
@@ -1914,11 +2616,9 @@ function Library:MakeWindow(...)
 		local DraggingColor = false
 		AddConnection(ColorBar.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingColor = true end end)
 		AddConnection(UserInputService.InputEnded, function(i)
-			if i.UserInputType == Enum.UserInputType.MouseButton1 then
-				if DraggingColor then
-					DraggingColor = false
-					SaveUIConfig()
-				end
+			if i.UserInputType == Enum.UserInputType.MouseButton1 and DraggingColor then
+				DraggingColor = false
+				SaveUIConfig()
 			end
 		end)
 		AddConnection(UserInputService.InputChanged, function(i)
@@ -1933,7 +2633,8 @@ function Library:MakeWindow(...)
 		local RainbowRow = Row("Rainbow Chroma-Modus", 38)
 		local RainbowBtn = Create("TextButton", {
 			Parent = RainbowRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Aus",
+			BackgroundColor3 = Library.RainbowEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
+			Text = Library.RainbowEnabled and "AN" or "Aus",
 			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = RainbowBtn})
@@ -1958,7 +2659,23 @@ function Library:MakeWindow(...)
 			SaveUIConfig()
 		end)
 
-		Header("Transparenz & Effekte")
+		Header("HUD & Transparenz")
+
+		local WatermarkRow = Row("Live Watermark HUD (FPS & Ping)", 38)
+		local WatermarkBtn = Create("TextButton", {
+			Parent = WatermarkRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Library.WatermarkEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
+			Text = Library.WatermarkEnabled and "AN" or "Aus",
+			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = WatermarkBtn})
+		WatermarkBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			SetWatermarkState(not Library.WatermarkEnabled)
+			WatermarkBtn.Text = Library.WatermarkEnabled and "AN" or "Aus"
+			WatermarkBtn.BackgroundColor3 = Library.WatermarkEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control
+			SaveUIConfig()
+		end)
 
 		local TransRow = Row("Fenster-Transparenz", 60)
 		local TSlider = Create("Frame", {
@@ -1973,14 +2690,7 @@ function Library:MakeWindow(...)
 		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = TFill})
 		local DraggingT = false
 		AddConnection(TSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingT = true end end)
-		AddConnection(UserInputService.InputEnded, function(i)
-			if i.UserInputType == Enum.UserInputType.MouseButton1 then
-				if DraggingT then
-					DraggingT = false
-					SaveUIConfig()
-				end
-			end
-		end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 and DraggingT then DraggingT = false; SaveUIConfig() end end)
 		AddConnection(UserInputService.InputChanged, function(i)
 			if DraggingT and i.UserInputType == Enum.UserInputType.MouseMovement then
 				local Rel = math.clamp((Mouse.X - TSlider.AbsolutePosition.X) / TSlider.AbsoluteSize.X, 0, 1)
@@ -2003,14 +2713,7 @@ function Library:MakeWindow(...)
 		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = SFill})
 		local DraggingS = false
 		AddConnection(SSlider.InputBegan, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then DraggingS = true end end)
-		AddConnection(UserInputService.InputEnded, function(i)
-			if i.UserInputType == Enum.UserInputType.MouseButton1 then
-				if DraggingS then
-					DraggingS = false
-					SaveUIConfig()
-				end
-			end
-		end)
+		AddConnection(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 and DraggingS then DraggingS = false; SaveUIConfig() end end)
 		AddConnection(UserInputService.InputChanged, function(i)
 			if DraggingS and i.UserInputType == Enum.UserInputType.MouseMovement then
 				local Rel = math.clamp((Mouse.X - SSlider.AbsolutePosition.X) / SSlider.AbsoluteSize.X, 0, 1)
@@ -2023,7 +2726,8 @@ function Library:MakeWindow(...)
 		local BlurRow = Row("Hintergrund-Unschärfe (Blur)", 38)
 		local BlurBtn = Create("TextButton", {
 			Parent = BlurRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Aus",
+			BackgroundColor3 = Library.BlurEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
+			Text = Library.BlurEnabled and "AN" or "Aus",
 			TextColor3 = Color3.fromRGB(220, 210, 240), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = BlurBtn})
@@ -2062,11 +2766,7 @@ function Library:MakeWindow(...)
 					ListeningForKey = false
 					conn:Disconnect()
 					SaveUIConfig()
-					Library:MakeNotification({
-						Name = "Taste geändert",
-						Content = "Neue Menü-Taste: " .. ToggleKeyName,
-						Time = 3
-					})
+					Library:MakeNotification({Name = "Taste geändert", Content = "Neue Menü-Taste: " .. ToggleKeyName, Time = 3})
 				end
 			end)
 		end)
@@ -2074,7 +2774,8 @@ function Library:MakeWindow(...)
 		local SoundRow = Row("Klick-Soundeffekte", 38)
 		local SoundBtn = Create("TextButton", {
 			Parent = SoundRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
-			BackgroundColor3 = ACCENT, Text = "AN",
+			BackgroundColor3 = Library.SoundsEnabled and ACCENT or Library.Themes[Library.SelectedTheme].Control,
+			Text = Library.SoundsEnabled and "AN" or "Aus",
 			TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = SoundBtn})
@@ -2089,7 +2790,8 @@ function Library:MakeWindow(...)
 		local ModeRow = Row("Wieder öffnen per", 38)
 		local ModeBtn = Create("TextButton", {
 			Parent = ModeRow, Size = UDim2.new(0, 120, 0, 24), Position = UDim2.new(1, -132, 0, 7),
-			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control, Text = "Doppelklick",
+			BackgroundColor3 = Library.Themes[Library.SelectedTheme].Control,
+			Text = (Library.MinimizeSettings.ReopenMode == "Click" and "Einfachklick" or "Doppelklick"),
 			TextColor3 = Color3.fromRGB(230,225,245), Font = Enum.Font.GothamSemibold, TextSize = 12, AutoButtonColor = false
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = ModeBtn})
@@ -2105,7 +2807,49 @@ function Library:MakeWindow(...)
 			SaveUIConfig()
 		end)
 
-		Header("Verwaltung")
+		Header("Verwaltung & Schnelltools")
+
+		local RejoinRow = Row("Server Rejoin", 38)
+		local RejoinBtn = Create("TextButton", {
+			Parent = RejoinRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = ACCENT, Text = "Rejoin",
+			TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = RejoinBtn})
+		RejoinBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			if #Players:GetPlayers() <= 1 then
+				LocalPlayer:Kick("\n[NightSystem] Rejoining...")
+				task.wait(0.2)
+				TeleportService:Teleport(game.PlaceId, LocalPlayer)
+			else
+				TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+			end
+		end)
+
+		local HopRow = Row("Server Hop (Neuer Server)", 38)
+		local HopBtn = Create("TextButton", {
+			Parent = HopRow, Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(1, -112, 0, 7),
+			BackgroundColor3 = Color3.fromRGB(60, 140, 220), Text = "Hop",
+			TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = HopBtn})
+		HopBtn.MouseButton1Click:Connect(function()
+			PlayClickSound()
+			Library:MakeNotification({Name = "Server Hop", Content = "Suche Server...", Time = 3})
+			task.spawn(function()
+				pcall(function()
+					local raw = game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
+					local servers = HttpService:JSONDecode(raw)
+					for _, s in ipairs(servers.data) do
+						if s.playing < s.maxPlayers and s.id ~= game.JobId then
+							TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+							break
+						end
+					end
+				end)
+			end)
+		end)
 
 		local ResetRow = Row("Farbe & Theme zurücksetzen", 38)
 		local ResetBtn = Create("TextButton", {
@@ -2136,6 +2880,9 @@ function Library:MakeWindow(...)
 		UnloadBtn.MouseButton1Click:Connect(function()
 			PlayClickSound()
 			SetBlurState(false)
+			SetWatermarkState(false)
+			SetAntiAfk(false)
+			SetFullbright(false)
 			Library:Destroy()
 		end)
 	end
@@ -2144,6 +2891,7 @@ function Library:MakeWindow(...)
 	AddConnection(SettingsBtn.MouseButton1Up, function()
 		PlayClickSound()
 		TweenService:Create(SettingsBtn.Ico, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Rotation = SettingsBtn.Ico.Rotation + 60}):Play()
+		ProfileCard.Visible = false
 		local ShowSettings = not UISettingsPanel.Visible
 		UISettingsPanel.Visible = ShowSettings
 		for _, ItemContainer in next, MainWindow:GetChildren() do
@@ -2205,6 +2953,7 @@ function Library:MakeWindow(...)
 		end
 
 		local function ActivateTab()
+			ProfileCard.Visible = false
 			for _, Tab in next, TabHolder:GetChildren() do
 				if Tab:IsA("TextButton") and Tab:FindFirstChild("Ico") and Tab:FindFirstChild("Title") then
 					Tab.Title.Font = Enum.Font.GothamSemibold
