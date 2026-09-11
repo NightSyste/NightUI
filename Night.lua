@@ -968,6 +968,7 @@ end
 
 function Library:MakeWindow(...)
 	local FirstTab = true
+	local CurrentActiveContainer = nil
 	local Minimized = false
 	local UIHidden = false
 
@@ -2183,13 +2184,8 @@ function Library:MakeWindow(...)
 			task.delay(0.2, function()
 				if not ProfileCardOpen then
 					ProfileCard.Visible = false
-					for _, Tab in next, TabHolder:GetChildren() do
-						if Tab:IsA("TextButton") and Tab:FindFirstChild("Title") and Tab.Title.Font == Enum.Font.GothamBold then
-							for _, ic in next, MainWindow:GetChildren() do
-								if ic.Name == "ItemContainer" then ic.Visible = true break end
-							end
-							break
-						end
+					if CurrentActiveContainer then
+						CurrentActiveContainer.Visible = true
 					end
 				end
 			end)
@@ -2343,7 +2339,7 @@ function Library:MakeWindow(...)
 			end
 		end)
 
-		Header("Design, Farben & Custom Media")
+		Header("Design & Farben")
 
 		local BgOptions = {
 			{ Name = "Frau 1",                 Url = "https://s1.directupload.eu/images/260904/3m9x7lao.jpg" },
@@ -2798,6 +2794,9 @@ function Library:MakeWindow(...)
 		for _, ItemContainer in next, MainWindow:GetChildren() do
 			if ItemContainer.Name == "ItemContainer" and ShowSettings then ItemContainer.Visible = false end
 		end
+		if not ShowSettings and CurrentActiveContainer then
+			CurrentActiveContainer.Visible = true
+		end
 	end)
 
 	local function BuildTab(TabConfig, ParentHolder)
@@ -2851,11 +2850,13 @@ function Library:MakeWindow(...)
 			TabFrame.Ico.ImageColor3 = ACCENT_TEXT
 			TabFrame.Title.TextColor3 = ACCENT_TEXT
 			TabItemContainer.Visible = true
+			CurrentActiveContainer = TabItemContainer
 		end
 
 		local function ActivateTab()
 			ProfileCard.Visible = false
 			ProfileCardOpen = false
+			CurrentActiveContainer = TabItemContainer
 			for _, Tab in next, TabHolder:GetChildren() do
 				if Tab:IsA("TextButton") and Tab:FindFirstChild("Ico") and Tab:FindFirstChild("Title") then
 					Tab.Title.Font = Enum.Font.GothamSemibold
