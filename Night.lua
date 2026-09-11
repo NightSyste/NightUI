@@ -1771,61 +1771,74 @@ function Library:MakeWindow(...)
 	if WindowConfig.IntroEnabled then LoadSequence() end
 
 	-- ╔══════════════════════════════════════════════════════════════╗
-	-- ║   KRASSE CHARAKTER & SPIEL STATUS KARTE (INSPECTOR OVERLAY)  ║
+	-- ║   STANDALONE CYBERNETIC INSPECTOR & BIOMETRICS WINDOW        ║
 	-- ╚══════════════════════════════════════════════════════════════╝
 	local UISettingsPanel
-	local ProfileCard = SetProps(MakeElement("RoundFrame", Color3.fromRGB(18, 14, 26), 0, 10), {
-		Parent = MainWindow,
-		Position = UDim2.new(0, 155, 0, 54),
-		Size = UDim2.new(1, -160, 1, -58),
+
+	local InspectorWindow = SetProps(MakeElement("RoundFrame", Color3.fromRGB(18, 14, 26), 0, 10), {
+		Parent = Container,
+		Position = UDim2.new(0.5, 332, 0.5, -169),
+		Size = UDim2.new(0, 520, 0, 338),
 		Visible = false,
-		ZIndex = 40,
-		Name = "ProfileCard",
-		BackgroundTransparency = 0.02
+		ZIndex = 45,
+		Name = "InspectorWindow",
+		BackgroundTransparency = 0.05,
+		ClipsDescendants = true
 	})
 
-	local ProfileCardStroke = Create("UIStroke", {
+	local ProfileCard = InspectorWindow -- Alias for compatibility
+
+	local InspectorStroke = Create("UIStroke", {
 		Color = ACCENT,
-		Thickness = 1.5,
-		Transparency = 0.15,
-		Parent = ProfileCard
+		Thickness = 1.4,
+		Transparency = 0.2,
+		Parent = InspectorWindow
 	})
+	local ProfileCardStroke = InspectorStroke
 
-	local CardTopBar = SetChildren(SetProps(MakeElement("TFrame"), {
-		Size = UDim2.new(1, 0, 0, 36),
-		Parent = ProfileCard,
+	-- Top Draggable Header Bar
+	local InspectorDragPoint = SetProps(MakeElement("TFrame"), {
+		Size = UDim2.new(1, 0, 0, 38),
+		Parent = InspectorWindow,
+		Name = "TopDrag"
+	})
+	MakeDraggable(InspectorDragPoint, InspectorWindow)
+
+	local InspectorTopBar = SetChildren(SetProps(MakeElement("TFrame"), {
+		Size = UDim2.new(1, 0, 0, 38),
+		Parent = InspectorDragPoint,
 		Name = "Top"
 	}), {
-		SetProps(MakeElement("Label", "⚡ STATUS & BIOMETRICS", 13), {
-			Size = UDim2.new(0, 220, 0, 18),
+		SetProps(MakeElement("Label", "BIOMETRIC INSPECTOR // TELEMETRY", 12), {
+			Size = UDim2.new(0, 240, 0, 18),
 			Position = UDim2.new(0, 12, 0, 4),
 			Font = Enum.Font.GothamBold,
 			TextColor3 = Color3.fromRGB(255, 255, 255)
 		}),
-		SetProps(MakeElement("Label", "● REALTIME TELEMETRY & ESP INSPECTOR", 9), {
-			Size = UDim2.new(0, 260, 0, 12),
-			Position = UDim2.new(0, 12, 0, 21),
+		SetProps(MakeElement("Label", "SYSTEM STATUS: ACTIVE // REALTIME CLIENT TELEMETRY", 9), {
+			Size = UDim2.new(0, 300, 0, 12),
+			Position = UDim2.new(0, 12, 0, 20),
 			Font = Enum.Font.GothamBold,
 			TextColor3 = Color3.fromRGB(0, 240, 220)
 		}),
 		Create("Frame", {
 			Size = UDim2.new(1, 0, 0, 1),
 			Position = UDim2.new(0, 0, 1, -1),
-			BackgroundColor3 = Color3.fromRGB(60, 45, 80),
+			BackgroundColor3 = Color3.fromRGB(55, 42, 75),
 			BorderSizePixel = 0
 		})
 	})
 
 	local CardCloseBtn = SetChildren(SetProps(MakeElement("Button"), {
-		Size = UDim2.new(0, 26, 0, 26),
-		Position = UDim2.new(1, -32, 0, 5),
-		Parent = CardTopBar,
-		BackgroundColor3 = Color3.fromRGB(48, 34, 68),
+		Size = UDim2.new(0, 24, 0, 24),
+		Position = UDim2.new(1, -30, 0, 7),
+		Parent = InspectorTopBar,
+		BackgroundColor3 = Color3.fromRGB(44, 32, 60),
 		BackgroundTransparency = 0.2
 	}), {
 		MakeElement("Corner", 0, 6),
-		Create("UIStroke", {Color = Color3.fromRGB(120, 90, 180), Thickness = 1}),
-		SetProps(MakeElement("Label", "✕", 12), {
+		Create("UIStroke", {Color = Color3.fromRGB(110, 80, 160), Thickness = 1}),
+		SetProps(MakeElement("Label", "✕", 11), {
 			Size = UDim2.new(1, 0, 1, 0),
 			Font = Enum.Font.GothamBold,
 			TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -1833,39 +1846,41 @@ function Library:MakeWindow(...)
 		})
 	})
 
-	-- Linker Bereich: Cybernetic ESP & Holographic Skeleton Box
-	local EspBoxHolder = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(12, 9, 18), 0, 8), {
-		Parent = ProfileCard,
-		Position = UDim2.new(0, 10, 0, 42),
-		Size = UDim2.new(0, 160, 1, -52),
+	-- Left Column: Cybernetic Biometric Scanner Pod
+	local EspBoxHolder = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(13, 10, 20), 0, 8), {
+		Parent = InspectorWindow,
+		Position = UDim2.new(0, 12, 0, 44),
+		Size = UDim2.new(0, 185, 0, 282),
 		BackgroundTransparency = 0.15,
 		ClipsDescendants = true,
 		Name = "EspBox"
 	}), {
-		Create("UIStroke", {Color = Color3.fromRGB(0, 240, 255), Thickness = 1.4, Transparency = 0.25})
+		Create("UIStroke", {Color = Color3.fromRGB(0, 240, 255), Thickness = 1.3, Transparency = 0.3})
 	})
 
-	-- Ambient Backlight Glow behind character
+	-- Illuminated Backlight Halo so dark avatars stand out with high contrast
 	local Backlight = Create("Frame", {
 		Parent = EspBoxHolder,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 0),
-		Size = UDim2.new(0.9, 0, 0.9, 0),
-		BackgroundColor3 = Color3.fromRGB(35, 22, 60),
-		BackgroundTransparency = 0.4,
+		Position = UDim2.new(0.5, 0, 0.50, 0),
+		Size = UDim2.new(0.92, 0, 0.90, 0),
+		BackgroundColor3 = Color3.fromRGB(55, 38, 88),
+		BackgroundTransparency = 0.2,
 		BorderSizePixel = 0,
 		ZIndex = 1
 	})
-	Create("UICorner", {CornerRadius = UDim.new(0.5, 0), Parent = Backlight})
+	Create("UICorner", {CornerRadius = UDim.new(0.4, 0), Parent = Backlight})
 	Create("UIGradient", {
 		Parent = Backlight,
 		Color = ColorSequence.new{
-			ColorSequenceKeypoint.new(0.0, Color3.fromRGB(0, 180, 255)),
-			ColorSequenceKeypoint.new(1.0, Color3.fromRGB(120, 50, 220))
+			ColorSequenceKeypoint.new(0.0, Color3.fromRGB(0, 220, 255)),
+			ColorSequenceKeypoint.new(0.45, Color3.fromRGB(140, 65, 240)),
+			ColorSequenceKeypoint.new(1.0, Color3.fromRGB(18, 12, 28))
 		},
 		Transparency = NumberSequence.new{
-			NumberSequenceKeypoint.new(0.0, 0.4),
-			NumberSequenceKeypoint.new(1.0, 0.95)
+			NumberSequenceKeypoint.new(0.0, 0.40),
+			NumberSequenceKeypoint.new(0.65, 0.70),
+			NumberSequenceKeypoint.new(1.0, 0.98)
 		}
 	})
 
@@ -1888,16 +1903,17 @@ function Library:MakeWindow(...)
 	Bracket(UDim2.new(1, -16, 1, -16), 180)
 	Bracket(UDim2.new(0, 4, 1, -16), 270)
 
-	-- Dedicated Character Container to perfectly align image and skeleton
+	-- 1:1 Aspect Ratio Container strictly matching Roblox AvatarThumbnail
 	local CharFrame = Create("Frame", {
 		Parent = EspBoxHolder,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.50, 0),
-		Size = UDim2.new(1, -14, 1, -38),
+		Position = UDim2.new(0.5, 0, 0.49, 0),
+		Size = UDim2.new(1, -20, 1, -40),
 		BackgroundTransparency = 1,
 		ZIndex = 2,
 		Name = "CharFrame"
 	})
+	Create("UIAspectRatioConstraint", {AspectRatio = 0.75, AspectType = Enum.AspectType.FitWithinMaxSize, Parent = CharFrame})
 
 	-- Live Roblox Avatar Image (Native High-Res Loader)
 	local AvatarImg = Create("ImageLabel", {
@@ -1948,7 +1964,7 @@ function Library:MakeWindow(...)
 	})
 	task.spawn(function()
 		while Library:IsRunning() do
-			if ProfileCard.Visible then
+			if InspectorWindow.Visible then
 				local tw1 = TweenService:Create(ScanLine, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 0, 0.92, 0)})
 				tw1:Play()
 				tw1.Completed:Wait()
@@ -1973,7 +1989,7 @@ function Library:MakeWindow(...)
 	})
 
 	local SKELE_NEON = Color3.fromRGB(0, 245, 255)
-	local SKELE_CORE = Color3.fromRGB(240, 255, 255)
+	local SKELE_CORE = Color3.fromRGB(255, 255, 255)
 
 	local function SkeleJoint(x, y, r)
 		local node = Create("Frame", {
@@ -2003,7 +2019,7 @@ function Library:MakeWindow(...)
 		local glow = Create("Frame", {
 			Parent = SkeletonContainer,
 			BackgroundColor3 = SKELE_NEON,
-			BackgroundTransparency = 0.5,
+			BackgroundTransparency = 0.45,
 			BorderSizePixel = 0,
 			ZIndex = 7
 		})
@@ -2037,7 +2053,7 @@ function Library:MakeWindow(...)
 	local SkeleHead = Create("Frame", {
 		Parent = SkeletonContainer,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.50, 0, 0.16, 0),
+		Position = UDim2.new(0.50, 0, 0.18, 0),
 		Size = UDim2.new(0, 22, 0, 22),
 		BackgroundTransparency = 1,
 		ZIndex = 9
@@ -2055,66 +2071,66 @@ function Library:MakeWindow(...)
 	})
 	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = HeadCrosshair})
 
-	-- Anatomically Aligned Bones (Head, Spine, Arms, Ribs, Pelvis, Legs)
-	SkeleBone(0.50, 0.22, 0.50, 0.38, 2.0) -- Spine Upper
-	SkeleBone(0.50, 0.38, 0.50, 0.50, 2.0) -- Spine Lower
+	-- Anatomically Aligned Laser Bones
+	SkeleBone(0.50, 0.23, 0.50, 0.42, 2.0) -- Spine Upper
+	SkeleBone(0.50, 0.42, 0.50, 0.56, 2.0) -- Spine Lower
 
 	-- Collarbones & Shoulders
-	SkeleBone(0.50, 0.25, 0.35, 0.27, 1.8)
-	SkeleBone(0.50, 0.25, 0.65, 0.27, 1.8)
+	SkeleBone(0.50, 0.28, 0.38, 0.32, 1.8)
+	SkeleBone(0.50, 0.28, 0.62, 0.32, 1.8)
 
 	-- Cybernetic Ribs
-	SkeleBone(0.40, 0.31, 0.60, 0.31, 1.4)
-	SkeleBone(0.39, 0.36, 0.61, 0.36, 1.4)
-	SkeleBone(0.42, 0.42, 0.58, 0.42, 1.4)
+	SkeleBone(0.42, 0.36, 0.58, 0.36, 1.4)
+	SkeleBone(0.41, 0.42, 0.59, 0.42, 1.4)
+	SkeleBone(0.43, 0.48, 0.57, 0.48, 1.4)
 
 	-- Arms
-	SkeleBone(0.35, 0.27, 0.28, 0.39, 1.8) -- Left Bicep
-	SkeleBone(0.28, 0.39, 0.24, 0.52, 1.6) -- Left Forearm
-	SkeleBone(0.65, 0.27, 0.72, 0.39, 1.8) -- Right Bicep
-	SkeleBone(0.72, 0.39, 0.76, 0.52, 1.6) -- Right Forearm
+	SkeleBone(0.38, 0.32, 0.32, 0.45, 1.8) -- Left Bicep
+	SkeleBone(0.32, 0.45, 0.28, 0.58, 1.6) -- Left Forearm
+	SkeleBone(0.62, 0.32, 0.68, 0.45, 1.8) -- Right Bicep
+	SkeleBone(0.68, 0.45, 0.72, 0.58, 1.6) -- Right Forearm
 
 	-- Pelvis & Legs
-	SkeleBone(0.42, 0.50, 0.58, 0.50, 2.0) -- Pelvis bar
-	SkeleBone(0.42, 0.50, 0.40, 0.68, 1.9) -- Left Thigh
-	SkeleBone(0.40, 0.68, 0.38, 0.88, 1.8) -- Left Shin
-	SkeleBone(0.58, 0.50, 0.60, 0.68, 1.9) -- Right Thigh
-	SkeleBone(0.60, 0.68, 0.62, 0.88, 1.8) -- Right Shin
+	SkeleBone(0.43, 0.56, 0.57, 0.56, 2.0) -- Pelvis bar
+	SkeleBone(0.43, 0.56, 0.42, 0.73, 1.9) -- Left Thigh
+	SkeleBone(0.42, 0.73, 0.41, 0.90, 1.8) -- Left Shin
+	SkeleBone(0.57, 0.56, 0.58, 0.73, 1.9) -- Right Thigh
+	SkeleBone(0.58, 0.73, 0.59, 0.90, 1.8) -- Right Shin
 
 	-- Glowing Joint Nodes
-	SkeleJoint(0.50, 0.25, 5) -- Neck
-	SkeleJoint(0.50, 0.38, 5) -- Mid Spine
-	SkeleJoint(0.50, 0.50, 6) -- Pelvis Center
-	SkeleJoint(0.35, 0.27, 6) -- Left Shoulder
-	SkeleJoint(0.65, 0.27, 6) -- Right Shoulder
-	SkeleJoint(0.28, 0.39, 5) -- Left Elbow
-	SkeleJoint(0.72, 0.39, 5) -- Right Elbow
-	SkeleJoint(0.24, 0.52, 4) -- Left Wrist
-	SkeleJoint(0.76, 0.52, 4) -- Right Wrist
-	SkeleJoint(0.42, 0.50, 6) -- Left Hip
-	SkeleJoint(0.58, 0.50, 6) -- Right Hip
-	SkeleJoint(0.40, 0.68, 5) -- Left Knee
-	SkeleJoint(0.60, 0.68, 5) -- Right Knee
-	SkeleJoint(0.38, 0.88, 5) -- Left Ankle
-	SkeleJoint(0.62, 0.88, 5) -- Right Ankle
+	SkeleJoint(0.50, 0.28, 5) -- Neck
+	SkeleJoint(0.50, 0.42, 5) -- Mid Spine
+	SkeleJoint(0.50, 0.56, 6) -- Pelvis Center
+	SkeleJoint(0.38, 0.32, 6) -- Left Shoulder
+	SkeleJoint(0.62, 0.32, 6) -- Right Shoulder
+	SkeleJoint(0.32, 0.45, 5) -- Left Elbow
+	SkeleJoint(0.68, 0.45, 5) -- Right Elbow
+	SkeleJoint(0.28, 0.58, 4) -- Left Wrist
+	SkeleJoint(0.72, 0.58, 4) -- Right Wrist
+	SkeleJoint(0.43, 0.56, 6) -- Left Hip
+	SkeleJoint(0.57, 0.56, 6) -- Right Hip
+	SkeleJoint(0.42, 0.73, 5) -- Left Knee
+	SkeleJoint(0.58, 0.73, 5) -- Right Knee
+	SkeleJoint(0.41, 0.90, 5) -- Left Ankle
+	SkeleJoint(0.59, 0.90, 5) -- Right Ankle
 
 	-- ESP Badges
-	local EspTagTop = SetProps(MakeElement("Label", "[ TARGET: LOCKED ]", 10), {
+	local EspTagTop = SetProps(MakeElement("Label", "[ BIOMETRIC: LOCKED ]", 9), {
 		Parent = EspBoxHolder,
 		Size = UDim2.new(1, 0, 0, 14),
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.new(0, 0, 0, 5),
 		Font = Enum.Font.GothamBold,
-		TextColor3 = Color3.fromRGB(0, 255, 180),
+		TextColor3 = Color3.fromRGB(0, 240, 220),
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 9
 	})
 
-	local EspTagBottom = SetProps(MakeElement("Label", "HP: 100/100 | STATUS: OK", 9), {
+	local EspTagBottom = SetProps(MakeElement("Label", "STATUS: NOMINAL", 9), {
 		Parent = EspBoxHolder,
 		Size = UDim2.new(1, 0, 0, 14),
 		Position = UDim2.new(0, 0, 1, -16),
 		Font = Enum.Font.GothamBold,
-		TextColor3 = Color3.fromRGB(0, 240, 255),
+		TextColor3 = Color3.fromRGB(180, 240, 255),
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 9
 	})
@@ -2141,14 +2157,14 @@ function Library:MakeWindow(...)
 	})
 	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = HealthBarFill})
 
-	-- Rechter Bereich: High-Contrast Live-Statistiken
+	-- Right Column: Professional High-Precision Telemetry Panel (NO EMOJIS)
 	local StatsScroll = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255,255,255), 4), {
-		Parent = ProfileCard,
-		Position = UDim2.new(0, 178, 0, 42),
-		Size = UDim2.new(1, -188, 1, -52),
+		Parent = InspectorWindow,
+		Position = UDim2.new(0, 208, 0, 44),
+		Size = UDim2.new(1, -220, 0, 282),
 		ClipsDescendants = true
 	}), {
-		MakeElement("List", 0, 6),
+		MakeElement("List", 0, 5),
 		MakeElement("Padding", 2, 4, 2, 4)
 	}), "Divider")
 
@@ -2156,37 +2172,36 @@ function Library:MakeWindow(...)
 		StatsScroll.CanvasSize = UDim2.new(0, 0, 0, StatsScroll.UIListLayout.AbsoluteContentSize.Y + 12)
 	end)
 
-	local function InfoRow(iconLabel, label, value, copyable)
+	local function InfoRow(label, value, copyable)
 		local row = Create("Frame", {
 			Parent = StatsScroll,
-			Size = UDim2.new(1, 0, 0, 28),
-			BackgroundColor3 = Color3.fromRGB(28, 22, 42),
-			BackgroundTransparency = 0.25
+			Size = UDim2.new(1, 0, 0, 25),
+			BackgroundColor3 = Color3.fromRGB(26, 20, 36),
+			BackgroundTransparency = 0.2
 		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = row})
-		Create("UIStroke", {Color = Color3.fromRGB(75, 55, 110), Thickness = 0.9, Parent = row})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = row})
+		Create("UIStroke", {Color = Color3.fromRGB(60, 45, 88), Thickness = 0.8, Parent = row})
 
-		local prefix = iconLabel and (iconLabel .. " ") or ""
 		Create("TextLabel", {
 			Parent = row,
-			Size = UDim2.new(0, 125, 1, 0),
+			Size = UDim2.new(0, 115, 1, 0),
 			Position = UDim2.new(0, 8, 0, 0),
 			Font = Enum.Font.GothamBold,
-			Text = prefix .. label,
-			TextColor3 = Color3.fromRGB(210, 195, 245),
-			TextSize = 12,
+			Text = string.upper(label),
+			TextColor3 = Color3.fromRGB(170, 155, 200),
+			TextSize = 10,
 			BackgroundTransparency = 1,
 			TextXAlignment = Enum.TextXAlignment.Left
 		})
 
 		local valLbl = Create("TextLabel", {
 			Parent = row,
-			Size = UDim2.new(1, copyable and -185 or -135, 1, 0),
-			Position = UDim2.new(0, 130, 0, 0),
+			Size = UDim2.new(1, copyable and -165 or -125, 1, 0),
+			Position = UDim2.new(0, 120, 0, 0),
 			Font = Enum.Font.GothamBold,
 			Text = tostring(value or "?"),
 			TextColor3 = Color3.fromRGB(255, 255, 255),
-			TextSize = 12,
+			TextSize = 11,
 			BackgroundTransparency = 1,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Name = "ValText",
@@ -2196,13 +2211,13 @@ function Library:MakeWindow(...)
 		if copyable then
 			local cBtn = Create("TextButton", {
 				Parent = row,
-				Size = UDim2.new(0, 48, 0, 20),
-				Position = UDim2.new(1, -54, 0.5, -10),
-				BackgroundColor3 = Color3.fromRGB(145, 105, 250),
-				Text = "Kopie",
+				Size = UDim2.new(0, 44, 0, 18),
+				Position = UDim2.new(1, -48, 0.5, -9),
+				BackgroundColor3 = Color3.fromRGB(125, 85, 215),
+				Text = "COPY",
 				TextColor3 = Color3.fromRGB(255, 255, 255),
 				Font = Enum.Font.GothamBold,
-				TextSize = 10,
+				TextSize = 9,
 				AutoButtonColor = false
 			})
 			Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = cBtn})
@@ -2220,27 +2235,28 @@ function Library:MakeWindow(...)
 		if Info and Info.Name then GameTitleName = Info.Name end
 	end)
 
-	local RowPlayerName = InfoRow("👤", "Name:", (LocalPlayer and LocalPlayer.Name or "?") .. " (@" .. (LocalPlayer and LocalPlayer.DisplayName or "?") .. ")")
-	local RowPlayerId   = InfoRow("🆔", "User ID:", tostring(LocalPlayer and LocalPlayer.UserId or "?"), true)
-	local RowAccAge     = InfoRow("📅", "Account-Alter:", tostring(LocalPlayer and LocalPlayer.AccountAge or 0) .. " Tage")
-	local RowHealth     = InfoRow("❤️", "Gesundheit:", "100 / 100")
-	local RowWalkSpeed  = InfoRow("⚡", "Speed / Jump:", "16 / 50")
-	local RowGameName   = InfoRow("🎮", "Spiel:", GameTitleName)
-	local RowPlaceId    = InfoRow("📍", "Place ID:", tostring(game.PlaceId), true)
-	local RowJobId      = InfoRow("🌐", "Job ID:", tostring(game.JobId), true)
-	local RowPing       = InfoRow("📶", "Server Ping:", "... ms")
-	local RowFps        = InfoRow("⏱️", "Server FPS:", "... FPS")
-	local RowPlayers    = InfoRow("👥", "Spieler:", tostring(#Players:GetPlayers()) .. " Spieler")
+	local RowPlayerName = InfoRow("Player", (LocalPlayer and LocalPlayer.Name or "?"))
+	local RowDispName   = InfoRow("Display Name", (LocalPlayer and LocalPlayer.DisplayName or "?"))
+	local RowPlayerId   = InfoRow("User ID", tostring(LocalPlayer and LocalPlayer.UserId or "?"), true)
+	local RowAccAge     = InfoRow("Account Age", tostring(LocalPlayer and LocalPlayer.AccountAge or 0) .. " Days")
+	local RowHealth     = InfoRow("Health", "100 / 100")
+	local RowWalkSpeed  = InfoRow("WalkSpeed / Jump", "16 / 50")
+	local RowGameName   = InfoRow("Game", GameTitleName)
+	local RowPlaceId    = InfoRow("Place ID", tostring(game.PlaceId), true)
+	local RowJobId      = InfoRow("Job ID", tostring(game.JobId), true)
+	local RowPing       = InfoRow("Ping", "... ms")
+	local RowFps        = InfoRow("Render FPS", "... FPS")
+	local RowPlayers    = InfoRow("Server Players", tostring(#Players:GetPlayers()) .. " Online")
 
 	local ActionRow = Create("Frame", {
 		Parent = StatsScroll,
-		Size = UDim2.new(1, 0, 0, 32),
+		Size = UDim2.new(1, 0, 0, 28),
 		BackgroundTransparency = 1
 	})
 	Create("UIListLayout", {
 		Parent = ActionRow,
 		FillDirection = Enum.FillDirection.Horizontal,
-		Padding = UDim.new(0, 6)
+		Padding = UDim.new(0, 5)
 	})
 
 	local function ActionBtn(text, color, cb)
@@ -2251,10 +2267,10 @@ function Library:MakeWindow(...)
 			Text = text,
 			TextColor3 = Color3.fromRGB(255, 255, 255),
 			Font = Enum.Font.GothamBold,
-			TextSize = 11,
+			TextSize = 10,
 			AutoButtonColor = false
 		})
-		Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = b})
+		Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = b})
 		b.MouseButton1Click:Connect(function()
 			PlayClickSound()
 			cb()
@@ -2262,7 +2278,7 @@ function Library:MakeWindow(...)
 		return b
 	end
 
-	ActionBtn("🔄 Rejoin", Color3.fromRGB(130, 85, 230), function()
+	ActionBtn("REJOIN", Color3.fromRGB(115, 75, 210), function()
 		if #Players:GetPlayers() <= 1 then
 			LocalPlayer:Kick("\n[NightSystem] Rejoining...")
 			task.wait(0.2)
@@ -2272,8 +2288,8 @@ function Library:MakeWindow(...)
 		end
 	end)
 
-	ActionBtn("🌐 Server Hop", Color3.fromRGB(40, 140, 225), function()
-		Library:MakeNotification({Name = "Server Hop", Content = "Suche Server...", Time = 3})
+	ActionBtn("SERVER HOP", Color3.fromRGB(35, 120, 210), function()
+		Library:MakeNotification({Name = "Server Hop", Content = "Searching for server...", Time = 3})
 		task.spawn(function()
 			pcall(function()
 				local raw = game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
@@ -2288,8 +2304,8 @@ function Library:MakeWindow(...)
 		end)
 	end)
 
-	ActionBtn("💬 Discord", Color3.fromRGB(88, 101, 242), function()
-		CopyToClipboard("https://discord.gg/8nKxKcerCv", "Discord-Link kopiert")
+	ActionBtn("DISCORD", Color3.fromRGB(75, 90, 215), function()
+		CopyToClipboard("https://discord.gg/8nKxKcerCv", "Discord link copied")
 	end)
 
 	task.spawn(function()
@@ -2304,10 +2320,10 @@ function Library:MakeWindow(...)
 				lTime = cur
 				local ping = 0
 				pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
-				if ProfileCard.Visible then
+				if InspectorWindow.Visible then
 					if RowPing:FindFirstChild("ValText") then RowPing.ValText.Text = tostring(ping) .. " ms" end
 					if RowFps:FindFirstChild("ValText") then RowFps.ValText.Text = tostring(fps) .. " FPS" end
-					if RowPlayers:FindFirstChild("ValText") then RowPlayers.ValText.Text = tostring(#Players:GetPlayers()) .. " Spieler" end
+					if RowPlayers:FindFirstChild("ValText") then RowPlayers.ValText.Text = tostring(#Players:GetPlayers()) .. " Online" end
 
 					pcall(function()
 						local char = LocalPlayer.Character
@@ -2320,7 +2336,7 @@ function Library:MakeWindow(...)
 							HealthBarFill.BackgroundColor3 = Color3.fromHSV(ratio * 0.33, 0.9, 1)
 							if RowHealth:FindFirstChild("ValText") then RowHealth.ValText.Text = tostring(hp) .. " / " .. tostring(maxHp) end
 							if RowWalkSpeed:FindFirstChild("ValText") then RowWalkSpeed.ValText.Text = tostring(math.floor(hum.WalkSpeed)) .. " / " .. tostring(math.floor(hum.JumpPower or hum.JumpHeight or 50)) end
-							EspTagBottom.Text = "HP: " .. tostring(hp) .. "/" .. tostring(maxHp) .. " | STATUS: OK"
+							EspTagBottom.Text = "HP: " .. tostring(hp) .. "/" .. tostring(maxHp) .. " | OK"
 						end
 					end)
 				end
@@ -2329,43 +2345,45 @@ function Library:MakeWindow(...)
 		end
 	end)
 
-	local ProfileCardOpen = false
-	local function ToggleProfileCard()
-		ProfileCardOpen = not ProfileCardOpen
+	local InspectorOpen = false
+	local function ToggleInspector()
+		InspectorOpen = not InspectorOpen
 		PlayClickSound()
-		if ProfileCardOpen then
-			if UISettingsPanel then UISettingsPanel.Visible = false end
-			for _, ItemContainer in next, MainWindow:GetChildren() do
-				if ItemContainer.Name == "ItemContainer" then ItemContainer.Visible = false end
+		if InspectorOpen then
+			local mainPos = MainWindow.AbsolutePosition
+			local mainSize = MainWindow.AbsoluteSize
+			local containerSize = Container.AbsoluteSize
+			local spawnX = mainPos.X + mainSize.X + 12
+			local spawnY = mainPos.Y
+
+			-- If it overflows screen on the right, spawn to the left of MainWindow
+			if spawnX + 520 > containerSize.X - 10 then
+				spawnX = math.max(10, mainPos.X - 520 - 12)
 			end
-			ProfileCard.Visible = true
-			ProfileCard.Size = UDim2.new(1, -170, 1, -68)
-			ProfileCard.Position = UDim2.new(0, 160, 0, 59)
-			ProfileCard.BackgroundTransparency = 0.5
-			TweenService:Create(ProfileCard, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-				Size = UDim2.new(1, -160, 1, -58),
-				Position = UDim2.new(0, 155, 0, 54),
-				BackgroundTransparency = 0.02
+
+			InspectorWindow.Position = UDim2.new(0, spawnX, 0, spawnY + 8)
+			InspectorWindow.BackgroundTransparency = 0.5
+			InspectorWindow.Visible = true
+			TweenService:Create(InspectorWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+				Position = UDim2.new(0, spawnX, 0, spawnY),
+				BackgroundTransparency = 0.05
 			}):Play()
 		else
-			TweenService:Create(ProfileCard, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-				Size = UDim2.new(1, -170, 1, -68),
-				Position = UDim2.new(0, 160, 0, 59),
+			TweenService:Create(InspectorWindow, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+				Position = UDim2.new(0, InspectorWindow.AbsolutePosition.X, 0, InspectorWindow.AbsolutePosition.Y + 8),
 				BackgroundTransparency = 1
 			}):Play()
 			task.delay(0.2, function()
-				if not ProfileCardOpen then
-					ProfileCard.Visible = false
-					if CurrentActiveContainer then
-						CurrentActiveContainer.Visible = true
-					end
+				if not InspectorOpen then
+					InspectorWindow.Visible = false
 				end
 			end)
 		end
 	end
+	local ToggleProfileCard = ToggleInspector
 
-	AddConnection(ProfileButton.MouseButton1Click, ToggleProfileCard)
-	AddConnection(CardCloseBtn.MouseButton1Click, ToggleProfileCard)
+	AddConnection(ProfileButton.MouseButton1Click, ToggleInspector)
+	AddConnection(CardCloseBtn.MouseButton1Click, ToggleInspector)
 
 	-- ╔══════════════════════════════════════════════════════════════╗
 	-- ║   MASSIV ERWEITERTES UI-EINSTELLUNGSPANEL                    ║
@@ -2959,8 +2977,6 @@ function Library:MakeWindow(...)
 	AddConnection(SettingsBtn.MouseButton1Up, function()
 		PlayClickSound()
 		TweenService:Create(SettingsBtn.Ico, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Rotation = SettingsBtn.Ico.Rotation + 60}):Play()
-		ProfileCard.Visible = false
-		ProfileCardOpen = false
 		local ShowSettings = not UISettingsPanel.Visible
 		UISettingsPanel.Visible = ShowSettings
 		for _, ItemContainer in next, MainWindow:GetChildren() do
@@ -3026,8 +3042,6 @@ function Library:MakeWindow(...)
 		end
 
 		local function ActivateTab()
-			ProfileCard.Visible = false
-			ProfileCardOpen = false
 			CurrentActiveContainer = TabItemContainer
 			for _, Tab in next, TabHolder:GetChildren() do
 				if Tab:IsA("TextButton") and Tab:FindFirstChild("Ico") and Tab:FindFirstChild("Title") then
