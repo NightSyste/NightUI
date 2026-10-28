@@ -184,11 +184,14 @@ local function formatKeyName(key: EnumItem?): string
 	return replacements[key.Name] or key.Name
 end
 
-local function colorToHex(color: Color3): string
-	local r = math.clamp(math.round(color.R * 255), 0, 255)
-	local g = math.clamp(math.round(color.G * 255), 0, 255)
-	local b = math.clamp(math.round(color.B * 255), 0, 255)
-	return string.format("#%02X%02X%02X", r, g, b)
+local function colorToHex(color: any): string
+	local ok, hex = pcall(function()
+		local r = math.clamp(math.round(color.R * 255), 0, 255)
+		local g = math.clamp(math.round(color.G * 255), 0, 255)
+		local b = math.clamp(math.round(color.B * 255), 0, 255)
+		return string.format("#%02X%02X%02X", r, g, b)
+	end)
+	return if ok and hex then hex else "#FFFFFF"
 end
 
 local function hexToColor(hex: string): Color3?
@@ -2005,123 +2008,22 @@ function NightSystem:CreateWindow(config: {
 	trackConnection(LocalPlayer:GetPropertyChangedSignal("Team"):Connect(refreshTeam))
 
 	-- ========================================================================
-	-- 2. SCRIPT ELEMENTS CONTAINER (Appears under Home when elements are added)
-	-- ========================================================================
-	local MainCategoryFrame = createSidebarCategory("MAIN")
-	local MainScriptPage, MainTabBtn, MainTabLabel = registerSidebarTab(mainTabName, ASSETS.Main)
-	-- Hidden until the user's script actually adds at least 1 element (so standalone UI shows pure Home tab!)
-	MainCategoryFrame.Visible = false
-	MainTabBtn.Visible = false
-
-	local ContentHeader = Instance.new("Frame")
-	ContentHeader.Name = "ContentHeader"
-	ContentHeader.Size = UDim2.new(1, -48, 0, 28)
-	ContentHeader.Position = UDim2.new(0, 24, 0, 20)
-	ContentHeader.BackgroundTransparency = 1
-	ContentHeader.Parent = MainScriptPage
-
-	local MainPageHeaderTitle = Instance.new("TextLabel")
-	MainPageHeaderTitle.Size = UDim2.new(0.6, 0, 1, 0)
-	MainPageHeaderTitle.Position = UDim2.new(0, 0, 0, 0)
-	MainPageHeaderTitle.BackgroundTransparency = 1
-	MainPageHeaderTitle.Font = Enum.Font.GothamBold
-	MainPageHeaderTitle.Text = mainTabName
-	MainPageHeaderTitle.TextColor3 = THEME.TextHeaderTitle
-	MainPageHeaderTitle.TextSize = 18
-	MainPageHeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-	MainPageHeaderTitle.Parent = ContentHeader
-
-	local FilterBoxHolder = Instance.new("Frame")
-	FilterBoxHolder.Size = UDim2.new(0, 165, 0, 28)
-	FilterBoxHolder.Position = UDim2.new(1, 0, 0.5, 0)
-	FilterBoxHolder.AnchorPoint = Vector2.new(1, 0.5)
-	FilterBoxHolder.BackgroundColor3 = THEME.MainBackground
-	FilterBoxHolder.BorderSizePixel = 0
-	FilterBoxHolder.Parent = ContentHeader
-	createCorner(FilterBoxHolder, 7)
-	local FilterStroke = createStroke(FilterBoxHolder, THEME.Stroke, 1, 0.2)
-
-	local FilterIcon = Instance.new("ImageLabel")
-	FilterIcon.Size = UDim2.new(0, 13, 0, 13)
-	FilterIcon.Position = UDim2.new(0, 9, 0.5, 0)
-	FilterIcon.AnchorPoint = Vector2.new(0, 0.5)
-	FilterIcon.BackgroundTransparency = 1
-	FilterIcon.Image = ASSETS.Search
-	FilterIcon.ImageColor3 = THEME.TextSecondary
-	FilterIcon.Parent = FilterBoxHolder
-
-	local FilterInput = Instance.new("TextBox")
-	FilterInput.Size = UDim2.new(1, -32, 1, 0)
-	FilterInput.Position = UDim2.new(0, 27, 0, 0)
-	FilterInput.BackgroundTransparency = 1
-	FilterInput.Font = Enum.Font.GothamMedium
-	FilterInput.PlaceholderText = "Search elements..."
-	FilterInput.PlaceholderColor3 = THEME.TextSecondary
-	FilterInput.Text = ""
-	FilterInput.TextColor3 = THEME.TextPrimary
-	FilterInput.TextSize = 12
-	FilterInput.TextXAlignment = Enum.TextXAlignment.Left
-	FilterInput.ClearTextOnFocus = false
-	FilterInput.Parent = FilterBoxHolder
-
-	FilterInput.Focused:Connect(function()
-		tween(FilterStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0.1 })
-	end)
-	FilterInput.FocusLost:Connect(function()
-		tween(FilterStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-	end)
-
-	local ScrollContainer = Instance.new("ScrollingFrame")
-	ScrollContainer.Name = "ElementScroll"
-	ScrollContainer.Size = UDim2.new(1, -32, 1, -78)
-	ScrollContainer.Position = UDim2.new(0, 16, 0, 68)
-	ScrollContainer.BackgroundTransparency = 1
-	ScrollContainer.BorderSizePixel = 0
-	ScrollContainer.ScrollBarThickness = 2
-	ScrollContainer.ScrollBarImageColor3 = THEME.Accent
-	ScrollContainer.ScrollBarImageTransparency = 0.35
-	ScrollContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-	ScrollContainer.ScrollingDirection = Enum.ScrollingDirection.Y
-	ScrollContainer.Parent = MainScriptPage
-	createPadding(ScrollContainer, 2, 14, 8, 10)
-
-	local ElementListLayout = Instance.new("UIListLayout")
-	ElementListLayout.FillDirection = Enum.FillDirection.Vertical
-	ElementListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	ElementListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	ElementListLayout.Padding = UDim.new(0, 8)
-	ElementListLayout.Parent = ScrollContainer
-
-	local searchableItems: { { Frame: GuiObject, Title: string } } = {}
-	FilterInput:GetPropertyChangedSignal("Text"):Connect(function()
-		local query = string.lower(string.gsub(FilterInput.Text, "^%s*(.-)%s*$", "%1"))
-		for _, item in ipairs(searchableItems) do
-			if query == "" then
-				item.Frame.Visible = true
-			else
-				item.Frame.Visible = string.find(string.lower(item.Title), query, 1, true) ~= nil
-			end
-		end
-	end)
-
-	-- Always select "Home" Tab by default!
-	switchSidebarTab("Home", true)
 
 	-- ========================================================================
-	-- AUTO-SORTING & ELEMENT CREATION API
+	-- SCRIPT TABS ENGINE (CreateTab, CreateTabs, MakeTab, NewTab, AddTab)
 	-- ========================================================================
+	local TabsCategoryFrame = createSidebarCategory("TABS")
+	TabsCategoryFrame.Visible = false
+
 	local Window = {}
 	Window.__index = Window
 	Window._ScreenGui = ScreenGui
-	Window._CreationCount = 0
-	Window._SectionBlock = 0
 	Window._AutoSort = autoSort
 	Window.Flags = NightSystem.Flags
 
 	function Window:_ApplyConfig(newCfg: { [string]: any })
-		if newCfg.Title then
-			windowTitle = tostring(newCfg.Title)
+		if newCfg.Title or newCfg.Name then
+			windowTitle = tostring(newCfg.Title or newCfg.Name)
 			BrandTitle.Text = windowTitle
 			BadgeLabel.Text = windowTitle
 		end
@@ -2141,8 +2043,6 @@ function NightSystem:CreateWindow(config: {
 		end
 		if newCfg.MainTabName then
 			mainTabName = tostring(newCfg.MainTabName)
-			MainTabLabel.Text = mainTabName
-			MainPageHeaderTitle.Text = mainTabName
 		end
 		if newCfg.AutoSort ~= nil then
 			Window._AutoSort = newCfg.AutoSort
@@ -2152,113 +2052,372 @@ function NightSystem:CreateWindow(config: {
 		end
 	end
 
-	local function revealMainScriptTab()
-		if not MainTabBtn.Visible then
-			MainCategoryFrame.Visible = true
-			MainTabBtn.Visible = true
-		end
-	end
+	local createdTabs: { [string]: any } = {}
+	local tabList: { any } = {}
 
-	local function computeLayoutOrder(elementType: string, manualOrder: number?): number
-		revealMainScriptTab()
-		if type(manualOrder) == "number" then
-			return manualOrder
-		end
-		Window._CreationCount += 1
-		if elementType == "Section" then
-			Window._SectionBlock += 10000
-			return Window._SectionBlock
-		end
-		if Window._AutoSort then
-			local typeWeight = TYPE_PRIORITY[elementType] or 650
-			return Window._SectionBlock + typeWeight + Window._CreationCount
+	-- ========================================================================
+	-- PARAMETER NORMALIZERS (Rayfield / Orion / Kavo / Fluent Multi-API Support)
+	-- ========================================================================
+	local function normToggle(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "table" then
+			local def = if opt1.Default ~= nil then opt1.Default else (if opt1.CurrentValue ~= nil then opt1.CurrentValue else false)
+			return {
+				Name = opt1.Name or opt1.Title or opt1.Text or "Toggle",
+				Description = opt1.Description or opt1.Desc or opt1.Info,
+				Default = def == true,
+				Flag = opt1.Flag or opt1.Pointer,
+				Callback = opt1.Callback or opt1.Function or opt1.OnClick,
+				LayoutOrder = opt1.LayoutOrder,
+			}
 		else
-			return Window._SectionBlock + Window._CreationCount
+			local name = tostring(opt1 or "Toggle")
+			local desc, def, cb = nil, false, nil
+			if type(opt2) == "function" then
+				cb = opt2
+			elseif type(opt2) == "boolean" then
+				def = opt2
+				cb = if type(opt3) == "function" then opt3 else nil
+			elseif type(opt2) == "string" then
+				desc = opt2
+				if type(opt3) == "function" then
+					cb = opt3
+				elseif type(opt3) == "boolean" then
+					def = opt3
+					cb = if type(opt4) == "function" then opt4 else nil
+				end
+			end
+			return { Name = name, Description = desc, Default = def == true, Callback = cb }
 		end
 	end
 
-	local function registerSearchable(frame: GuiObject, title: string)
-		table.insert(searchableItems, { Frame = frame, Title = title })
+	local function normButton(opt1: any, opt2: any, opt3: any): { [string]: any }
+		if type(opt1) == "table" then
+			return {
+				Name = opt1.Name or opt1.Title or opt1.Text or "Button",
+				Description = opt1.Description or opt1.Desc or opt1.Info,
+				Callback = opt1.Callback or opt1.Function or opt1.OnClick,
+				LayoutOrder = opt1.LayoutOrder,
+			}
+		else
+			local name = tostring(opt1 or "Button")
+			local desc, cb = nil, nil
+			if type(opt2) == "function" then
+				cb = opt2
+			elseif type(opt2) == "string" then
+				desc = opt2
+				cb = if type(opt3) == "function" then opt3 else nil
+			end
+			return { Name = name, Description = desc, Callback = cb }
+		end
 	end
 
-	local function createBaseCard(
-		elementType: string,
-		title: string,
-		description: string?,
-		baseHeight: number,
-		manualOrder: number?
-	): (Frame, UIStroke, TextLabel)
-		local hasDesc = description ~= nil and description ~= ""
-		local cardHeight = if hasDesc then math.max(baseHeight, 54) else baseHeight
+	local function normSlider(opt1: any, opt2: any, opt3: any, opt4: any, opt5: any): { [string]: any }
+		if type(opt1) == "table" then
+			local min = opt1.Min or opt1.Minimum or (opt1.Range and opt1.Range[1]) or 0
+			local max = opt1.Max or opt1.Maximum or (opt1.Range and opt1.Range[2]) or 100
+			local def = opt1.Default or opt1.CurrentValue or opt1.Starting or min
+			return {
+				Name = opt1.Name or opt1.Title or opt1.Text or "Slider",
+				Description = opt1.Description or opt1.Desc or opt1.Info,
+				Min = tonumber(min) or 0,
+				Max = tonumber(max) or 100,
+				Default = tonumber(def) or 0,
+				Increment = tonumber(opt1.Increment or opt1.Step or opt1.Decimals) or 1,
+				Suffix = tostring(opt1.Suffix or opt1.ValueName or ""),
+				Flag = opt1.Flag or opt1.Pointer,
+				Callback = opt1.Callback or opt1.Function,
+				LayoutOrder = opt1.LayoutOrder,
+			}
+		else
+			local name = tostring(opt1 or "Slider")
+			local desc = if type(opt2) == "string" then opt2 else nil
+			local numA = if type(opt2) == "number" then opt2 else (if type(opt3) == "number" then opt3 else nil)
+			local numB = if type(opt3) == "number" and type(opt2) == "number" then opt3 else (if type(opt4) == "number" then opt4 else nil)
+			local numC = if type(opt4) == "number" and type(opt3) == "number" and type(opt2) == "number" then opt4 else (if type(opt5) == "number" then opt5 else nil)
+			local cb = nil
+			for _, arg in ipairs({ opt2, opt3, opt4, opt5 }) do
+				if type(arg) == "function" then cb = arg break end
+			end
+			local minVal = 0
+			local maxVal = 100
+			local defVal = 50
+			if numA and numB then
+				if numA > numB then
+					maxVal = numA
+					minVal = numB
+				else
+					minVal = numA
+					maxVal = numB
+				end
+				defVal = numC or minVal
+			elseif numA then
+				maxVal = numA
+				defVal = minVal
+			end
+			return {
+				Name = name,
+				Description = desc,
+				Min = minVal,
+				Max = maxVal,
+				Default = defVal,
+				Increment = 1,
+				Callback = cb,
+			}
+		end
+	end
 
-		local card = Instance.new("Frame")
-		card.Name = elementType .. "_" .. title
-		card.Size = UDim2.new(1, 0, 0, cardHeight)
-		card.BackgroundColor3 = THEME.CardBackground
-		card.BorderSizePixel = 0
-		card.ClipsDescendants = true
-		card.LayoutOrder = computeLayoutOrder(elementType, manualOrder)
-		card.Parent = ScrollContainer
-		createCorner(card, 8)
-		local stroke = createStroke(card, THEME.Stroke, 1, 0.2)
+	local function normDropdown(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "table" then
+			return {
+				Name = opt1.Name or opt1.Title or opt1.Text or "Dropdown",
+				Description = opt1.Description or opt1.Desc or opt1.Info,
+				Options = opt1.Options or opt1.Values or opt1.List or opt1.Items or {},
+				Default = opt1.Default or opt1.CurrentValue or opt1.Selected,
+				Multi = opt1.Multi or opt1.MultiSelect or opt1.Multiple == true,
+				Search = opt1.Search or opt1.SearchBar == true,
+				Flag = opt1.Flag or opt1.Pointer,
+				Callback = opt1.Callback or opt1.Function,
+				LayoutOrder = opt1.LayoutOrder,
+			}
+		else
+			local name = tostring(opt1 or "Dropdown")
+			local desc = if type(opt2) == "string" then opt2 else nil
+			local opts = if type(opt2) == "table" then opt2 else (if type(opt3) == "table" then opt3 else {})
+			local cb = nil
+			for _, arg in ipairs({ opt2, opt3, opt4 }) do
+				if type(arg) == "function" then cb = arg break end
+			end
+			return {
+				Name = name,
+				Description = desc,
+				Options = opts,
+				Callback = cb,
+			}
+		end
+	end
 
-		local titleLbl = Instance.new("TextLabel")
-		titleLbl.Name = "Title"
-		titleLbl.Size = UDim2.new(1, -160, 0, 16)
-		titleLbl.Position = UDim2.new(0, 14, 0, if hasDesc then 10 else math.floor((cardHeight - 16) / 2))
-		titleLbl.BackgroundTransparency = 1
-		titleLbl.Font = Enum.Font.GothamBold
-		titleLbl.Text = title
-		titleLbl.TextColor3 = THEME.TextPrimary
-		titleLbl.TextSize = 13
-		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
-		titleLbl.TextTruncate = Enum.TextTruncate.AtEnd
-		titleLbl.Parent = card
+	local function normInput(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "table" then
+			return {
+				Name = opt1.Name or opt1.Title or opt1.Text or "Input",
+				Description = opt1.Description or opt1.Desc or opt1.Info,
+				Placeholder = opt1.Placeholder or opt1.PlaceholderText or "Enter text...",
+				Default = tostring(opt1.Default or opt1.CurrentValue or opt1.Text or ""),
+				ClearTextOnFocus = opt1.ClearTextOnFocus or opt1.TextDisappear == true,
+				Flag = opt1.Flag or opt1.Pointer,
+				Callback = opt1.Callback or opt1.Function,
+				LayoutOrder = opt1.LayoutOrder,
+			}
+		else
+			local name = tostring(opt1 or "Input")
+			local desc = if type(opt2) == "string" then opt2 else nil
+			local cb = nil
+			for _, arg in ipairs({ opt2, opt3, opt4 }) do
+				if type(arg) == "function" then cb = arg break end
+			end
+			return {
+				Name = name,
+				Description = desc,
+				Placeholder = "Enter text...",
+				Default = "",
+				Callback = cb,
+			}
+		end
+	end
 
-		if hasDesc then
-			local descLbl = Instance.new("TextLabel")
-			descLbl.Name = "Description"
-			descLbl.Size = UDim2.new(1, -160, 0, 14)
-			descLbl.Position = UDim2.new(0, 14, 0, 28)
-			descLbl.BackgroundTransparency = 1
-			descLbl.Font = Enum.Font.GothamMedium
-			descLbl.Text = tostring(description)
-			descLbl.TextColor3 = THEME.TextSecondary
-			descLbl.TextSize = 11
-			descLbl.TextXAlignment = Enum.TextXAlignment.Left
-			descLbl.TextTruncate = Enum.TextTruncate.AtEnd
-			descLbl.Parent = card
+	local function normKeybind(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "table" then
+			return {
+				Name = opt1.Name or opt1.Title or opt1.Text or "Keybind",
+				Description = opt1.Description or opt1.Desc or opt1.Info,
+				Default = opt1.Default or opt1.CurrentKeybind or opt1.Key or Enum.KeyCode.E,
+				Mode = opt1.Mode or "Toggle",
+				Flag = opt1.Flag or opt1.Pointer,
+				Callback = opt1.Callback or opt1.Function,
+				LayoutOrder = opt1.LayoutOrder,
+			}
+		else
+			local name = tostring(opt1 or "Keybind")
+			local desc = if type(opt2) == "string" then opt2 else nil
+			local def = Enum.KeyCode.E
+			local cb = nil
+			for _, arg in ipairs({ opt2, opt3, opt4 }) do
+				if typeof(arg) == "EnumItem" then
+					def = arg
+				elseif type(arg) == "function" then
+					cb = arg
+				end
+			end
+			return {
+				Name = name,
+				Description = desc,
+				Default = def,
+				Callback = cb,
+			}
+		end
+	end
+
+	local function normColorPicker(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "table" then
+			return {
+				Name = opt1.Name or opt1.Title or opt1.Text or "ColorPicker",
+				Description = opt1.Description or opt1.Desc or opt1.Info,
+				Default = opt1.Default or opt1.Color or Color3.fromRGB(255, 255, 255),
+				Flag = opt1.Flag or opt1.Pointer,
+				Callback = opt1.Callback or opt1.Function,
+				LayoutOrder = opt1.LayoutOrder,
+			}
+		else
+			local name = tostring(opt1 or "ColorPicker")
+			local desc = if type(opt2) == "string" then opt2 else nil
+			local def = Color3.fromRGB(255, 255, 255)
+			local cb = nil
+			for _, arg in ipairs({ opt2, opt3, opt4 }) do
+				if typeof(arg) == "Color3" then
+					def = arg
+				elseif type(arg) == "function" then
+					cb = arg
+				end
+			end
+			return {
+				Name = name,
+				Description = desc,
+				Default = def,
+				Callback = cb,
+			}
+		end
+	end
+
+	local function normParagraph(opt1: any, opt2: any): { [string]: any }
+		if type(opt1) == "table" then
+			return {
+				Title = opt1.Title or opt1.Name or "Paragraph",
+				Content = opt1.Content or opt1.Text or opt1.Desc or "",
+				LayoutOrder = opt1.LayoutOrder,
+			}
+		else
+			return {
+				Title = tostring(opt1 or "Paragraph"),
+				Content = tostring(opt2 or ""),
+			}
+		end
+	end
+
+	local function normLabel(opt1: any): { [string]: any }
+		if type(opt1) == "table" then
+			return {
+				Text = opt1.Text or opt1.Title or opt1.Name or "",
+				LayoutOrder = opt1.LayoutOrder,
+			}
+		else
+			return { Text = tostring(opt1 or "") }
+		end
+	end
+
+	local function bindTabElementApi(targetTab: any, tabScroll: ScrollingFrame, tabSearchables: { any }, onFirstElement: (() -> ())?)
+		targetTab._CreationCount = 0
+		targetTab._SectionBlock = 0
+		targetTab._AutoSort = autoSort
+		targetTab._ScrollContainer = tabScroll
+
+		local function computeLayoutOrder(elementType: string, manualOrder: number?): number
+			if onFirstElement then
+				onFirstElement()
+			end
+			if type(manualOrder) == "number" then
+				return manualOrder
+			end
+			targetTab._CreationCount += 1
+			if elementType == "Section" then
+				targetTab._SectionBlock += 10000
+				return targetTab._SectionBlock
+			end
+			if targetTab._AutoSort then
+				local typeWeight = TYPE_PRIORITY[elementType] or 650
+				return targetTab._SectionBlock + typeWeight + targetTab._CreationCount
+			else
+				return targetTab._SectionBlock + targetTab._CreationCount
+			end
 		end
 
-		card.MouseEnter:Connect(function()
-			tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
-		end)
-		card.MouseLeave:Connect(function()
-			tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
-		end)
+		local function registerSearchable(frame: GuiObject, title: string)
+			table.insert(tabSearchables, { Frame = frame, Title = title })
+		end
 
-		registerSearchable(card, title .. " " .. tostring(description or ""))
-		return card, stroke, titleLbl
-	end
+		local function createBaseCard(
+			elementType: string,
+			title: string,
+			description: string?,
+			baseHeight: number,
+			manualOrder: number?
+		): (Frame, UIStroke, TextLabel)
+			local hasDesc = description ~= nil and description ~= ""
+			local cardHeight = if hasDesc then math.max(baseHeight, 54) else baseHeight
+
+			local card = Instance.new("Frame")
+			card.Name = elementType .. "_" .. title
+			card.Size = UDim2.new(1, 0, 0, cardHeight)
+			card.BackgroundColor3 = THEME.CardBackground
+			card.BorderSizePixel = 0
+			card.ClipsDescendants = true
+			card.LayoutOrder = computeLayoutOrder(elementType, manualOrder)
+			card.Parent = tabScroll
+			createCorner(card, 8)
+			local stroke = createStroke(card, THEME.Stroke, 1, 0.2)
+
+			local titleLbl = Instance.new("TextLabel")
+			titleLbl.Name = "Title"
+			titleLbl.Size = UDim2.new(1, -160, 0, 16)
+			titleLbl.Position = UDim2.new(0, 14, 0, if hasDesc then 10 else math.floor((cardHeight - 16) / 2))
+			titleLbl.BackgroundTransparency = 1
+			titleLbl.Font = Enum.Font.GothamBold
+			titleLbl.Text = title
+			titleLbl.TextColor3 = THEME.TextPrimary
+			titleLbl.TextSize = 13
+			titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+			titleLbl.TextTruncate = Enum.TextTruncate.AtEnd
+			titleLbl.Parent = card
+
+			if hasDesc then
+				local descLbl = Instance.new("TextLabel")
+				descLbl.Name = "Description"
+				descLbl.Size = UDim2.new(1, -160, 0, 14)
+				descLbl.Position = UDim2.new(0, 14, 0, 28)
+				descLbl.BackgroundTransparency = 1
+				descLbl.Font = Enum.Font.GothamMedium
+				descLbl.Text = tostring(description)
+				descLbl.TextColor3 = THEME.TextSecondary
+				descLbl.TextSize = 11
+				descLbl.TextXAlignment = Enum.TextXAlignment.Left
+				descLbl.TextTruncate = Enum.TextTruncate.AtEnd
+				descLbl.Parent = card
+			end
+
+			card.MouseEnter:Connect(function()
+				tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+			end)
+			card.MouseLeave:Connect(function()
+				tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
+			end)
+
+			registerSearchable(card, title .. " " .. tostring(description or ""))
+			return card, stroke, titleLbl
+		end
 
 	-- 1. Window:CreateSection(Title)
-	function Window:CreateSection(sectionConfig: string | { Name: string?, Title: string?, LayoutOrder: number? })
+	function targetTab:CreateSection(sectionConfig: string | { Name: string?, Title: string?, LayoutOrder: number? })
 		local title = if type(sectionConfig) == "table"
 			then tostring(sectionConfig.Name or sectionConfig.Title or "Section")
 			else tostring(sectionConfig or "Section")
 		local manualOrder = if type(sectionConfig) == "table" then sectionConfig.LayoutOrder else nil
 
-		if Window._SectionBlock == 0 and cfg.MainTabName == nil then
-			MainPageHeaderTitle.Text = title
-			MainTabLabel.Text = title
-		end
 
 		local secFrame = Instance.new("Frame")
 		secFrame.Name = "Section_" .. title
 		secFrame.Size = UDim2.new(1, 0, 0, 26)
 		secFrame.BackgroundTransparency = 1
 		secFrame.LayoutOrder = computeLayoutOrder("Section", manualOrder)
-		secFrame.Parent = ScrollContainer
+		secFrame.Parent = tabScroll
 
 		local secLabel = Instance.new("TextLabel")
 		secLabel.Name = "SectionTitle"
@@ -2296,11 +2455,49 @@ function NightSystem:CreateWindow(config: {
 		function SectionObj:Set(newTitle: string)
 			secLabel.Text = string.upper(tostring(newTitle))
 		end
+		SectionObj.Tab = targetTab
+		function SectionObj:CreateToggle(...) return targetTab:CreateToggle(...) end
+		function SectionObj:CreateButton(...) return targetTab:CreateButton(...) end
+		function SectionObj:CreateSlider(...) return targetTab:CreateSlider(...) end
+		function SectionObj:CreateDropdown(...) return targetTab:CreateDropdown(...) end
+		function SectionObj:CreateInput(...) return targetTab:CreateInput(...) end
+		function SectionObj:CreateKeybind(...) return targetTab:CreateKeybind(...) end
+		function SectionObj:CreateColorPicker(...) return targetTab:CreateColorPicker(...) end
+		function SectionObj:CreateLabel(...) return targetTab:CreateLabel(...) end
+		function SectionObj:CreateParagraph(...) return targetTab:CreateParagraph(...) end
+		function SectionObj:CreateDivider(...) return targetTab:CreateDivider(...) end
+		function SectionObj:CreateSection(...) return targetTab:CreateSection(...) end
+
+		SectionObj.AddToggle = SectionObj.CreateToggle
+		SectionObj.NewToggle = SectionObj.CreateToggle
+		SectionObj.AddButton = SectionObj.CreateButton
+		SectionObj.NewButton = SectionObj.CreateButton
+		SectionObj.AddSlider = SectionObj.CreateSlider
+		SectionObj.NewSlider = SectionObj.CreateSlider
+		SectionObj.AddDropdown = SectionObj.CreateDropdown
+		SectionObj.NewDropdown = SectionObj.CreateDropdown
+		SectionObj.AddInput = SectionObj.CreateInput
+		SectionObj.AddTextbox = SectionObj.CreateInput
+		SectionObj.NewTextBox = SectionObj.CreateInput
+		SectionObj.CreateTextBox = SectionObj.CreateInput
+		SectionObj.AddBind = SectionObj.CreateKeybind
+		SectionObj.AddKeybind = SectionObj.CreateKeybind
+		SectionObj.NewKeybind = SectionObj.CreateKeybind
+		SectionObj.AddColorpicker = SectionObj.CreateColorPicker
+		SectionObj.NewColorPicker = SectionObj.CreateColorPicker
+		SectionObj.AddLabel = SectionObj.CreateLabel
+		SectionObj.NewLabel = SectionObj.CreateLabel
+		SectionObj.AddParagraph = SectionObj.CreateParagraph
+		SectionObj.NewParagraph = SectionObj.CreateParagraph
+		SectionObj.AddDivider = SectionObj.CreateDivider
+		SectionObj.NewDivider = SectionObj.CreateDivider
+		SectionObj.AddSection = SectionObj.CreateSection
+		SectionObj.NewSection = SectionObj.CreateSection
 		return SectionObj
 	end
 
 	-- 2. Window:CreateToggle(...)
-	function Window:CreateToggle(options: {
+	function targetTab:CreateToggle(options: {
 		Name: string?,
 		Description: string?,
 		Default: boolean?,
@@ -2385,7 +2582,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 3. Window:CreateButton(...)
-	function Window:CreateButton(options: {
+	function targetTab:CreateButton(options: {
 		Name: string?,
 		Description: string?,
 		LayoutOrder: number?,
@@ -2459,7 +2656,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 4. Window:CreateSlider(...)
-	function Window:CreateSlider(options: {
+	function targetTab:CreateSlider(options: {
 		Name: string?,
 		Description: string?,
 		Min: number?,
@@ -2613,7 +2810,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 5. Window:CreateDropdown(...)
-	function Window:CreateDropdown(options: {
+	function targetTab:CreateDropdown(options: {
 		Name: string?,
 		Description: string?,
 		Options: { string }?,
@@ -2965,7 +3162,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 6. Window:CreateInput(...)
-	function Window:CreateInput(options: {
+	function targetTab:CreateInput(options: {
 		Name: string?,
 		Description: string?,
 		Placeholder: string?,
@@ -3042,7 +3239,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 7. Window:CreateKeybind(...)
-	function Window:CreateKeybind(options: {
+	function targetTab:CreateKeybind(options: {
 		Name: string?,
 		Description: string?,
 		Default: EnumItem?,
@@ -3140,7 +3337,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 8. Window:CreateColorPicker(...)
-	function Window:CreateColorPicker(options: {
+	function targetTab:CreateColorPicker(options: {
 		Name: string?,
 		Description: string?,
 		Default: Color3?,
@@ -3155,7 +3352,10 @@ function NightSystem:CreateWindow(config: {
 		local flag = opts.Flag or name
 		local callback = opts.Callback
 
-		local h, s, v = currentColor:ToHSV()
+		local h, s, v = 0, 1, 1
+		pcall(function()
+			h, s, v = currentColor:ToHSV()
+		end)
 		local hasDesc = desc ~= nil and desc ~= ""
 		local closedHeight = if hasDesc then 54 else 44
 		local expandedHeight = closedHeight + 158
@@ -3355,9 +3555,12 @@ function NightSystem:CreateWindow(config: {
 			hueCursor.Position = UDim2.new(h, 0, 0.5, 0)
 
 			hexBox.Text = hexStr
-			rBox.Text = tostring(math.round(currentColor.R * 255))
-			gBox.Text = tostring(math.round(currentColor.G * 255))
-			bBox.Text = tostring(math.round(currentColor.B * 255))
+			local cR = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.R) then currentColor.R else 1
+			local cG = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.G) then currentColor.G else 1
+			local cB = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.B) then currentColor.B else 1
+			rBox.Text = tostring(math.round(cR * 255))
+			gBox.Text = tostring(math.round(cG * 255))
+			bBox.Text = tostring(math.round(cB * 255))
 
 			if not silent then
 				safeCallback(callback, currentColor)
@@ -3366,7 +3569,9 @@ function NightSystem:CreateWindow(config: {
 
 		function ColorPickerObj:Set(newColor: Color3, silent: boolean?)
 			if typeof(newColor) == "Color3" then
+				pcall(function()
 				h, s, v = newColor:ToHSV()
+			end)
 				syncColorVisuals(silent)
 			end
 		end
@@ -3460,11 +3665,10 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 9. Window:CreateLabel(Text)
-	function Window:CreateLabel(labelConfig: string | { Text: string?, Name: string?, LayoutOrder: number? })
-		local text = if type(labelConfig) == "table"
-			then tostring(labelConfig.Text or labelConfig.Name or "")
-			else tostring(labelConfig or "")
-		local manualOrder = if type(labelConfig) == "table" then labelConfig.LayoutOrder else nil
+	function targetTab:CreateLabel(labelConfig: any, ...)
+		local opts = normLabel(labelConfig)
+		local text = opts.Text
+		local manualOrder = opts.LayoutOrder
 
 		local card = Instance.new("Frame")
 		card.Name = "Label_" .. string.sub(text, 1, 16)
@@ -3473,7 +3677,7 @@ function NightSystem:CreateWindow(config: {
 		card.BackgroundTransparency = 0.25
 		card.BorderSizePixel = 0
 		card.LayoutOrder = computeLayoutOrder("Label", manualOrder)
-		card.Parent = ScrollContainer
+		card.Parent = tabScroll
 		createCorner(card, 7)
 		createStroke(card, THEME.Stroke, 1, 0.25)
 
@@ -3508,8 +3712,8 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 10. Window:CreateParagraph({ Title = "...", Content = "..." })
-	function Window:CreateParagraph(options: { Title: string?, Content: string?, LayoutOrder: number? })
-		local opts = options or {}
+	function targetTab:CreateParagraph(options: any, ...)
+		local opts = normParagraph(options, ...)
 		local title = tostring(opts.Title or "Information")
 		local content = tostring(opts.Content or "")
 
@@ -3520,7 +3724,7 @@ function NightSystem:CreateWindow(config: {
 		card.BackgroundColor3 = THEME.CardBackground
 		card.BorderSizePixel = 0
 		card.LayoutOrder = computeLayoutOrder("Paragraph", opts.LayoutOrder)
-		card.Parent = ScrollContainer
+		card.Parent = tabScroll
 		createCorner(card, 8)
 		createStroke(card, THEME.Stroke, 1, 0.2)
 		createPadding(card, 12, 12, 14, 14)
@@ -3572,13 +3776,13 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- 11. Window:CreateDivider()
-	function Window:CreateDivider(manualOrder: number?)
+	function targetTab:CreateDivider(manualOrder: number?)
 		local divHolder = Instance.new("Frame")
 		divHolder.Name = "Divider"
 		divHolder.Size = UDim2.new(1, 0, 0, 10)
 		divHolder.BackgroundTransparency = 1
 		divHolder.LayoutOrder = computeLayoutOrder("Divider", manualOrder)
-		divHolder.Parent = ScrollContainer
+		divHolder.Parent = tabScroll
 
 		local line = Instance.new("Frame")
 		line.Size = UDim2.new(1, -8, 0, 1)
@@ -3591,6 +3795,264 @@ function NightSystem:CreateWindow(config: {
 
 		return divHolder
 	end
+
+
+
+		-- Multi-Library Aliases on Tab
+		targetTab.AddToggle = targetTab.CreateToggle
+		targetTab.NewToggle = targetTab.CreateToggle
+		targetTab.AddButton = targetTab.CreateButton
+		targetTab.NewButton = targetTab.CreateButton
+		targetTab.AddSlider = targetTab.CreateSlider
+		targetTab.NewSlider = targetTab.CreateSlider
+		targetTab.AddDropdown = targetTab.CreateDropdown
+		targetTab.NewDropdown = targetTab.CreateDropdown
+		targetTab.AddInput = targetTab.CreateInput
+		targetTab.AddTextbox = targetTab.CreateInput
+		targetTab.NewTextBox = targetTab.CreateInput
+		targetTab.CreateTextBox = targetTab.CreateInput
+		targetTab.AddBind = targetTab.CreateKeybind
+		targetTab.AddKeybind = targetTab.CreateKeybind
+		targetTab.NewKeybind = targetTab.CreateKeybind
+		targetTab.AddColorpicker = targetTab.CreateColorPicker
+		targetTab.NewColorPicker = targetTab.CreateColorPicker
+		targetTab.AddLabel = targetTab.CreateLabel
+		targetTab.NewLabel = targetTab.CreateLabel
+		targetTab.AddParagraph = targetTab.CreateParagraph
+		targetTab.NewParagraph = targetTab.CreateParagraph
+		targetTab.AddDivider = targetTab.CreateDivider
+		targetTab.NewDivider = targetTab.CreateDivider
+		targetTab.AddSection = targetTab.CreateSection
+		targetTab.NewSection = targetTab.CreateSection
+	end
+
+	local function createTabInternal(rawName: any, rawIcon: any)
+		local tabName = "Tab"
+		local iconAsset = ASSETS.Main
+		if type(rawName) == "table" then
+			tabName = tostring(rawName.Name or rawName.Title or rawName.Text or "Tab")
+			if rawName.Icon then
+				local ic = tostring(rawName.Icon)
+				iconAsset = if not string.find(ic, "rbxasset") and tonumber(ic) then "rbxassetid://" .. ic else ic
+			end
+		elseif type(rawName) == "string" and rawName ~= "" then
+			tabName = rawName
+			if rawIcon then
+				local ic = tostring(rawIcon)
+				iconAsset = if not string.find(ic, "rbxasset") and tonumber(ic) then "rbxassetid://" .. ic else ic
+			end
+		end
+
+		if createdTabs[tabName] then
+			return createdTabs[tabName]
+		end
+
+		TabsCategoryFrame.Visible = true
+
+		local tabScriptPage, tabBtn, tabLabel = registerSidebarTab(tabName, iconAsset)
+		tabBtn.Visible = true
+
+		local ContentHeader = Instance.new("Frame")
+		ContentHeader.Name = "ContentHeader"
+		ContentHeader.Size = UDim2.new(1, -48, 0, 28)
+		ContentHeader.Position = UDim2.new(0, 24, 0, 20)
+		ContentHeader.BackgroundTransparency = 1
+		ContentHeader.Parent = tabScriptPage
+
+		local TabHeaderTitle = Instance.new("TextLabel")
+		TabHeaderTitle.Size = UDim2.new(0.6, 0, 1, 0)
+		TabHeaderTitle.Position = UDim2.new(0, 0, 0, 0)
+		TabHeaderTitle.BackgroundTransparency = 1
+		TabHeaderTitle.Font = Enum.Font.GothamBold
+		TabHeaderTitle.Text = tabName
+		TabHeaderTitle.TextColor3 = THEME.TextHeaderTitle
+		TabHeaderTitle.TextSize = 18
+		TabHeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+		TabHeaderTitle.Parent = ContentHeader
+
+		local FilterBoxHolder = Instance.new("Frame")
+		FilterBoxHolder.Size = UDim2.new(0, 165, 0, 28)
+		FilterBoxHolder.Position = UDim2.new(1, 0, 0.5, 0)
+		FilterBoxHolder.AnchorPoint = Vector2.new(1, 0.5)
+		FilterBoxHolder.BackgroundColor3 = THEME.MainBackground
+		FilterBoxHolder.BorderSizePixel = 0
+		FilterBoxHolder.Parent = ContentHeader
+		createCorner(FilterBoxHolder, 7)
+		local FilterStroke = createStroke(FilterBoxHolder, THEME.Stroke, 1, 0.2)
+
+		local FilterIcon = Instance.new("ImageLabel")
+		FilterIcon.Size = UDim2.new(0, 13, 0, 13)
+		FilterIcon.Position = UDim2.new(0, 9, 0.5, 0)
+		FilterIcon.AnchorPoint = Vector2.new(0, 0.5)
+		FilterIcon.BackgroundTransparency = 1
+		FilterIcon.Image = ASSETS.Search
+		FilterIcon.ImageColor3 = THEME.TextSecondary
+		FilterIcon.Parent = FilterBoxHolder
+
+		local FilterInput = Instance.new("TextBox")
+		FilterInput.Size = UDim2.new(1, -32, 1, 0)
+		FilterInput.Position = UDim2.new(0, 27, 0, 0)
+		FilterInput.BackgroundTransparency = 1
+		FilterInput.Font = Enum.Font.GothamMedium
+		FilterInput.PlaceholderText = "Search elements..."
+		FilterInput.PlaceholderColor3 = THEME.TextSecondary
+		FilterInput.Text = ""
+		FilterInput.TextColor3 = THEME.TextPrimary
+		FilterInput.TextSize = 12
+		FilterInput.TextXAlignment = Enum.TextXAlignment.Left
+		FilterInput.ClearTextOnFocus = false
+		FilterInput.Parent = FilterBoxHolder
+
+		FilterInput.Focused:Connect(function()
+			tween(FilterStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0.1 })
+		end)
+		FilterInput.FocusLost:Connect(function()
+			tween(FilterStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+		end)
+
+		local ScrollContainer = Instance.new("ScrollingFrame")
+		ScrollContainer.Name = "ElementScroll"
+		ScrollContainer.Size = UDim2.new(1, -32, 1, -78)
+		ScrollContainer.Position = UDim2.new(0, 16, 0, 68)
+		ScrollContainer.BackgroundTransparency = 1
+		ScrollContainer.BorderSizePixel = 0
+		ScrollContainer.ScrollBarThickness = 2
+		ScrollContainer.ScrollBarImageColor3 = THEME.Accent
+		ScrollContainer.ScrollBarImageTransparency = 0.35
+		ScrollContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+		ScrollContainer.ScrollingDirection = Enum.ScrollingDirection.Y
+		ScrollContainer.Parent = tabScriptPage
+		createPadding(ScrollContainer, 2, 14, 8, 10)
+
+		local ElementListLayout = Instance.new("UIListLayout")
+		ElementListLayout.FillDirection = Enum.FillDirection.Vertical
+		ElementListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		ElementListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		ElementListLayout.Padding = UDim.new(0, 8)
+		ElementListLayout.Parent = ScrollContainer
+
+		local searchableItems: { { Frame: GuiObject, Title: string } } = {}
+		FilterInput:GetPropertyChangedSignal("Text"):Connect(function()
+			local query = string.lower(string.gsub(FilterInput.Text, "^%s*(.-)%s*$", "%1"))
+			for _, item in ipairs(searchableItems) do
+				if query == "" then
+					item.Frame.Visible = true
+				else
+					item.Frame.Visible = string.find(string.lower(item.Title), query, 1, true) ~= nil
+				end
+			end
+		end)
+
+		local TabObj = {}
+		TabObj.Name = tabName
+		TabObj.Title = tabName
+		TabObj.Page = tabScriptPage
+		TabObj.Button = tabBtn
+		function TabObj:Select()
+			switchSidebarTab(tabName, false)
+		end
+		TabObj.SetSelected = TabObj.Select
+		TabObj.Show = TabObj.Select
+
+		bindTabElementApi(TabObj, ScrollContainer, searchableItems, function()
+			TabsCategoryFrame.Visible = true
+			tabBtn.Visible = true
+		end)
+
+		createdTabs[tabName] = TabObj
+		table.insert(tabList, TabObj)
+		return TabObj
+	end
+
+	-- Default Tab for elements added directly on Window without calling CreateTab
+	local defaultTabInstance = nil
+	local function getDefaultTab()
+		if not defaultTabInstance then
+			defaultTabInstance = createTabInternal(mainTabName, ASSETS.Main)
+		end
+		return defaultTabInstance
+	end
+
+	function Window:CreateTab(nameOrConfig: any, iconAsset: any)
+		return createTabInternal(nameOrConfig, iconAsset)
+	end
+	Window.MakeTab = Window.CreateTab
+	Window.NewTab = Window.CreateTab
+	Window.AddTab = Window.CreateTab
+
+	function Window:CreateTabs(...)
+		local args = { ... }
+		local names = {}
+		if #args == 1 and type(args[1]) == "table" then
+			for k, v in pairs(args[1]) do
+				if type(k) == "number" then
+					table.insert(names, v)
+				else
+					table.insert(names, k)
+				end
+			end
+		else
+			for _, v in ipairs(args) do
+				table.insert(names, v)
+			end
+		end
+		local res = {}
+		for i, tName in ipairs(names) do
+			local tab = Window:CreateTab(tName)
+			res[i] = tab
+			if type(tName) == "string" then
+				res[tName] = tab
+			elseif type(tName) == "table" and (tName.Name or tName.Title) then
+				res[tName.Name or tName.Title] = tab
+			end
+		end
+		return res
+	end
+	Window.MakeTabs = Window.CreateTabs
+	Window.AddTabs = Window.CreateTabs
+
+	-- Forward direct Window element calls to DefaultTab
+	function Window:CreateToggle(...) return getDefaultTab():CreateToggle(...) end
+	function Window:CreateButton(...) return getDefaultTab():CreateButton(...) end
+	function Window:CreateSlider(...) return getDefaultTab():CreateSlider(...) end
+	function Window:CreateDropdown(...) return getDefaultTab():CreateDropdown(...) end
+	function Window:CreateInput(...) return getDefaultTab():CreateInput(...) end
+	function Window:CreateKeybind(...) return getDefaultTab():CreateKeybind(...) end
+	function Window:CreateColorPicker(...) return getDefaultTab():CreateColorPicker(...) end
+	function Window:CreateLabel(...) return getDefaultTab():CreateLabel(...) end
+	function Window:CreateParagraph(...) return getDefaultTab():CreateParagraph(...) end
+	function Window:CreateDivider(...) return getDefaultTab():CreateDivider(...) end
+	function Window:CreateSection(...) return getDefaultTab():CreateSection(...) end
+
+	Window.AddToggle = Window.CreateToggle
+	Window.NewToggle = Window.CreateToggle
+	Window.AddButton = Window.CreateButton
+	Window.NewButton = Window.CreateButton
+	Window.AddSlider = Window.CreateSlider
+	Window.NewSlider = Window.CreateSlider
+	Window.AddDropdown = Window.CreateDropdown
+	Window.NewDropdown = Window.CreateDropdown
+	Window.AddInput = Window.CreateInput
+	Window.AddTextbox = Window.CreateInput
+	Window.NewTextBox = Window.CreateInput
+	Window.CreateTextBox = Window.CreateInput
+	Window.AddBind = Window.CreateKeybind
+	Window.AddKeybind = Window.CreateKeybind
+	Window.NewKeybind = Window.CreateKeybind
+	Window.AddColorpicker = Window.CreateColorPicker
+	Window.NewColorPicker = Window.CreateColorPicker
+	Window.AddLabel = Window.CreateLabel
+	Window.NewLabel = Window.CreateLabel
+	Window.AddParagraph = Window.CreateParagraph
+	Window.NewParagraph = Window.CreateParagraph
+	Window.AddDivider = Window.CreateDivider
+	Window.NewDivider = Window.CreateDivider
+	Window.AddSection = Window.CreateSection
+	Window.NewSection = Window.CreateSection
+
+	-- Always select "Home" Tab by default!
+	switchSidebarTab("Home", true)
 
 	local hubScriptCount = 0
 
@@ -4206,43 +4668,119 @@ function NightSystem:CreateWindow(config: {
 	return winInstance
 end
 
--- Direct shorthand methods on NightSystem so users can also call NightSystem:CreateToggle(...) directly
+-- Universal shorthand & multi-library compatibility methods on NightSystem
+function NightSystem:CreateTab(...)
+	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateTab(...)
+end
+NightSystem.MakeTab = NightSystem.CreateTab
+NightSystem.NewTab = NightSystem.CreateTab
+NightSystem.AddTab = NightSystem.CreateTab
+
+function NightSystem:CreateTabs(...)
+	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateTabs(...)
+end
+NightSystem.MakeTabs = NightSystem.CreateTabs
+NightSystem.AddTabs = NightSystem.CreateTabs
+
+function NightSystem:MakeWindow(...)
+	return NightSystem:CreateWindow(...)
+end
+NightSystem.MakeWindow = NightSystem.CreateWindow
+NightSystem.CreateLib = NightSystem.CreateWindow
+NightSystem.NewWindow = NightSystem.CreateWindow
+NightSystem.Init = function(self, ...) return NightSystem:CreateWindow(...) end
+NightSystem.Load = function(self, ...) return NightSystem:CreateWindow(...) end
+
 function NightSystem:CreateSection(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateSection(...)
 end
+NightSystem.AddSection = NightSystem.CreateSection
+NightSystem.NewSection = NightSystem.CreateSection
+
 function NightSystem:CreateToggle(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateToggle(...)
 end
+NightSystem.AddToggle = NightSystem.CreateToggle
+NightSystem.NewToggle = NightSystem.CreateToggle
+
 function NightSystem:CreateButton(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateButton(...)
 end
+NightSystem.AddButton = NightSystem.CreateButton
+NightSystem.NewButton = NightSystem.CreateButton
+
 function NightSystem:CreateSlider(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateSlider(...)
 end
+NightSystem.AddSlider = NightSystem.CreateSlider
+NightSystem.NewSlider = NightSystem.CreateSlider
+
 function NightSystem:CreateDropdown(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateDropdown(...)
 end
+NightSystem.AddDropdown = NightSystem.CreateDropdown
+NightSystem.NewDropdown = NightSystem.CreateDropdown
+
 function NightSystem:CreateInput(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateInput(...)
 end
+NightSystem.AddInput = NightSystem.CreateInput
+NightSystem.AddTextbox = NightSystem.CreateInput
+NightSystem.NewTextBox = NightSystem.CreateInput
+NightSystem.CreateTextBox = NightSystem.CreateInput
+
 function NightSystem:CreateKeybind(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateKeybind(...)
 end
+NightSystem.AddBind = NightSystem.CreateKeybind
+NightSystem.AddKeybind = NightSystem.CreateKeybind
+NightSystem.NewKeybind = NightSystem.CreateKeybind
+
 function NightSystem:CreateColorPicker(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateColorPicker(...)
 end
+NightSystem.AddColorpicker = NightSystem.CreateColorPicker
+NightSystem.NewColorPicker = NightSystem.CreateColorPicker
+
 function NightSystem:CreateLabel(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateLabel(...)
 end
+NightSystem.AddLabel = NightSystem.CreateLabel
+NightSystem.NewLabel = NightSystem.CreateLabel
+
 function NightSystem:CreateParagraph(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateParagraph(...)
 end
+NightSystem.AddParagraph = NightSystem.CreateParagraph
+NightSystem.NewParagraph = NightSystem.CreateParagraph
+
 function NightSystem:CreateDivider(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):CreateDivider(...)
 end
+NightSystem.AddDivider = NightSystem.CreateDivider
+NightSystem.NewDivider = NightSystem.CreateDivider
+
 function NightSystem:AddHubScript(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):AddHubScript(...)
 end
+
+-- Fallback metatable on NightSystem so unknown methods never error with attempt to call a nil value
+setmetatable(NightSystem, {
+	__index = function(t, key)
+		local raw = rawget(t, key)
+		if raw ~= nil then return raw end
+		if type(key) == "string" and string.sub(key, 1, 1) == "_" then
+			return nil
+		end
+		return function(self, ...)
+			local active = rawget(NightSystem, "_ActiveWindow")
+			if active and type(active) == "table" and active[key] then
+				return active[key](active, ...)
+			end
+			return self or NightSystem
+		end
+	end,
+})
 
 -- Auto-initialize the default Window with the built-in "Home" Tab immediately when the loadstring runs!
 NightSystem:CreateWindow()
