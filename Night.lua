@@ -1,5 +1,8 @@
 --!nocheck
-local gEnv = (type(getgenv) == "function" and getgenv()) or _G
+local isWritableG = pcall(function()
+	(_G :: any)._test = 1
+end)
+local gEnv = (type(getgenv) == "function" and getgenv()) or (isWritableG and _G) or {}
 
 -- If NightSystem is already running in this Roblox session and has an active window, reuse it
 if gEnv and gEnv._NightActiveWindow and gEnv._NightActiveWindow._ScreenGui and gEnv._NightActiveWindow._ScreenGui.Parent and gEnv._NightSystem then
@@ -188,10 +191,11 @@ local function tween(instance: Instance, info: TweenInfo, props: { [string]: any
 	return tw
 end
 
-local function formatKeyName(key: EnumItem?): string
+local function formatKeyName(key: any): string
 	if not key then
 		return "None"
 	end
+	local name = if typeof(key) == "EnumItem" or (type(key) == "table" and key.Name) then key.Name else tostring(key)
 	local replacements = {
 		RightShift = "RShift",
 		LeftShift = "LShift",
@@ -205,7 +209,7 @@ local function formatKeyName(key: EnumItem?): string
 		Backspace = "Back",
 		Return = "Enter",
 	}
-	return replacements[key.Name] or key.Name
+	return replacements[name] or name
 end
 
 local function colorToHex(color: any): string
@@ -2084,14 +2088,21 @@ function NightSystem:CreateWindow(config: {
 	-- PARAMETER NORMALIZERS (Rayfield / Orion / Kavo / Fluent Multi-API Support)
 	-- ========================================================================
 	local function normToggle(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "string" and type(opt2) == "table" then
+			local t = {}
+			for k, v in pairs(opt2) do t[k] = v end
+			t.Name = t.Name or t.Title or t.Text or opt1
+			opt1 = t
+		end
 		if type(opt1) == "table" then
-			local def = if opt1.Default ~= nil then opt1.Default else (if opt1.CurrentValue ~= nil then opt1.CurrentValue else false)
+			local def = if opt1.Default ~= nil then opt1.Default else (if opt1.CurrentValue ~= nil then opt1.CurrentValue else (if opt1.Value ~= nil then opt1.Value else false))
+			local cb = opt1.Callback or opt1.Function or opt1.OnClick or opt1.Changed
 			return {
 				Name = opt1.Name or opt1.Title or opt1.Text or "Toggle",
 				Description = opt1.Description or opt1.Desc or opt1.Info,
 				Default = def == true,
 				Flag = opt1.Flag or opt1.Pointer,
-				Callback = opt1.Callback or opt1.Function or opt1.OnClick,
+				Callback = cb,
 				LayoutOrder = opt1.LayoutOrder,
 			}
 		else
@@ -2116,11 +2127,18 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local function normButton(opt1: any, opt2: any, opt3: any): { [string]: any }
+		if type(opt1) == "string" and type(opt2) == "table" then
+			local t = {}
+			for k, v in pairs(opt2) do t[k] = v end
+			t.Name = t.Name or t.Title or t.Text or opt1
+			opt1 = t
+		end
 		if type(opt1) == "table" then
+			local cb = opt1.Callback or opt1.Function or opt1.OnClick
 			return {
 				Name = opt1.Name or opt1.Title or opt1.Text or "Button",
 				Description = opt1.Description or opt1.Desc or opt1.Info,
-				Callback = opt1.Callback or opt1.Function or opt1.OnClick,
+				Callback = cb,
 				LayoutOrder = opt1.LayoutOrder,
 			}
 		else
@@ -2137,20 +2155,27 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local function normSlider(opt1: any, opt2: any, opt3: any, opt4: any, opt5: any): { [string]: any }
+		if type(opt1) == "string" and type(opt2) == "table" then
+			local t = {}
+			for k, v in pairs(opt2) do t[k] = v end
+			t.Name = t.Name or t.Title or t.Text or opt1
+			opt1 = t
+		end
 		if type(opt1) == "table" then
 			local min = opt1.Min or opt1.Minimum or (opt1.Range and opt1.Range[1]) or 0
 			local max = opt1.Max or opt1.Maximum or (opt1.Range and opt1.Range[2]) or 100
 			local def = opt1.Default or opt1.CurrentValue or opt1.Starting or min
+			local cb = opt1.Callback or opt1.Function or opt1.Changed
 			return {
 				Name = opt1.Name or opt1.Title or opt1.Text or "Slider",
 				Description = opt1.Description or opt1.Desc or opt1.Info,
 				Min = tonumber(min) or 0,
 				Max = tonumber(max) or 100,
 				Default = tonumber(def) or 0,
-				Increment = tonumber(opt1.Increment or opt1.Step or opt1.Decimals) or 1,
+				Increment = tonumber(opt1.Increment or opt1.Step or opt1.Decimals or opt1.Rounding) or 1,
 				Suffix = tostring(opt1.Suffix or opt1.ValueName or ""),
 				Flag = opt1.Flag or opt1.Pointer,
-				Callback = opt1.Callback or opt1.Function,
+				Callback = cb,
 				LayoutOrder = opt1.LayoutOrder,
 			}
 		else
@@ -2185,23 +2210,44 @@ function NightSystem:CreateWindow(config: {
 				Min = minVal,
 				Max = maxVal,
 				Default = defVal,
-				Increment = 1,
 				Callback = cb,
 			}
 		end
 	end
 
 	local function normDropdown(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "string" and type(opt2) == "table" then
+			if opt2.Title ~= nil or opt2.Values ~= nil or opt2.Options ~= nil or opt2.Callback ~= nil or opt2.Default ~= nil then
+				local t = {}
+				for k, v in pairs(opt2) do t[k] = v end
+				t.Name = t.Name or t.Title or opt1
+				opt1 = t
+			else
+				local cb = if type(opt3) == "function" then opt3 else (if type(opt4) == "function" then opt4 else nil)
+				return {
+					Name = opt1,
+					Options = opt2,
+					Callback = cb,
+				}
+			end
+		end
 		if type(opt1) == "table" then
+			local rawOpts = opt1.Options or opt1.Values or opt1.List or opt1.Items or {}
+			if type(rawOpts) == "function" then
+				local ok, res = pcall(rawOpts)
+				if ok and type(res) == "table" then rawOpts = res else rawOpts = {} end
+			end
+			local def = opt1.Default or opt1.CurrentOption or opt1.CurrentValue or opt1.Selected or opt1.Value
+			local cb = opt1.Callback or opt1.Function or opt1.Changed
 			return {
 				Name = opt1.Name or opt1.Title or opt1.Text or "Dropdown",
 				Description = opt1.Description or opt1.Desc or opt1.Info,
-				Options = opt1.Options or opt1.Values or opt1.List or opt1.Items or {},
-				Default = opt1.Default or opt1.CurrentValue or opt1.Selected,
+				Options = rawOpts,
+				Default = def,
 				Multi = opt1.Multi or opt1.MultiSelect or opt1.Multiple == true,
-				Search = opt1.Search or opt1.SearchBar == true,
+				Search = opt1.Search or opt1.SearchBar == true or opt1.Searchable == true,
 				Flag = opt1.Flag or opt1.Pointer,
-				Callback = opt1.Callback or opt1.Function,
+				Callback = cb,
 				LayoutOrder = opt1.LayoutOrder,
 			}
 		else
@@ -2222,15 +2268,22 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local function normInput(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "string" and type(opt2) == "table" then
+			local t = {}
+			for k, v in pairs(opt2) do t[k] = v end
+			t.Name = t.Name or t.Title or opt1
+			opt1 = t
+		end
 		if type(opt1) == "table" then
+			local cb = opt1.Callback or opt1.Function or opt1.Changed
 			return {
 				Name = opt1.Name or opt1.Title or opt1.Text or "Input",
 				Description = opt1.Description or opt1.Desc or opt1.Info,
 				Placeholder = opt1.Placeholder or opt1.PlaceholderText or "Enter text...",
-				Default = tostring(opt1.Default or opt1.CurrentValue or opt1.Text or ""),
-				ClearTextOnFocus = opt1.ClearTextOnFocus or opt1.TextDisappear == true,
+				Default = tostring(opt1.Default or opt1.CurrentValue or opt1.Text or opt1.Value or ""),
+				ClearTextOnFocus = opt1.ClearTextOnFocus or opt1.TextDisappear == true or opt1.RemoveTextAfterFocusLost == true,
 				Flag = opt1.Flag or opt1.Pointer,
-				Callback = opt1.Callback or opt1.Function,
+				Callback = cb,
 				LayoutOrder = opt1.LayoutOrder,
 			}
 		else
@@ -2251,14 +2304,25 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local function normKeybind(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
+		if type(opt1) == "string" and type(opt2) == "table" then
+			local t = {}
+			for k, v in pairs(opt2) do t[k] = v end
+			t.Name = t.Name or t.Title or opt1
+			opt1 = t
+		end
 		if type(opt1) == "table" then
+			local def = opt1.Default or opt1.CurrentKeybind or opt1.Key or Enum.KeyCode.E
+			if type(def) == "string" and Enum.KeyCode[def] then
+				def = Enum.KeyCode[def]
+			end
+			local cb = opt1.Callback or opt1.Function or opt1.Changed
 			return {
 				Name = opt1.Name or opt1.Title or opt1.Text or "Keybind",
 				Description = opt1.Description or opt1.Desc or opt1.Info,
-				Default = opt1.Default or opt1.CurrentKeybind or opt1.Key or Enum.KeyCode.E,
+				Default = def,
 				Mode = opt1.Mode or "Toggle",
 				Flag = opt1.Flag or opt1.Pointer,
-				Callback = opt1.Callback or opt1.Function,
+				Callback = cb,
 				LayoutOrder = opt1.LayoutOrder,
 			}
 		else
@@ -2269,6 +2333,8 @@ function NightSystem:CreateWindow(config: {
 			for _, arg in ipairs({ opt2, opt3, opt4 }) do
 				if typeof(arg) == "EnumItem" then
 					def = arg
+				elseif type(arg) == "string" and Enum.KeyCode[arg] then
+					def = Enum.KeyCode[arg]
 				elseif type(arg) == "function" then
 					cb = arg
 				end
@@ -2283,13 +2349,21 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local function normColorPicker(opt1: any, opt2: any, opt3: any, opt4: any): { [string]: any }
-		if type(opt1) == "table" then
+		if type(opt1) == "string" and type(opt2) == "table" and not (opt2.R and opt2.G and opt2.B) then
+			local t = {}
+			for k, v in pairs(opt2) do t[k] = v end
+			t.Name = t.Name or t.Title or opt1
+			opt1 = t
+		end
+		if type(opt1) == "table" and not (opt1.R and opt1.G and opt1.B) then
+			local def = opt1.Default or opt1.Color or Color3.fromRGB(255, 255, 255)
+			local cb = opt1.Callback or opt1.Function or opt1.Changed
 			return {
 				Name = opt1.Name or opt1.Title or opt1.Text or "ColorPicker",
 				Description = opt1.Description or opt1.Desc or opt1.Info,
-				Default = opt1.Default or opt1.Color or Color3.fromRGB(255, 255, 255),
+				Default = def,
 				Flag = opt1.Flag or opt1.Pointer,
-				Callback = opt1.Callback or opt1.Function,
+				Callback = cb,
 				LayoutOrder = opt1.LayoutOrder,
 			}
 		else
@@ -2298,7 +2372,7 @@ function NightSystem:CreateWindow(config: {
 			local def = Color3.fromRGB(255, 255, 255)
 			local cb = nil
 			for _, arg in ipairs({ opt2, opt3, opt4 }) do
-				if typeof(arg) == "Color3" then
+				if typeof(arg) == "Color3" or (type(arg) == "table" and arg.R and arg.G and arg.B) then
 					def = arg
 				elseif type(arg) == "function" then
 					cb = arg
@@ -2328,14 +2402,18 @@ function NightSystem:CreateWindow(config: {
 		end
 	end
 
-	local function normLabel(opt1: any): { [string]: any }
+	local function normLabel(opt1: any, opt2: any): { [string]: any }
 		if type(opt1) == "table" then
 			return {
 				Text = opt1.Text or opt1.Title or opt1.Name or "",
 				LayoutOrder = opt1.LayoutOrder,
 			}
 		else
-			return { Text = tostring(opt1 or "") }
+			local txt = tostring(opt1 or "")
+			if type(opt2) == "string" and opt2 ~= "" then
+				txt = txt .. " " .. opt2
+			end
+			return { Text = txt }
 		end
 	end
 
@@ -2429,1399 +2507,1444 @@ function NightSystem:CreateWindow(config: {
 			return card, stroke, titleLbl
 		end
 
-	-- 1. Window:CreateSection(Title)
-	function targetTab:CreateSection(sectionConfig: string | { Name: string?, Title: string?, LayoutOrder: number? })
-		local title = if type(sectionConfig) == "table"
-			then tostring(sectionConfig.Name or sectionConfig.Title or "Section")
-			else tostring(sectionConfig or "Section")
-		local manualOrder = if type(sectionConfig) == "table" then sectionConfig.LayoutOrder else nil
+		-- 1. Window:CreateSection(Title)
+		function targetTab:CreateSection(sectionConfig: any, ...)
+			local title = "Section"
+			local manualOrder: number? = nil
+			if type(sectionConfig) == "table" then
+				title = tostring(sectionConfig.Name or sectionConfig.Title or sectionConfig.Text or "Section")
+				manualOrder = sectionConfig.LayoutOrder
+			elseif sectionConfig ~= nil then
+				title = tostring(sectionConfig)
+			end
 
+			local secFrame = Instance.new("Frame")
+			secFrame.Name = "Section_" .. title
+			secFrame.Size = UDim2.new(1, 0, 0, 26)
+			secFrame.BackgroundTransparency = 1
+			secFrame.LayoutOrder = computeLayoutOrder("Section", manualOrder)
+			secFrame.Parent = tabScroll
 
-		local secFrame = Instance.new("Frame")
-		secFrame.Name = "Section_" .. title
-		secFrame.Size = UDim2.new(1, 0, 0, 26)
-		secFrame.BackgroundTransparency = 1
-		secFrame.LayoutOrder = computeLayoutOrder("Section", manualOrder)
-		secFrame.Parent = tabScroll
+			local secLabel = Instance.new("TextLabel")
+			secLabel.Name = "SectionTitle"
+			secLabel.AutomaticSize = Enum.AutomaticSize.X
+			secLabel.Size = UDim2.new(0, 0, 1, 0)
+			secLabel.Position = UDim2.new(0, 2, 0, 4)
+			secLabel.BackgroundTransparency = 1
+			secLabel.Font = Enum.Font.GothamBold
+			secLabel.Text = string.upper(title)
+			secLabel.TextColor3 = THEME.TextSecondary
+			secLabel.TextSize = 11
+			secLabel.TextXAlignment = Enum.TextXAlignment.Left
+			secLabel.Parent = secFrame
 
-		local secLabel = Instance.new("TextLabel")
-		secLabel.Name = "SectionTitle"
-		secLabel.AutomaticSize = Enum.AutomaticSize.X
-		secLabel.Size = UDim2.new(0, 0, 1, 0)
-		secLabel.Position = UDim2.new(0, 2, 0, 4)
-		secLabel.BackgroundTransparency = 1
-		secLabel.Font = Enum.Font.GothamBold
-		secLabel.Text = string.upper(title)
-		secLabel.TextColor3 = THEME.TextSecondary
-		secLabel.TextSize = 11
-		secLabel.TextXAlignment = Enum.TextXAlignment.Left
-		secLabel.Parent = secFrame
+			local line = Instance.new("Frame")
+			line.Name = "Line"
+			line.Size = UDim2.new(1, -110, 0, 1)
+			line.Position = UDim2.new(1, 0, 0.5, 2)
+			line.AnchorPoint = Vector2.new(1, 0.5)
+			line.BackgroundColor3 = THEME.Stroke
+			line.BackgroundTransparency = 0.2
+			line.BorderSizePixel = 0
+			line.Parent = secFrame
 
-		local line = Instance.new("Frame")
-		line.Name = "Line"
-		line.Size = UDim2.new(1, -110, 0, 1)
-		line.Position = UDim2.new(1, 0, 0.5, 2)
-		line.AnchorPoint = Vector2.new(1, 0.5)
-		line.BackgroundColor3 = THEME.Stroke
-		line.BackgroundTransparency = 0.2
-		line.BorderSizePixel = 0
-		line.Parent = secFrame
+			local function updateLineWidth()
+				local textW = secLabel.AbsoluteSize.X
+				line.Size = UDim2.new(1, -(textW + 14), 0, 1)
+			end
+			task.defer(updateLineWidth)
+			secLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateLineWidth)
 
-		local function updateLineWidth()
-			local textW = secLabel.AbsoluteSize.X
-			line.Size = UDim2.new(1, -(textW + 14), 0, 1)
+			registerSearchable(secFrame, title)
+
+			local SectionObj = {}
+			function SectionObj:Set(newTitle: string)
+				secLabel.Text = string.upper(tostring(newTitle))
+			end
+			SectionObj.SetTitle = SectionObj.Set
+			SectionObj.Tab = targetTab
+			function SectionObj:CreateToggle(...) return targetTab:CreateToggle(...) end
+			function SectionObj:CreateButton(...) return targetTab:CreateButton(...) end
+			function SectionObj:CreateSlider(...) return targetTab:CreateSlider(...) end
+			function SectionObj:CreateDropdown(...) return targetTab:CreateDropdown(...) end
+			function SectionObj:CreateInput(...) return targetTab:CreateInput(...) end
+			function SectionObj:CreateKeybind(...) return targetTab:CreateKeybind(...) end
+			function SectionObj:CreateColorPicker(...) return targetTab:CreateColorPicker(...) end
+			function SectionObj:CreateLabel(...) return targetTab:CreateLabel(...) end
+			function SectionObj:CreateParagraph(...) return targetTab:CreateParagraph(...) end
+			function SectionObj:CreateDivider(...) return targetTab:CreateDivider(...) end
+			function SectionObj:CreateSection(...) return targetTab:CreateSection(...) end
+
+			SectionObj.AddToggle = SectionObj.CreateToggle
+			SectionObj.NewToggle = SectionObj.CreateToggle
+			SectionObj.AddButton = SectionObj.CreateButton
+			SectionObj.NewButton = SectionObj.CreateButton
+			SectionObj.AddSlider = SectionObj.CreateSlider
+			SectionObj.NewSlider = SectionObj.CreateSlider
+			SectionObj.AddDropdown = SectionObj.CreateDropdown
+			SectionObj.NewDropdown = SectionObj.CreateDropdown
+			SectionObj.AddInput = SectionObj.CreateInput
+			SectionObj.AddTextbox = SectionObj.CreateInput
+			SectionObj.NewTextBox = SectionObj.CreateInput
+			SectionObj.CreateTextBox = SectionObj.CreateInput
+			SectionObj.AddBind = SectionObj.CreateKeybind
+			SectionObj.AddKeybind = SectionObj.CreateKeybind
+			SectionObj.NewKeybind = SectionObj.CreateKeybind
+			SectionObj.AddColorpicker = SectionObj.CreateColorPicker
+			SectionObj.NewColorPicker = SectionObj.CreateColorPicker
+			SectionObj.AddLabel = SectionObj.CreateLabel
+			SectionObj.NewLabel = SectionObj.CreateLabel
+			SectionObj.AddParagraph = SectionObj.CreateParagraph
+			SectionObj.NewParagraph = SectionObj.CreateParagraph
+			SectionObj.AddDivider = SectionObj.CreateDivider
+			SectionObj.NewDivider = SectionObj.CreateDivider
+			SectionObj.AddSection = SectionObj.CreateSection
+			SectionObj.NewSection = SectionObj.CreateSection
+			return SectionObj
 		end
-		task.defer(updateLineWidth)
-		secLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateLineWidth)
 
-		registerSearchable(secFrame, title)
+		-- 2. Window:CreateToggle(...)
+		function targetTab:CreateToggle(opt1: any, opt2: any, opt3: any, opt4: any)
+			local opts = normToggle(opt1, opt2, opt3, opt4)
+			local name = tostring(opts.Name or "Toggle")
+			local desc = opts.Description
+			local state = opts.Default == true
+			local flag = opts.Flag or name
+			local callback = opts.Callback
 
-		local SectionObj = {}
-		function SectionObj:Set(newTitle: string)
-			secLabel.Text = string.upper(tostring(newTitle))
-		end
-		SectionObj.Tab = targetTab
-		function SectionObj:CreateToggle(...) return targetTab:CreateToggle(...) end
-		function SectionObj:CreateButton(...) return targetTab:CreateButton(...) end
-		function SectionObj:CreateSlider(...) return targetTab:CreateSlider(...) end
-		function SectionObj:CreateDropdown(...) return targetTab:CreateDropdown(...) end
-		function SectionObj:CreateInput(...) return targetTab:CreateInput(...) end
-		function SectionObj:CreateKeybind(...) return targetTab:CreateKeybind(...) end
-		function SectionObj:CreateColorPicker(...) return targetTab:CreateColorPicker(...) end
-		function SectionObj:CreateLabel(...) return targetTab:CreateLabel(...) end
-		function SectionObj:CreateParagraph(...) return targetTab:CreateParagraph(...) end
-		function SectionObj:CreateDivider(...) return targetTab:CreateDivider(...) end
-		function SectionObj:CreateSection(...) return targetTab:CreateSection(...) end
+			local card = createBaseCard("Toggle", name, desc, 44, opts.LayoutOrder)
 
-		SectionObj.AddToggle = SectionObj.CreateToggle
-		SectionObj.NewToggle = SectionObj.CreateToggle
-		SectionObj.AddButton = SectionObj.CreateButton
-		SectionObj.NewButton = SectionObj.CreateButton
-		SectionObj.AddSlider = SectionObj.CreateSlider
-		SectionObj.NewSlider = SectionObj.CreateSlider
-		SectionObj.AddDropdown = SectionObj.CreateDropdown
-		SectionObj.NewDropdown = SectionObj.CreateDropdown
-		SectionObj.AddInput = SectionObj.CreateInput
-		SectionObj.AddTextbox = SectionObj.CreateInput
-		SectionObj.NewTextBox = SectionObj.CreateInput
-		SectionObj.CreateTextBox = SectionObj.CreateInput
-		SectionObj.AddBind = SectionObj.CreateKeybind
-		SectionObj.AddKeybind = SectionObj.CreateKeybind
-		SectionObj.NewKeybind = SectionObj.CreateKeybind
-		SectionObj.AddColorpicker = SectionObj.CreateColorPicker
-		SectionObj.NewColorPicker = SectionObj.CreateColorPicker
-		SectionObj.AddLabel = SectionObj.CreateLabel
-		SectionObj.NewLabel = SectionObj.CreateLabel
-		SectionObj.AddParagraph = SectionObj.CreateParagraph
-		SectionObj.NewParagraph = SectionObj.CreateParagraph
-		SectionObj.AddDivider = SectionObj.CreateDivider
-		SectionObj.NewDivider = SectionObj.CreateDivider
-		SectionObj.AddSection = SectionObj.CreateSection
-		SectionObj.NewSection = SectionObj.CreateSection
-		return SectionObj
-	end
+			local switchBg = Instance.new("Frame")
+			switchBg.Size = UDim2.new(0, 40, 0, 20)
+			switchBg.Position = UDim2.new(1, -14, 0.5, 0)
+			switchBg.AnchorPoint = Vector2.new(1, 0.5)
+			switchBg.BackgroundColor3 = if state then THEME.Accent else THEME.Stroke
+			switchBg.BorderSizePixel = 0
+			switchBg.Parent = card
+			createCorner(switchBg, 10)
+			local switchStroke = createStroke(switchBg, if state then THEME.Accent else THEME.StrokeActive, 1, 0.15)
 
-	-- 2. Window:CreateToggle(...)
-	function targetTab:CreateToggle(options: {
-		Name: string?,
-		Description: string?,
-		Default: boolean?,
-		Flag: string?,
-		LayoutOrder: number?,
-		Callback: ((boolean) -> ())?,
-	})
-		local opts = options or {}
-		local name = tostring(opts.Name or "Toggle")
-		local desc = opts.Description
-		local state = opts.Default == true
-		local flag = opts.Flag or name
-		local callback = opts.Callback
+			local knob = Instance.new("Frame")
+			knob.Size = UDim2.new(0, 14, 0, 14)
+			knob.Position = if state then UDim2.new(1, -17, 0.5, 0) else UDim2.new(0, 3, 0.5, 0)
+			knob.AnchorPoint = Vector2.new(0, 0.5)
+			knob.BackgroundColor3 = if state then THEME.MainBackground else THEME.TextTabInactive
+			knob.BorderSizePixel = 0
+			knob.Parent = switchBg
+			createCorner(knob, 7)
 
-		local card = createBaseCard("Toggle", name, desc, 44, opts.LayoutOrder)
+			local clickZone = Instance.new("TextButton")
+			clickZone.Size = UDim2.new(1, 0, 1, 0)
+			clickZone.BackgroundTransparency = 1
+			clickZone.Text = ""
+			clickZone.Parent = card
 
-		local switchBg = Instance.new("Frame")
-		switchBg.Size = UDim2.new(0, 40, 0, 20)
-		switchBg.Position = UDim2.new(1, -14, 0.5, 0)
-		switchBg.AnchorPoint = Vector2.new(1, 0.5)
-		switchBg.BackgroundColor3 = if state then THEME.Accent else THEME.Stroke
-		switchBg.BorderSizePixel = 0
-		switchBg.Parent = card
-		createCorner(switchBg, 10)
-		local switchStroke = createStroke(switchBg, if state then THEME.Accent else THEME.StrokeActive, 1, 0.15)
-
-		local knob = Instance.new("Frame")
-		knob.Size = UDim2.new(0, 14, 0, 14)
-		knob.Position = if state then UDim2.new(1, -17, 0.5, 0) else UDim2.new(0, 3, 0.5, 0)
-		knob.AnchorPoint = Vector2.new(0, 0.5)
-		knob.BackgroundColor3 = if state then THEME.MainBackground else THEME.TextTabInactive
-		knob.BorderSizePixel = 0
-		knob.Parent = switchBg
-		createCorner(knob, 7)
-
-		local clickZone = Instance.new("TextButton")
-		clickZone.Size = UDim2.new(1, 0, 1, 0)
-		clickZone.BackgroundTransparency = 1
-		clickZone.Text = ""
-		clickZone.Parent = card
-
-		local ToggleObj = { Value = state }
-		NightSystem.Flags[flag] = state
-
-		function ToggleObj:Set(newValue: boolean, silent: boolean?)
-			state = newValue == true
-			ToggleObj.Value = state
+			local ToggleObj = { Value = state }
 			NightSystem.Flags[flag] = state
 
-			tween(switchBg, TWEEN_FAST, {
-				BackgroundColor3 = if state then THEME.Accent else THEME.Stroke,
-			})
-			tween(switchStroke, TWEEN_FAST, {
-				Color = if state then THEME.Accent else THEME.StrokeActive,
-				Transparency = if state then 0 else 0.2,
-			})
-			tween(knob, TWEEN_FAST, {
-				Position = if state then UDim2.new(1, -17, 0.5, 0) else UDim2.new(0, 3, 0.5, 0),
-				BackgroundColor3 = if state then THEME.MainBackground else THEME.TextTabInactive,
-			})
+			function ToggleObj:Set(newValue: boolean, silent: boolean?)
+				state = newValue == true
+				ToggleObj.Value = state
+				NightSystem.Flags[flag] = state
 
-			if not silent then
-				safeCallback(callback, state)
-			end
-		end
+				tween(switchBg, TWEEN_FAST, {
+					BackgroundColor3 = if state then THEME.Accent else THEME.Stroke,
+				})
+				tween(switchStroke, TWEEN_FAST, {
+					Color = if state then THEME.Accent else THEME.StrokeActive,
+					Transparency = if state then 0 else 0.2,
+				})
+				tween(knob, TWEEN_FAST, {
+					Position = if state then UDim2.new(1, -17, 0.5, 0) else UDim2.new(0, 3, 0.5, 0),
+					BackgroundColor3 = if state then THEME.MainBackground else THEME.TextTabInactive,
+				})
 
-		function ToggleObj:Get(): boolean
-			return state
-		end
-
-		clickZone.MouseButton1Click:Connect(function()
-			ToggleObj:Set(not state)
-		end)
-
-		if state then
-			task.defer(function()
-				safeCallback(callback, state)
-			end)
-		end
-
-		return ToggleObj
-	end
-
-	-- 3. Window:CreateButton(...)
-	function targetTab:CreateButton(options: {
-		Name: string?,
-		Description: string?,
-		LayoutOrder: number?,
-		Callback: (() -> ())?,
-	})
-		local opts = options or {}
-		local name = tostring(opts.Name or "Button")
-		local desc = opts.Description
-		local callback = opts.Callback
-
-		local card, stroke, titleLbl = createBaseCard("Button", name, desc, 44, opts.LayoutOrder)
-
-		local actionBadge = Instance.new("Frame")
-		actionBadge.Size = UDim2.new(0, 26, 0, 26)
-		actionBadge.Position = UDim2.new(1, -14, 0.5, 0)
-		actionBadge.AnchorPoint = Vector2.new(1, 0.5)
-		actionBadge.BackgroundColor3 = THEME.CardInner
-		actionBadge.BorderSizePixel = 0
-		actionBadge.Parent = card
-		createCorner(actionBadge, 6)
-		createStroke(actionBadge, THEME.Stroke, 1, 0.2)
-
-		local arrowIcon = Instance.new("ImageLabel")
-		arrowIcon.Size = UDim2.new(0, 14, 0, 14)
-		arrowIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
-		arrowIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-		arrowIcon.BackgroundTransparency = 1
-		arrowIcon.Image = ASSETS.ChevronRight
-		arrowIcon.ImageColor3 = THEME.TextSecondary
-		arrowIcon.Parent = actionBadge
-
-		local clickBtn = Instance.new("TextButton")
-		clickBtn.Size = UDim2.new(1, 0, 1, 0)
-		clickBtn.BackgroundTransparency = 1
-		clickBtn.Text = ""
-		clickBtn.Parent = card
-
-		clickBtn.MouseEnter:Connect(function()
-			tween(arrowIcon, TWEEN_FAST, { ImageColor3 = THEME.Accent })
-			tween(actionBadge, TWEEN_FAST, { BackgroundColor3 = THEME.Stroke })
-		end)
-		clickBtn.MouseLeave:Connect(function()
-			tween(arrowIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
-			tween(actionBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardInner })
-		end)
-
-		local function trigger()
-			tween(stroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0.1 })
-			tween(actionBadge, TWEEN_FAST, { BackgroundColor3 = THEME.Accent })
-			tween(arrowIcon, TWEEN_FAST, { ImageColor3 = THEME.MainBackground })
-			task.delay(0.16, function()
-				if stroke.Parent then
-					tween(stroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-					tween(actionBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardInner })
-					tween(arrowIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
+				if not silent then
+					safeCallback(callback, state)
 				end
+			end
+
+			ToggleObj.SetValue = ToggleObj.Set
+			ToggleObj.SetState = ToggleObj.Set
+
+			function ToggleObj:Get(): boolean
+				return state
+			end
+
+			ToggleObj.GetValue = ToggleObj.Get
+
+			function ToggleObj:OnChanged(cb: (boolean) -> ())
+				callback = cb
+			end
+
+			clickZone.MouseButton1Click:Connect(function()
+				ToggleObj:Set(not state)
 			end)
-			safeCallback(callback)
-		end
 
-		clickBtn.MouseButton1Click:Connect(trigger)
-
-		local ButtonObj = {}
-		function ButtonObj:Set(newName: string)
-			titleLbl.Text = tostring(newName)
-		end
-		function ButtonObj:Fire()
-			trigger()
-		end
-		return ButtonObj
-	end
-
-	-- 4. Window:CreateSlider(...)
-	function targetTab:CreateSlider(options: {
-		Name: string?,
-		Description: string?,
-		Min: number?,
-		Max: number?,
-		Default: number?,
-		Increment: number?,
-		Suffix: string?,
-		Flag: string?,
-		LayoutOrder: number?,
-		Callback: ((number) -> ())?,
-	})
-		local opts = options or {}
-		local name = tostring(opts.Name or "Slider")
-		local desc = opts.Description
-		local minVal = tonumber(opts.Min) or 0
-		local maxVal = tonumber(opts.Max) or 100
-		local increment = tonumber(opts.Increment) or 1
-		local suffix = tostring(opts.Suffix or "")
-		local currentVal = math.clamp(tonumber(opts.Default) or minVal, minVal, maxVal)
-		local flag = opts.Flag or name
-		local callback = opts.Callback
-
-		local hasDesc = desc ~= nil and desc ~= ""
-		local cardHeight = if hasDesc then 72 else 60
-		local card = createBaseCard("Slider", name, desc, cardHeight, opts.LayoutOrder)
-
-		local valueInput = Instance.new("TextBox")
-		valueInput.Size = UDim2.new(0, 68, 0, 22)
-		valueInput.Position = UDim2.new(1, -14, 0, 10)
-		valueInput.AnchorPoint = Vector2.new(1, 0)
-		valueInput.BackgroundColor3 = THEME.CardInner
-		valueInput.BorderSizePixel = 0
-		valueInput.Font = Enum.Font.GothamBold
-		valueInput.Text = tostring(currentVal) .. suffix
-		valueInput.TextColor3 = THEME.TextPrimary
-		valueInput.TextSize = 11
-		valueInput.ClearTextOnFocus = false
-		valueInput.Parent = card
-		createCorner(valueInput, 5)
-		local valStroke = createStroke(valueInput, THEME.Stroke, 1, 0.2)
-
-		local trackBtn = Instance.new("TextButton")
-		trackBtn.Size = UDim2.new(1, -28, 0, 6)
-		trackBtn.Position = UDim2.new(0, 14, 1, -14)
-		trackBtn.AnchorPoint = Vector2.new(0, 1)
-		trackBtn.BackgroundColor3 = THEME.CardInner
-		trackBtn.BorderSizePixel = 0
-		trackBtn.AutoButtonColor = false
-		trackBtn.Text = ""
-		trackBtn.Parent = card
-		createCorner(trackBtn, 3)
-		createStroke(trackBtn, THEME.Stroke, 1, 0.3)
-
-		local initialPct = if maxVal > minVal then (currentVal - minVal) / (maxVal - minVal) else 0
-
-		local fillBar = Instance.new("Frame")
-		fillBar.Size = UDim2.new(initialPct, 0, 1, 0)
-		fillBar.BackgroundColor3 = THEME.Accent
-		fillBar.BorderSizePixel = 0
-		fillBar.Parent = trackBtn
-		createCorner(fillBar, 3)
-
-		local knob = Instance.new("Frame")
-		knob.Size = UDim2.new(0, 12, 0, 12)
-		knob.Position = UDim2.new(initialPct, 0, 0.5, 0)
-		knob.AnchorPoint = Vector2.new(0.5, 0.5)
-		knob.BackgroundColor3 = THEME.Accent
-		knob.BorderSizePixel = 0
-		knob.Parent = trackBtn
-		createCorner(knob, 6)
-		createStroke(knob, THEME.MainBackground, 2, 0)
-
-		local SliderObj = { Value = currentVal }
-		NightSystem.Flags[flag] = currentVal
-
-		local function roundToIncrement(raw: number): number
-			local snapped = minVal + math.round((raw - minVal) / increment) * increment
-			local decimals = 0
-			local incStr = tostring(increment)
-			local dotPos = string.find(incStr, ".", 1, true)
-			if dotPos then
-				decimals = #incStr - dotPos
-			end
-			local factor = 10 ^ decimals
-			return math.clamp(math.round(snapped * factor) / factor, minVal, maxVal)
-		end
-
-		function SliderObj:Set(val: number, silent: boolean?)
-			local clamped = roundToIncrement(tonumber(val) or minVal)
-			currentVal = clamped
-			SliderObj.Value = clamped
-			NightSystem.Flags[flag] = clamped
-
-			local pct = if maxVal > minVal then (clamped - minVal) / (maxVal - minVal) else 0
-			tween(fillBar, TWEEN_FAST, { Size = UDim2.new(pct, 0, 1, 0) })
-			tween(knob, TWEEN_FAST, { Position = UDim2.new(pct, 0, 0.5, 0) })
-			valueInput.Text = tostring(clamped) .. suffix
-
-			if not silent then
-				safeCallback(callback, clamped)
-			end
-		end
-
-		function SliderObj:Get(): number
-			return currentVal
-		end
-
-		local sliding = false
-		local function updateFromMouse(inputPos: Vector2)
-			local trackX = trackBtn.AbsolutePosition.X
-			local trackW = math.max(1, trackBtn.AbsoluteSize.X)
-			local rel = math.clamp((inputPos.X - trackX) / trackW, 0, 1)
-			SliderObj:Set(minVal + (maxVal - minVal) * rel)
-		end
-
-		trackBtn.InputBegan:Connect(function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				sliding = true
-				tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 15, 0, 15) })
-				updateFromMouse(Vector2.new(input.Position.X, input.Position.Y))
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						sliding = false
-						tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 12, 0, 12) })
-					end
+			if state then
+				task.defer(function()
+					safeCallback(callback, state)
 				end)
 			end
-		end)
 
-		trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
-			if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				updateFromMouse(Vector2.new(input.Position.X, input.Position.Y))
-			end
-		end))
-
-		valueInput.Focused:Connect(function()
-			tween(valStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
-			valueInput.Text = tostring(currentVal)
-		end)
-		valueInput.FocusLost:Connect(function()
-			tween(valStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-			local num = tonumber(valueInput.Text)
-			if num then
-				SliderObj:Set(num)
-			else
-				valueInput.Text = tostring(currentVal) .. suffix
-			end
-		end)
-
-		return SliderObj
-	end
-
-	-- 5. Window:CreateDropdown(...)
-	function targetTab:CreateDropdown(options: {
-		Name: string?,
-		Description: string?,
-		Options: { string }?,
-		Default: (string | { string })?,
-		Multi: boolean?,
-		Searchable: boolean?,
-		Flag: string?,
-		LayoutOrder: number?,
-		Callback: ((any) -> ())?,
-	})
-		local opts = options or {}
-		local name = tostring(opts.Name or "Dropdown")
-		local desc = opts.Description
-		local optionList: { string } = opts.Options or {}
-		local isMulti = opts.Multi == true
-		local isSearchable = if opts.Searchable ~= nil then opts.Searchable else true
-		local flag = opts.Flag or name
-		local callback = opts.Callback
-
-		local hasDesc = desc ~= nil and desc ~= ""
-		local closedHeight = if hasDesc then 54 else 44
-		local card, cardStroke = createBaseCard("Dropdown", name, desc, closedHeight, opts.LayoutOrder)
-
-		local selectedSingle: string = ""
-		local selectedMulti: { [string]: boolean } = {}
-
-		if isMulti then
-			if type(opts.Default) == "table" then
-				for _, item in ipairs(opts.Default) do
-					selectedMulti[tostring(item)] = true
-				end
-			elseif type(opts.Default) == "string" and opts.Default ~= "" then
-				selectedMulti[opts.Default] = true
-			end
-		else
-			if type(opts.Default) == "string" then
-				selectedSingle = opts.Default
-			elseif #optionList > 0 then
-				selectedSingle = tostring(optionList[1])
-			end
+			return ToggleObj
 		end
 
-		local function getDisplaySummary(): string
-			if isMulti then
-				local active = {}
-				for _, opt in ipairs(optionList) do
-					if selectedMulti[tostring(opt)] then
-						table.insert(active, tostring(opt))
+		-- 3. Window:CreateButton(...)
+		function targetTab:CreateButton(opt1: any, opt2: any, opt3: any)
+			local opts = normButton(opt1, opt2, opt3)
+			local name = tostring(opts.Name or "Button")
+			local desc = opts.Description
+			local callback = opts.Callback
+
+			local card, stroke, titleLbl = createBaseCard("Button", name, desc, 44, opts.LayoutOrder)
+
+			local actionBadge = Instance.new("Frame")
+			actionBadge.Size = UDim2.new(0, 26, 0, 26)
+			actionBadge.Position = UDim2.new(1, -14, 0.5, 0)
+			actionBadge.AnchorPoint = Vector2.new(1, 0.5)
+			actionBadge.BackgroundColor3 = THEME.CardInner
+			actionBadge.BorderSizePixel = 0
+			actionBadge.Parent = card
+			createCorner(actionBadge, 6)
+			createStroke(actionBadge, THEME.Stroke, 1, 0.2)
+
+			local arrowIcon = Instance.new("ImageLabel")
+			arrowIcon.Size = UDim2.new(0, 14, 0, 14)
+			arrowIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+			arrowIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+			arrowIcon.BackgroundTransparency = 1
+			arrowIcon.Image = ASSETS.ChevronRight
+			arrowIcon.ImageColor3 = THEME.TextSecondary
+			arrowIcon.Parent = actionBadge
+
+			local clickBtn = Instance.new("TextButton")
+			clickBtn.Size = UDim2.new(1, 0, 1, 0)
+			clickBtn.BackgroundTransparency = 1
+			clickBtn.Text = ""
+			clickBtn.Parent = card
+
+			clickBtn.MouseEnter:Connect(function()
+				tween(arrowIcon, TWEEN_FAST, { ImageColor3 = THEME.Accent })
+				tween(actionBadge, TWEEN_FAST, { BackgroundColor3 = THEME.Stroke })
+			end)
+			clickBtn.MouseLeave:Connect(function()
+				tween(arrowIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
+				tween(actionBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardInner })
+			end)
+
+			local function trigger()
+				tween(stroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0.1 })
+				tween(actionBadge, TWEEN_FAST, { BackgroundColor3 = THEME.Accent })
+				tween(arrowIcon, TWEEN_FAST, { ImageColor3 = THEME.MainBackground })
+				task.delay(0.16, function()
+					if stroke.Parent then
+						tween(stroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+						tween(actionBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardInner })
+						tween(arrowIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
 					end
+				end)
+				safeCallback(callback)
+			end
+
+			clickBtn.MouseButton1Click:Connect(trigger)
+
+			local ButtonObj = {}
+			function ButtonObj:Set(newName: string)
+				titleLbl.Text = tostring(newName)
+			end
+			ButtonObj.SetText = ButtonObj.Set
+			function ButtonObj:Fire()
+				trigger()
+			end
+			ButtonObj.Click = ButtonObj.Fire
+			function ButtonObj:OnClick(cb: () -> ())
+				callback = cb
+			end
+			function ButtonObj:Callback(cb: () -> ())
+				callback = cb
+			end
+			return ButtonObj
+		end
+
+		-- 4. Window:CreateSlider(...)
+		function targetTab:CreateSlider(opt1: any, opt2: any, opt3: any, opt4: any, opt5: any)
+			local opts = normSlider(opt1, opt2, opt3, opt4, opt5)
+			local name = tostring(opts.Name or "Slider")
+			local desc = opts.Description
+			local minVal = tonumber(opts.Min) or 0
+			local maxVal = tonumber(opts.Max) or 100
+			local increment = tonumber(opts.Increment) or 1
+			local suffix = tostring(opts.Suffix or "")
+			local currentVal = math.clamp(tonumber(opts.Default) or minVal, minVal, maxVal)
+			local flag = opts.Flag or name
+			local callback = opts.Callback
+
+			local hasDesc = desc ~= nil and desc ~= ""
+			local cardHeight = if hasDesc then 72 else 60
+			local card = createBaseCard("Slider", name, desc, cardHeight, opts.LayoutOrder)
+
+			local valueInput = Instance.new("TextBox")
+			valueInput.Size = UDim2.new(0, 68, 0, 22)
+			valueInput.Position = UDim2.new(1, -14, 0, 10)
+			valueInput.AnchorPoint = Vector2.new(1, 0)
+			valueInput.BackgroundColor3 = THEME.CardInner
+			valueInput.BorderSizePixel = 0
+			valueInput.Font = Enum.Font.GothamBold
+			valueInput.Text = tostring(currentVal) .. suffix
+			valueInput.TextColor3 = THEME.TextPrimary
+			valueInput.TextSize = 11
+			valueInput.ClearTextOnFocus = false
+			valueInput.Parent = card
+			createCorner(valueInput, 5)
+			local valStroke = createStroke(valueInput, THEME.Stroke, 1, 0.2)
+
+			local trackBtn = Instance.new("TextButton")
+			trackBtn.Size = UDim2.new(1, -28, 0, 6)
+			trackBtn.Position = UDim2.new(0, 14, 1, -14)
+			trackBtn.AnchorPoint = Vector2.new(0, 1)
+			trackBtn.BackgroundColor3 = THEME.CardInner
+			trackBtn.BorderSizePixel = 0
+			trackBtn.AutoButtonColor = false
+			trackBtn.Text = ""
+			trackBtn.Parent = card
+			createCorner(trackBtn, 3)
+			createStroke(trackBtn, THEME.Stroke, 1, 0.3)
+
+			local initialPct = if maxVal > minVal then (currentVal - minVal) / (maxVal - minVal) else 0
+
+			local fillBar = Instance.new("Frame")
+			fillBar.Size = UDim2.new(initialPct, 0, 1, 0)
+			fillBar.BackgroundColor3 = THEME.Accent
+			fillBar.BorderSizePixel = 0
+			fillBar.Parent = trackBtn
+			createCorner(fillBar, 3)
+
+			local knob = Instance.new("Frame")
+			knob.Size = UDim2.new(0, 12, 0, 12)
+			knob.Position = UDim2.new(initialPct, 0, 0.5, 0)
+			knob.AnchorPoint = Vector2.new(0.5, 0.5)
+			knob.BackgroundColor3 = THEME.Accent
+			knob.BorderSizePixel = 0
+			knob.Parent = trackBtn
+			createCorner(knob, 6)
+			createStroke(knob, THEME.MainBackground, 2, 0)
+
+			local SliderObj = { Value = currentVal }
+			NightSystem.Flags[flag] = currentVal
+
+			local function roundToIncrement(raw: number): number
+				local snapped = minVal + math.round((raw - minVal) / increment) * increment
+				local decimals = 0
+				local incStr = tostring(increment)
+				local dotPos = string.find(incStr, ".", 1, true)
+				if dotPos then
+					decimals = #incStr - dotPos
 				end
-				return if #active == 0 then "None" else table.concat(active, ", ")
-			else
-				return if selectedSingle ~= "" then selectedSingle else "Select..."
+				local factor = 10 ^ decimals
+				return math.clamp(math.round(snapped * factor) / factor, minVal, maxVal)
 			end
-		end
 
-		local headerBtn = Instance.new("TextButton")
-		headerBtn.Size = UDim2.new(0, 155, 0, 26)
-		headerBtn.Position = UDim2.new(1, -14, 0, if hasDesc then 14 else 9)
-		headerBtn.AnchorPoint = Vector2.new(1, 0)
-		headerBtn.BackgroundColor3 = THEME.CardInner
-		headerBtn.BorderSizePixel = 0
-		headerBtn.AutoButtonColor = false
-		headerBtn.Text = ""
-		headerBtn.Parent = card
-		createCorner(headerBtn, 6)
-		createStroke(headerBtn, THEME.Stroke, 1, 0.2)
+			function SliderObj:Set(val: number, silent: boolean?)
+				local clamped = roundToIncrement(tonumber(val) or minVal)
+				currentVal = clamped
+				SliderObj.Value = clamped
+				NightSystem.Flags[flag] = clamped
 
-		local selectedLabel = Instance.new("TextLabel")
-		selectedLabel.Size = UDim2.new(1, -30, 1, 0)
-		selectedLabel.Position = UDim2.new(0, 10, 0, 0)
-		selectedLabel.BackgroundTransparency = 1
-		selectedLabel.Font = Enum.Font.GothamMedium
-		selectedLabel.Text = getDisplaySummary()
-		selectedLabel.TextColor3 = THEME.TextPrimary
-		selectedLabel.TextSize = 12
-		selectedLabel.TextXAlignment = Enum.TextXAlignment.Left
-		selectedLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		selectedLabel.Parent = headerBtn
+				local pct = if maxVal > minVal then (clamped - minVal) / (maxVal - minVal) else 0
+				tween(fillBar, TWEEN_FAST, { Size = UDim2.new(pct, 0, 1, 0) })
+				tween(knob, TWEEN_FAST, { Position = UDim2.new(pct, 0, 0.5, 0) })
+				valueInput.Text = tostring(clamped) .. suffix
 
-		local arrow = Instance.new("ImageLabel")
-		arrow.Size = UDim2.new(0, 14, 0, 14)
-		arrow.Position = UDim2.new(1, -8, 0.5, 0)
-		arrow.AnchorPoint = Vector2.new(1, 0.5)
-		arrow.BackgroundTransparency = 1
-		arrow.Image = ASSETS.ChevronDown
-		arrow.ImageColor3 = THEME.TextSecondary
-		arrow.Parent = headerBtn
-
-		local drawerFrame = Instance.new("Frame")
-		drawerFrame.Size = UDim2.new(1, -28, 0, 160)
-		drawerFrame.Position = UDim2.new(0, 14, 0, closedHeight + 4)
-		drawerFrame.BackgroundColor3 = THEME.CardInner
-		drawerFrame.BorderSizePixel = 0
-		drawerFrame.ClipsDescendants = true
-		drawerFrame.Parent = card
-		createCorner(drawerFrame, 7)
-		createStroke(drawerFrame, THEME.Stroke, 1, 0.2)
-
-		local searchOffset = 0
-		local searchInput: TextBox? = nil
-
-		if isSearchable then
-			searchOffset = 34
-			local searchBar = Instance.new("Frame")
-			searchBar.Size = UDim2.new(1, -12, 0, 26)
-			searchBar.Position = UDim2.new(0, 6, 0, 6)
-			searchBar.BackgroundColor3 = THEME.MainBackground
-			searchBar.BorderSizePixel = 0
-			searchBar.Parent = drawerFrame
-			createCorner(searchBar, 5)
-			createStroke(searchBar, THEME.Stroke, 1, 0.25)
-
-			local sIcon = Instance.new("ImageLabel")
-			sIcon.Size = UDim2.new(0, 12, 0, 12)
-			sIcon.Position = UDim2.new(0, 8, 0.5, 0)
-			sIcon.AnchorPoint = Vector2.new(0, 0.5)
-			sIcon.BackgroundTransparency = 1
-			sIcon.Image = ASSETS.Search
-			sIcon.ImageColor3 = THEME.TextSecondary
-			sIcon.Parent = searchBar
-
-			local sBox = Instance.new("TextBox")
-			sBox.Size = UDim2.new(1, -28, 1, 0)
-			sBox.Position = UDim2.new(0, 24, 0, 0)
-			sBox.BackgroundTransparency = 1
-			sBox.Font = Enum.Font.GothamMedium
-			sBox.PlaceholderText = "Search options..."
-			sBox.PlaceholderColor3 = THEME.TextSecondary
-			sBox.Text = ""
-			sBox.TextColor3 = THEME.TextPrimary
-			sBox.TextSize = 11
-			sBox.TextXAlignment = Enum.TextXAlignment.Left
-			sBox.ClearTextOnFocus = false
-			sBox.Parent = searchBar
-			searchInput = sBox
-		end
-
-		local optionsScroll = Instance.new("ScrollingFrame")
-		optionsScroll.Size = UDim2.new(1, -8, 1, -(searchOffset + 8))
-		optionsScroll.Position = UDim2.new(0, 4, 0, searchOffset + 4)
-		optionsScroll.BackgroundTransparency = 1
-		optionsScroll.BorderSizePixel = 0
-		optionsScroll.ScrollBarThickness = 2
-		optionsScroll.ScrollBarImageColor3 = THEME.Accent
-		optionsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-		optionsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-		optionsScroll.Parent = drawerFrame
-		createPadding(optionsScroll, 2, 2, 2, 4)
-
-		local optLayout = Instance.new("UIListLayout")
-		optLayout.FillDirection = Enum.FillDirection.Vertical
-		optLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		optLayout.Padding = UDim.new(0, 4)
-		optLayout.Parent = optionsScroll
-
-		local isOpen = false
-		local optionButtons: { { Btn: TextButton, Label: TextLabel, Indicator: Frame, OptionValue: string } } = {}
-
-		local function getDrawerHeight(): number
-			local visibleCount = 0
-			for _, entry in ipairs(optionButtons) do
-				if entry.Btn.Visible then
-					visibleCount += 1
+				if not silent then
+					safeCallback(callback, clamped)
 				end
 			end
-			return searchOffset + math.clamp(visibleCount * 30, 30, 132) + 10
-		end
 
-		local function updateOpenHeight()
-			if isOpen then
-				local dHeight = getDrawerHeight()
-				drawerFrame.Size = UDim2.new(1, -28, 0, dHeight)
-				tween(card, TWEEN_MEDIUM, { Size = UDim2.new(1, 0, 0, closedHeight + dHeight + 14) })
-				tween(arrow, TWEEN_FAST, { Rotation = 180, ImageColor3 = THEME.Accent })
-				tween(cardStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
-			else
-				tween(card, TWEEN_MEDIUM, { Size = UDim2.new(1, 0, 0, closedHeight) })
-				tween(arrow, TWEEN_FAST, { Rotation = 0, ImageColor3 = THEME.TextSecondary })
-				tween(cardStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+			SliderObj.SetValue = SliderObj.Set
+
+			function SliderObj:Get(): number
+				return currentVal
 			end
+
+			SliderObj.GetValue = SliderObj.Get
+
+			function SliderObj:OnChanged(cb: (number) -> ())
+				callback = cb
+			end
+
+			local sliding = false
+			local function updateFromMouse(inputPos: Vector2)
+				local trackX = trackBtn.AbsolutePosition.X
+				local trackW = math.max(1, trackBtn.AbsoluteSize.X)
+				local rel = math.clamp((inputPos.X - trackX) / trackW, 0, 1)
+				SliderObj:Set(minVal + (maxVal - minVal) * rel)
+			end
+
+			trackBtn.InputBegan:Connect(function(input: InputObject)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					sliding = true
+					tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 15, 0, 15) })
+					updateFromMouse(Vector2.new(input.Position.X, input.Position.Y))
+					input.Changed:Connect(function()
+						if input.UserInputState == Enum.UserInputState.End then
+							sliding = false
+							tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 12, 0, 12) })
+						end
+					end)
+				end
+			end)
+
+			trackConnection(UserInputService.InputEnded:Connect(function(input: InputObject)
+				if sliding and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+					sliding = false
+					tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 12, 0, 12) })
+				end
+			end))
+
+			trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
+				if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+					updateFromMouse(Vector2.new(input.Position.X, input.Position.Y))
+				end
+			end))
+
+			valueInput.Focused:Connect(function()
+				tween(valStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+				valueInput.Text = tostring(currentVal)
+			end)
+			valueInput.FocusLost:Connect(function()
+				tween(valStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+				local num = tonumber(valueInput.Text)
+				if num then
+					SliderObj:Set(num)
+				else
+					valueInput.Text = tostring(currentVal) .. suffix
+				end
+			end)
+
+			return SliderObj
 		end
 
-		local function updateVisualSelection()
+		-- 5. Window:CreateDropdown(...)
+		function targetTab:CreateDropdown(opt1: any, opt2: any, opt3: any, opt4: any)
+			local opts = normDropdown(opt1, opt2, opt3, opt4)
+			local name = tostring(opts.Name or "Dropdown")
+			local desc = opts.Description
+			local optionList: { string } = opts.Options or {}
+			local isMulti = opts.Multi == true
+			local isSearchable = if opts.Search ~= nil then opts.Search else true
+			local flag = opts.Flag or name
+			local callback = opts.Callback
+
+			local hasDesc = desc ~= nil and desc ~= ""
+			local closedHeight = if hasDesc then 54 else 44
+			local card, cardStroke = createBaseCard("Dropdown", name, desc, closedHeight, opts.LayoutOrder)
+
+			local selectedSingle: string = ""
+			local selectedMulti: { [string]: boolean } = {}
+
+			if isMulti then
+				if type(opts.Default) == "table" then
+					for _, item in ipairs(opts.Default) do
+						selectedMulti[tostring(item)] = true
+					end
+				elseif type(opts.Default) == "string" and opts.Default ~= "" then
+					selectedMulti[opts.Default] = true
+				end
+			else
+				if type(opts.Default) == "string" then
+					selectedSingle = opts.Default
+				elseif type(opts.Default) == "table" and opts.Default[1] ~= nil then
+					selectedSingle = tostring(opts.Default[1])
+				elseif #optionList > 0 then
+					selectedSingle = tostring(optionList[1])
+				end
+			end
+
+			local function getDisplaySummary(): string
+				if isMulti then
+					local active = {}
+					for _, opt in ipairs(optionList) do
+						if selectedMulti[tostring(opt)] then
+							table.insert(active, tostring(opt))
+						end
+					end
+					return if #active == 0 then "None" else table.concat(active, ", ")
+				else
+					return if selectedSingle ~= "" then selectedSingle else "Select..."
+				end
+			end
+
+			local headerBtn = Instance.new("TextButton")
+			headerBtn.Size = UDim2.new(0, 155, 0, 26)
+			headerBtn.Position = UDim2.new(1, -14, 0, if hasDesc then 14 else 9)
+			headerBtn.AnchorPoint = Vector2.new(1, 0)
+			headerBtn.BackgroundColor3 = THEME.CardInner
+			headerBtn.BorderSizePixel = 0
+			headerBtn.AutoButtonColor = false
+			headerBtn.Text = ""
+			headerBtn.Parent = card
+			createCorner(headerBtn, 6)
+			createStroke(headerBtn, THEME.Stroke, 1, 0.2)
+
+			local selectedLabel = Instance.new("TextLabel")
+			selectedLabel.Size = UDim2.new(1, -30, 1, 0)
+			selectedLabel.Position = UDim2.new(0, 10, 0, 0)
+			selectedLabel.BackgroundTransparency = 1
+			selectedLabel.Font = Enum.Font.GothamMedium
 			selectedLabel.Text = getDisplaySummary()
-			for _, item in ipairs(optionButtons) do
-				local active = if isMulti
-					then (selectedMulti[item.OptionValue] == true)
-					else (selectedSingle == item.OptionValue)
-				tween(item.Btn, TWEEN_FAST, {
-					BackgroundColor3 = if active then THEME.CardHover else THEME.MainBackground,
-					BackgroundTransparency = if active then 0 else 0.4,
-				})
-				tween(item.Label, TWEEN_FAST, {
-					TextColor3 = if active then THEME.Accent else THEME.TextSecondary,
-				})
-				tween(item.Indicator, TWEEN_FAST, {
-					BackgroundTransparency = if active then 0 else 1,
-				})
+			selectedLabel.TextColor3 = THEME.TextPrimary
+			selectedLabel.TextSize = 12
+			selectedLabel.TextXAlignment = Enum.TextXAlignment.Left
+			selectedLabel.TextTruncate = Enum.TextTruncate.AtEnd
+			selectedLabel.Parent = headerBtn
+
+			local arrow = Instance.new("ImageLabel")
+			arrow.Size = UDim2.new(0, 14, 0, 14)
+			arrow.Position = UDim2.new(1, -8, 0.5, 0)
+			arrow.AnchorPoint = Vector2.new(1, 0.5)
+			arrow.BackgroundTransparency = 1
+			arrow.Image = ASSETS.ChevronDown
+			arrow.ImageColor3 = THEME.TextSecondary
+			arrow.Parent = headerBtn
+
+			local drawerFrame = Instance.new("Frame")
+			drawerFrame.Size = UDim2.new(1, -28, 0, 160)
+			drawerFrame.Position = UDim2.new(0, 14, 0, closedHeight + 4)
+			drawerFrame.BackgroundColor3 = THEME.CardInner
+			drawerFrame.BorderSizePixel = 0
+			drawerFrame.ClipsDescendants = true
+			drawerFrame.Parent = card
+			createCorner(drawerFrame, 7)
+			createStroke(drawerFrame, THEME.Stroke, 1, 0.2)
+
+			local searchOffset = 0
+			local searchInput: TextBox? = nil
+
+			if isSearchable then
+				searchOffset = 34
+				local searchBar = Instance.new("Frame")
+				searchBar.Size = UDim2.new(1, -12, 0, 26)
+				searchBar.Position = UDim2.new(0, 6, 0, 6)
+				searchBar.BackgroundColor3 = THEME.MainBackground
+				searchBar.BorderSizePixel = 0
+				searchBar.Parent = drawerFrame
+				createCorner(searchBar, 5)
+				createStroke(searchBar, THEME.Stroke, 1, 0.25)
+
+				local sIcon = Instance.new("ImageLabel")
+				sIcon.Size = UDim2.new(0, 12, 0, 12)
+				sIcon.Position = UDim2.new(0, 8, 0.5, 0)
+				sIcon.AnchorPoint = Vector2.new(0, 0.5)
+				sIcon.BackgroundTransparency = 1
+				sIcon.Image = ASSETS.Search
+				sIcon.ImageColor3 = THEME.TextSecondary
+				sIcon.Parent = searchBar
+
+				local sBox = Instance.new("TextBox")
+				sBox.Size = UDim2.new(1, -28, 1, 0)
+				sBox.Position = UDim2.new(0, 24, 0, 0)
+				sBox.BackgroundTransparency = 1
+				sBox.Font = Enum.Font.GothamMedium
+				sBox.PlaceholderText = "Search options..."
+				sBox.PlaceholderColor3 = THEME.TextSecondary
+				sBox.Text = ""
+				sBox.TextColor3 = THEME.TextPrimary
+				sBox.TextSize = 11
+				sBox.TextXAlignment = Enum.TextXAlignment.Left
+				sBox.ClearTextOnFocus = false
+				sBox.Parent = searchBar
+				searchInput = sBox
 			end
-		end
 
-		local function emitValue(silent: boolean?)
-			local outValue: any
-			if isMulti then
-				local copy = {}
-				for k, v in pairs(selectedMulti) do
-					if v then
-						copy[k] = true
-					end
-				end
-				outValue = copy
-			else
-				outValue = selectedSingle
-			end
-			NightSystem.Flags[flag] = outValue
-			if not silent then
-				safeCallback(callback, outValue)
-			end
-		end
+			local optionsScroll = Instance.new("ScrollingFrame")
+			optionsScroll.Size = UDim2.new(1, -8, 1, -(searchOffset + 8))
+			optionsScroll.Position = UDim2.new(0, 4, 0, searchOffset + 4)
+			optionsScroll.BackgroundTransparency = 1
+			optionsScroll.BorderSizePixel = 0
+			optionsScroll.ScrollBarThickness = 2
+			optionsScroll.ScrollBarImageColor3 = THEME.Accent
+			optionsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+			optionsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+			optionsScroll.Parent = drawerFrame
+			createPadding(optionsScroll, 2, 2, 2, 4)
 
-		local function rebuildOptionButtons()
-			for _, child in ipairs(optionsScroll:GetChildren()) do
-				if child:IsA("TextButton") then
-					child:Destroy()
-				end
-			end
-			table.clear(optionButtons)
+			local optLayout = Instance.new("UIListLayout")
+			optLayout.FillDirection = Enum.FillDirection.Vertical
+			optLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			optLayout.Padding = UDim.new(0, 4)
+			optLayout.Parent = optionsScroll
 
-			for idx, rawOpt in ipairs(optionList) do
-				local optStr = tostring(rawOpt)
-				local optBtn = Instance.new("TextButton")
-				optBtn.Size = UDim2.new(1, 0, 0, 26)
-				optBtn.BackgroundColor3 = THEME.MainBackground
-				optBtn.BackgroundTransparency = 0.4
-				optBtn.BorderSizePixel = 0
-				optBtn.AutoButtonColor = false
-				optBtn.Text = ""
-				optBtn.LayoutOrder = idx
-				optBtn.Parent = optionsScroll
-				createCorner(optBtn, 5)
+			local isOpen = false
+			local optionButtons: { { Btn: TextButton, Label: TextLabel, Indicator: Frame, OptionValue: string } } = {}
 
-				local ind = Instance.new("Frame")
-				ind.Size = UDim2.new(0, 3, 0, 12)
-				ind.Position = UDim2.new(0, 4, 0.5, 0)
-				ind.AnchorPoint = Vector2.new(0, 0.5)
-				ind.BackgroundColor3 = THEME.Accent
-				ind.BackgroundTransparency = 1
-				ind.BorderSizePixel = 0
-				ind.Parent = optBtn
-				createCorner(ind, 2)
-
-				local lbl = Instance.new("TextLabel")
-				lbl.Size = UDim2.new(1, -24, 1, 0)
-				lbl.Position = UDim2.new(0, 14, 0, 0)
-				lbl.BackgroundTransparency = 1
-				lbl.Font = Enum.Font.GothamMedium
-				lbl.Text = optStr
-				lbl.TextColor3 = THEME.TextSecondary
-				lbl.TextSize = 12
-				lbl.TextXAlignment = Enum.TextXAlignment.Left
-				lbl.TextTruncate = Enum.TextTruncate.AtEnd
-				lbl.Parent = optBtn
-
-				optBtn.MouseButton1Click:Connect(function()
-					if isMulti then
-						selectedMulti[optStr] = not selectedMulti[optStr]
-						updateVisualSelection()
-						emitValue(false)
-					else
-						selectedSingle = optStr
-						updateVisualSelection()
-						emitValue(false)
-						isOpen = false
-						updateOpenHeight()
-					end
-				end)
-
-				table.insert(optionButtons, {
-					Btn = optBtn,
-					Label = lbl,
-					Indicator = ind,
-					OptionValue = optStr,
-				})
-			end
-			updateVisualSelection()
-			if isOpen then
-				updateOpenHeight()
-			end
-		end
-
-		if searchInput then
-			searchInput:GetPropertyChangedSignal("Text"):Connect(function()
-				local q = string.lower(string.gsub(searchInput.Text, "^%s*(.-)%s*$", "%1"))
+			local function getDrawerHeight(): number
+				local visibleCount = 0
 				for _, entry in ipairs(optionButtons) do
-					entry.Btn.Visible = (q == "") or (string.find(string.lower(entry.OptionValue), q, 1, true) ~= nil)
+					if entry.Btn.Visible then
+						visibleCount += 1
+					end
 				end
+				return searchOffset + math.clamp(visibleCount * 30, 30, 132) + 10
+			end
+
+			local function updateOpenHeight()
+				if isOpen then
+					local dHeight = getDrawerHeight()
+					drawerFrame.Size = UDim2.new(1, -28, 0, dHeight)
+					tween(card, TWEEN_MEDIUM, { Size = UDim2.new(1, 0, 0, closedHeight + dHeight + 14) })
+					tween(arrow, TWEEN_FAST, { Rotation = 180, ImageColor3 = THEME.Accent })
+					tween(cardStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
+				else
+					tween(card, TWEEN_MEDIUM, { Size = UDim2.new(1, 0, 0, closedHeight) })
+					tween(arrow, TWEEN_FAST, { Rotation = 0, ImageColor3 = THEME.TextSecondary })
+					tween(cardStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+				end
+			end
+
+			local function updateVisualSelection()
+				selectedLabel.Text = getDisplaySummary()
+				for _, item in ipairs(optionButtons) do
+					local active = if isMulti
+						then (selectedMulti[item.OptionValue] == true)
+						else (selectedSingle == item.OptionValue)
+					tween(item.Btn, TWEEN_FAST, {
+						BackgroundColor3 = if active then THEME.CardHover else THEME.MainBackground,
+						BackgroundTransparency = if active then 0 else 0.4,
+					})
+					tween(item.Label, TWEEN_FAST, {
+						TextColor3 = if active then THEME.Accent else THEME.TextSecondary,
+					})
+					tween(item.Indicator, TWEEN_FAST, {
+						BackgroundTransparency = if active then 0 else 1,
+					})
+				end
+			end
+
+			local DropdownObj = { Value = if isMulti then selectedMulti else selectedSingle }
+
+			local function emitValue(silent: boolean?)
+				local outValue: any
+				if isMulti then
+					local copy = {}
+					for k, v in pairs(selectedMulti) do
+						if v then
+							copy[k] = true
+						end
+					end
+					outValue = copy
+				else
+					outValue = selectedSingle
+				end
+				DropdownObj.Value = outValue
+				NightSystem.Flags[flag] = outValue
+				if not silent then
+					safeCallback(callback, outValue)
+				end
+			end
+
+			local function rebuildOptionButtons()
+				for _, child in ipairs(optionsScroll:GetChildren()) do
+					if child:IsA("TextButton") then
+						child:Destroy()
+					end
+				end
+				table.clear(optionButtons)
+
+				for idx, rawOpt in ipairs(optionList) do
+					local optStr = tostring(rawOpt)
+					local optBtn = Instance.new("TextButton")
+					optBtn.Size = UDim2.new(1, 0, 0, 26)
+					optBtn.BackgroundColor3 = THEME.MainBackground
+					optBtn.BackgroundTransparency = 0.4
+					optBtn.BorderSizePixel = 0
+					optBtn.AutoButtonColor = false
+					optBtn.Text = ""
+					optBtn.LayoutOrder = idx
+					optBtn.Parent = optionsScroll
+					createCorner(optBtn, 5)
+
+					local ind = Instance.new("Frame")
+					ind.Size = UDim2.new(0, 3, 0, 12)
+					ind.Position = UDim2.new(0, 4, 0.5, 0)
+					ind.AnchorPoint = Vector2.new(0, 0.5)
+					ind.BackgroundColor3 = THEME.Accent
+					ind.BackgroundTransparency = 1
+					ind.BorderSizePixel = 0
+					ind.Parent = optBtn
+					createCorner(ind, 2)
+
+					local lbl = Instance.new("TextLabel")
+					lbl.Size = UDim2.new(1, -24, 1, 0)
+					lbl.Position = UDim2.new(0, 14, 0, 0)
+					lbl.BackgroundTransparency = 1
+					lbl.Font = Enum.Font.GothamMedium
+					lbl.Text = optStr
+					lbl.TextColor3 = THEME.TextSecondary
+					lbl.TextSize = 12
+					lbl.TextXAlignment = Enum.TextXAlignment.Left
+					lbl.TextTruncate = Enum.TextTruncate.AtEnd
+					lbl.Parent = optBtn
+
+					optBtn.MouseButton1Click:Connect(function()
+						if isMulti then
+							selectedMulti[optStr] = not selectedMulti[optStr]
+							updateVisualSelection()
+							emitValue(false)
+						else
+							selectedSingle = optStr
+							updateVisualSelection()
+							emitValue(false)
+							isOpen = false
+							updateOpenHeight()
+						end
+					end)
+
+					table.insert(optionButtons, {
+						Btn = optBtn,
+						Label = lbl,
+						Indicator = ind,
+						OptionValue = optStr,
+					})
+				end
+				updateVisualSelection()
 				if isOpen then
 					updateOpenHeight()
 				end
-			end)
-		end
+			end
 
-		headerBtn.MouseButton1Click:Connect(function()
-			isOpen = not isOpen
-			updateOpenHeight()
-		end)
-
-		rebuildOptionButtons()
-		emitValue(true)
-
-		local DropdownObj = {}
-		function DropdownObj:Set(val: any, silent: boolean?)
-			if isMulti then
-				table.clear(selectedMulti)
-				if type(val) == "table" then
-					for k, v in pairs(val) do
-						if type(k) == "number" then
-							selectedMulti[tostring(v)] = true
-						elseif v then
-							selectedMulti[tostring(k)] = true
-						end
+			if searchInput then
+				searchInput:GetPropertyChangedSignal("Text"):Connect(function()
+					local q = string.lower(string.gsub(searchInput.Text, "^%s*(.-)%s*$", "%1"))
+					for _, entry in ipairs(optionButtons) do
+						entry.Btn.Visible = (q == "") or (string.find(string.lower(entry.OptionValue), q, 1, true) ~= nil)
 					end
-				elseif type(val) == "string" then
-					selectedMulti[val] = true
-				end
-			else
-				selectedSingle = tostring(val or "")
+					if isOpen then
+						updateOpenHeight()
+					end
+				end)
 			end
-			updateVisualSelection()
-			emitValue(silent)
-		end
 
-		function DropdownObj:Refresh(newOptions: { string }, keepSelection: boolean?)
-			optionList = newOptions or {}
-			if not keepSelection then
-				table.clear(selectedMulti)
-				selectedSingle = if #optionList > 0 then tostring(optionList[1]) else ""
-			end
+			headerBtn.MouseButton1Click:Connect(function()
+				isOpen = not isOpen
+				updateOpenHeight()
+			end)
+
 			rebuildOptionButtons()
 			emitValue(true)
-		end
 
-		function DropdownObj:Get(): any
-			return NightSystem.Flags[flag]
-		end
-
-		return DropdownObj
-	end
-
-	-- 6. Window:CreateInput(...)
-	function targetTab:CreateInput(options: {
-		Name: string?,
-		Description: string?,
-		Placeholder: string?,
-		Default: string?,
-		ClearTextOnFocus: boolean?,
-		Flag: string?,
-		LayoutOrder: number?,
-		Callback: ((string) -> ())?,
-	})
-		local opts = options or {}
-		local name = tostring(opts.Name or "Input")
-		local desc = opts.Description
-		local placeholder = tostring(opts.Placeholder or "Enter text...")
-		local defaultText = tostring(opts.Default or "")
-		local clearOnFocus = opts.ClearTextOnFocus == true
-		local flag = opts.Flag or name
-		local callback = opts.Callback
-
-		local card = createBaseCard("Input", name, desc, 46, opts.LayoutOrder)
-
-		local inputHolder = Instance.new("Frame")
-		inputHolder.Size = UDim2.new(0, 170, 0, 26)
-		inputHolder.Position = UDim2.new(1, -14, 0.5, 0)
-		inputHolder.AnchorPoint = Vector2.new(1, 0.5)
-		inputHolder.BackgroundColor3 = THEME.CardInner
-		inputHolder.BorderSizePixel = 0
-		inputHolder.Parent = card
-		createCorner(inputHolder, 6)
-		local boxStroke = createStroke(inputHolder, THEME.Stroke, 1, 0.2)
-
-		local textBox = Instance.new("TextBox")
-		textBox.Size = UDim2.new(1, -16, 1, 0)
-		textBox.Position = UDim2.new(0, 8, 0, 0)
-		textBox.BackgroundTransparency = 1
-		textBox.Font = Enum.Font.GothamMedium
-		textBox.PlaceholderText = placeholder
-		textBox.PlaceholderColor3 = THEME.TextSecondary
-		textBox.Text = defaultText
-		textBox.TextColor3 = THEME.TextPrimary
-		textBox.TextSize = 12
-		textBox.TextXAlignment = Enum.TextXAlignment.Left
-		textBox.TextTruncate = Enum.TextTruncate.AtEnd
-		textBox.ClearTextOnFocus = clearOnFocus
-		textBox.Parent = inputHolder
-
-		NightSystem.Flags[flag] = defaultText
-		local InputObj = { Value = defaultText }
-
-		function InputObj:Set(newText: string, silent: boolean?)
-			local str = tostring(newText or "")
-			textBox.Text = str
-			InputObj.Value = str
-			NightSystem.Flags[flag] = str
-			if not silent then
-				safeCallback(callback, str)
-			end
-		end
-
-		function InputObj:Get(): string
-			return InputObj.Value
-		end
-
-		textBox.Focused:Connect(function()
-			tween(boxStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
-		end)
-		textBox.FocusLost:Connect(function()
-			tween(boxStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-			InputObj.Value = textBox.Text
-			NightSystem.Flags[flag] = textBox.Text
-			safeCallback(callback, textBox.Text)
-		end)
-
-		return InputObj
-	end
-
-	-- 7. Window:CreateKeybind(...)
-	function targetTab:CreateKeybind(options: {
-		Name: string?,
-		Description: string?,
-		Default: EnumItem?,
-		Mode: string?,
-		Flag: string?,
-		LayoutOrder: number?,
-		Callback: ((EnumItem?) -> ())?,
-	})
-		local opts = options or {}
-		local name = tostring(opts.Name or "Keybind")
-		local desc = opts.Description
-		local currentKey: EnumItem? = opts.Default or Enum.KeyCode.E
-		local mode = tostring(opts.Mode or "Toggle")
-		local flag = opts.Flag or name
-		local callback = opts.Callback
-
-		local card = createBaseCard("Keybind", name, desc, 44, opts.LayoutOrder)
-
-		local bindBtn = Instance.new("TextButton")
-		bindBtn.AutomaticSize = Enum.AutomaticSize.X
-		bindBtn.Size = UDim2.new(0, 32, 0, 24)
-		bindBtn.Position = UDim2.new(1, -14, 0.5, 0)
-		bindBtn.AnchorPoint = Vector2.new(1, 0.5)
-		bindBtn.BackgroundColor3 = THEME.CardInner
-		bindBtn.BorderSizePixel = 0
-		bindBtn.AutoButtonColor = false
-		bindBtn.Font = Enum.Font.GothamBold
-		bindBtn.Text = formatKeyName(currentKey)
-		bindBtn.TextColor3 = THEME.TextPrimary
-		bindBtn.TextSize = 11
-		bindBtn.Parent = card
-		createCorner(bindBtn, 6)
-		createPadding(bindBtn, 0, 0, 10, 10)
-		local bindStroke = createStroke(bindBtn, THEME.Stroke, 1, 0.2)
-
-		local isBinding = false
-		NightSystem.Flags[flag] = currentKey
-		local KeybindObj = { Value = currentKey, Mode = mode }
-
-		function KeybindObj:Set(newKey: EnumItem?)
-			currentKey = newKey
-			KeybindObj.Value = newKey
-			NightSystem.Flags[flag] = newKey
-			bindBtn.Text = formatKeyName(currentKey)
-		end
-
-		function KeybindObj:Get(): EnumItem?
-			return currentKey
-		end
-
-		bindBtn.MouseButton1Click:Connect(function()
-			if isBinding then
-				return
-			end
-			isBinding = true
-			bindBtn.Text = "..."
-			tween(bindStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
-		end)
-
-		trackConnection(UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
-			if isBinding then
-				if input.UserInputType == Enum.UserInputType.Keyboard then
-					if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace then
-						KeybindObj:Set(nil)
-					else
-						KeybindObj:Set(input.KeyCode)
+			function DropdownObj:Set(val: any, silent: boolean?)
+				if isMulti then
+					table.clear(selectedMulti)
+					if type(val) == "table" then
+						for k, v in pairs(val) do
+							if type(k) == "number" then
+								selectedMulti[tostring(v)] = true
+							elseif v then
+								selectedMulti[tostring(k)] = true
+							end
+						end
+					elseif type(val) == "string" then
+						selectedMulti[val] = true
 					end
-					isBinding = false
-					tween(bindStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-				elseif
-					input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.MouseButton2
-					or input.UserInputType == Enum.UserInputType.MouseButton3
-				then
-					KeybindObj:Set(input.UserInputType)
-					isBinding = false
-					tween(bindStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+					DropdownObj.Value = selectedMulti
+				else
+					selectedSingle = tostring(val or "")
+					DropdownObj.Value = selectedSingle
 				end
-				return
+				updateVisualSelection()
+				emitValue(silent)
 			end
 
-			if gameProcessed or UserInputService:GetFocusedTextBox() then
-				return
-			end
+			DropdownObj.SetValue = DropdownObj.Set
 
-			if currentKey then
-				local matched = (input.KeyCode == currentKey) or (input.UserInputType == currentKey)
-				if matched then
-					safeCallback(callback, currentKey)
+			function DropdownObj:Refresh(newOptions: { string }, keepSelection: boolean?)
+				optionList = newOptions or {}
+				if not keepSelection then
+					table.clear(selectedMulti)
+					selectedSingle = if #optionList > 0 then tostring(optionList[1]) else ""
 				end
+				DropdownObj.Value = if isMulti then selectedMulti else selectedSingle
+				rebuildOptionButtons()
+				emitValue(true)
 			end
-		end))
 
-		return KeybindObj
-	end
+			DropdownObj.SetValues = DropdownObj.Refresh
 
-	-- 8. Window:CreateColorPicker(...)
-	function targetTab:CreateColorPicker(options: {
-		Name: string?,
-		Description: string?,
-		Default: Color3?,
-		Flag: string?,
-		LayoutOrder: number?,
-		Callback: ((Color3) -> ())?,
-	})
-		local opts = options or {}
-		local name = tostring(opts.Name or "Color Picker")
-		local desc = opts.Description
-		local currentColor = opts.Default or Color3.fromRGB(255, 255, 255)
-		local flag = opts.Flag or name
-		local callback = opts.Callback
+			function DropdownObj:Clear()
+				table.clear(selectedMulti)
+				selectedSingle = ""
+				DropdownObj.Value = if isMulti then selectedMulti else selectedSingle
+				updateVisualSelection()
+				emitValue(false)
+			end
 
-		local h, s, v = 0, 1, 1
-		pcall(function()
-			h, s, v = currentColor:ToHSV()
-		end)
-		local hasDesc = desc ~= nil and desc ~= ""
-		local closedHeight = if hasDesc then 54 else 44
-		local expandedHeight = closedHeight + 158
+			function DropdownObj:Get(): any
+				return NightSystem.Flags[flag]
+			end
 
-		local card, cardStroke = createBaseCard("ColorPicker", name, desc, closedHeight, opts.LayoutOrder)
+			DropdownObj.GetValue = DropdownObj.Get
 
-		local previewBtn = Instance.new("TextButton")
-		previewBtn.Size = UDim2.new(0, 108, 0, 26)
-		previewBtn.Position = UDim2.new(1, -14, 0, if hasDesc then 14 else 9)
-		previewBtn.AnchorPoint = Vector2.new(1, 0)
-		previewBtn.BackgroundColor3 = THEME.CardInner
-		previewBtn.BorderSizePixel = 0
-		previewBtn.AutoButtonColor = false
-		previewBtn.Text = ""
-		previewBtn.Parent = card
-		createCorner(previewBtn, 6)
-		createStroke(previewBtn, THEME.Stroke, 1, 0.2)
+			function DropdownObj:OnChanged(cb: (any) -> ())
+				callback = cb
+			end
 
-		local hexPreviewLabel = Instance.new("TextLabel")
-		hexPreviewLabel.Size = UDim2.new(1, -36, 1, 0)
-		hexPreviewLabel.Position = UDim2.new(0, 8, 0, 0)
-		hexPreviewLabel.BackgroundTransparency = 1
-		hexPreviewLabel.Font = Enum.Font.GothamBold
-		hexPreviewLabel.Text = colorToHex(currentColor)
-		hexPreviewLabel.TextColor3 = THEME.TextSecondary
-		hexPreviewLabel.TextSize = 11
-		hexPreviewLabel.TextXAlignment = Enum.TextXAlignment.Left
-		hexPreviewLabel.Parent = previewBtn
-
-		local swatch = Instance.new("Frame")
-		swatch.Size = UDim2.new(0, 20, 0, 16)
-		swatch.Position = UDim2.new(1, -6, 0.5, 0)
-		swatch.AnchorPoint = Vector2.new(1, 0.5)
-		swatch.BackgroundColor3 = currentColor
-		swatch.BorderSizePixel = 0
-		swatch.Parent = previewBtn
-		createCorner(swatch, 4)
-		createStroke(swatch, THEME.Stroke, 1, 0.1)
-
-		local pickerDrawer = Instance.new("Frame")
-		pickerDrawer.Size = UDim2.new(1, -28, 0, 144)
-		pickerDrawer.Position = UDim2.new(0, 14, 0, closedHeight + 4)
-		pickerDrawer.BackgroundColor3 = THEME.CardInner
-		pickerDrawer.BorderSizePixel = 0
-		pickerDrawer.Parent = card
-		createCorner(pickerDrawer, 8)
-		createStroke(pickerDrawer, THEME.Stroke, 1, 0.2)
-
-		local svCanvas = Instance.new("TextButton")
-		svCanvas.Size = UDim2.new(1, -150, 0, 96)
-		svCanvas.Position = UDim2.new(0, 10, 0, 10)
-		svCanvas.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-		svCanvas.BorderSizePixel = 0
-		svCanvas.AutoButtonColor = false
-		svCanvas.Text = ""
-		svCanvas.ClipsDescendants = true
-		svCanvas.Parent = pickerDrawer
-		createCorner(svCanvas, 6)
-		createStroke(svCanvas, THEME.Stroke, 1, 0.2)
-
-		local satLayer = Instance.new("Frame")
-		satLayer.Size = UDim2.new(1, 0, 1, 0)
-		satLayer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		satLayer.BorderSizePixel = 0
-		satLayer.Parent = svCanvas
-		createCorner(satLayer, 6)
-
-		local satGrad = Instance.new("UIGradient")
-		satGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
-		satGrad.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0),
-			NumberSequenceKeypoint.new(1, 1),
-		})
-		satGrad.Parent = satLayer
-
-		local valLayer = Instance.new("Frame")
-		valLayer.Size = UDim2.new(1, 0, 1, 0)
-		valLayer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		valLayer.BorderSizePixel = 0
-		valLayer.Parent = svCanvas
-		createCorner(valLayer, 6)
-
-		local valGrad = Instance.new("UIGradient")
-		valGrad.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
-		valGrad.Rotation = 90
-		valGrad.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(1, 0),
-		})
-		valGrad.Parent = valLayer
-
-		local svCursor = Instance.new("Frame")
-		svCursor.Size = UDim2.new(0, 10, 0, 10)
-		svCursor.Position = UDim2.new(s, 0, 1 - v, 0)
-		svCursor.AnchorPoint = Vector2.new(0.5, 0.5)
-		svCursor.BackgroundColor3 = THEME.Accent
-		svCursor.BorderSizePixel = 0
-		svCursor.ZIndex = 4
-		svCursor.Parent = svCanvas
-		createCorner(svCursor, 5)
-		createStroke(svCursor, THEME.MainBackground, 2, 0)
-
-		local hueBar = Instance.new("TextButton")
-		hueBar.Size = UDim2.new(1, -150, 0, 14)
-		hueBar.Position = UDim2.new(0, 10, 0, 116)
-		hueBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		hueBar.BorderSizePixel = 0
-		hueBar.AutoButtonColor = false
-		hueBar.Text = ""
-		hueBar.Parent = pickerDrawer
-		createCorner(hueBar, 4)
-		createStroke(hueBar, THEME.Stroke, 1, 0.2)
-
-		local hueGrad = Instance.new("UIGradient")
-		hueGrad.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
-			ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
-			ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
-			ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 255, 255)),
-			ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),
-			ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
-			ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0)),
-		})
-		hueGrad.Parent = hueBar
-
-		local hueCursor = Instance.new("Frame")
-		hueCursor.Size = UDim2.new(0, 6, 1, 4)
-		hueCursor.Position = UDim2.new(h, 0, 0.5, 0)
-		hueCursor.AnchorPoint = Vector2.new(0.5, 0.5)
-		hueCursor.BackgroundColor3 = THEME.Accent
-		hueCursor.BorderSizePixel = 0
-		hueCursor.Parent = hueBar
-		createCorner(hueCursor, 3)
-		createStroke(hueCursor, THEME.MainBackground, 1, 0)
-
-		local inputsPanel = Instance.new("Frame")
-		inputsPanel.Size = UDim2.new(0, 124, 0, 120)
-		inputsPanel.Position = UDim2.new(1, -10, 0, 10)
-		inputsPanel.AnchorPoint = Vector2.new(1, 0)
-		inputsPanel.BackgroundTransparency = 1
-		inputsPanel.Parent = pickerDrawer
-
-		local function createSmallField(labelStr: string, yPos: number): TextBox
-			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, 0, 0, 26)
-			row.Position = UDim2.new(0, 0, 0, yPos)
-			row.BackgroundColor3 = THEME.MainBackground
-			row.BorderSizePixel = 0
-			row.Parent = inputsPanel
-			createCorner(row, 5)
-			createStroke(row, THEME.Stroke, 1, 0.2)
-
-			local tag = Instance.new("TextLabel")
-			tag.Size = UDim2.new(0, 34, 1, 0)
-			tag.Position = UDim2.new(0, 8, 0, 0)
-			tag.BackgroundTransparency = 1
-			tag.Font = Enum.Font.GothamBold
-			tag.Text = labelStr
-			tag.TextColor3 = THEME.TextSecondary
-			tag.TextSize = 10
-			tag.TextXAlignment = Enum.TextXAlignment.Left
-			tag.Parent = row
-
-			local box = Instance.new("TextBox")
-			box.Size = UDim2.new(1, -44, 1, 0)
-			box.Position = UDim2.new(0, 40, 0, 0)
-			box.BackgroundTransparency = 1
-			box.Font = Enum.Font.GothamMedium
-			box.Text = ""
-			box.TextColor3 = THEME.TextPrimary
-			box.TextSize = 11
-			box.TextXAlignment = Enum.TextXAlignment.Right
-			box.ClearTextOnFocus = false
-			box.Parent = row
-
-			return box
+			return DropdownObj
 		end
 
-		local hexBox = createSmallField("HEX", 0)
-		local rBox = createSmallField("R", 31)
-		local gBox = createSmallField("G", 62)
-		local bBox = createSmallField("B", 93)
+		-- 6. Window:CreateInput(...)
+		function targetTab:CreateInput(opt1: any, opt2: any, opt3: any, opt4: any)
+			local opts = normInput(opt1, opt2, opt3, opt4)
+			local name = tostring(opts.Name or "Input")
+			local desc = opts.Description
+			local placeholder = tostring(opts.Placeholder or "Enter text...")
+			local defaultText = tostring(opts.Default or "")
+			local clearOnFocus = opts.ClearTextOnFocus == true
+			local flag = opts.Flag or name
+			local callback = opts.Callback
 
-		local ColorPickerObj = { Value = currentColor }
-		NightSystem.Flags[flag] = currentColor
+			local card = createBaseCard("Input", name, desc, 46, opts.LayoutOrder)
 
-		local function syncColorVisuals(silent: boolean?)
-			currentColor = Color3.fromHSV(h, s, v)
-			ColorPickerObj.Value = currentColor
+			local inputHolder = Instance.new("Frame")
+			inputHolder.Size = UDim2.new(0, 170, 0, 26)
+			inputHolder.Position = UDim2.new(1, -14, 0.5, 0)
+			inputHolder.AnchorPoint = Vector2.new(1, 0.5)
+			inputHolder.BackgroundColor3 = THEME.CardInner
+			inputHolder.BorderSizePixel = 0
+			inputHolder.Parent = card
+			createCorner(inputHolder, 6)
+			local boxStroke = createStroke(inputHolder, THEME.Stroke, 1, 0.2)
+
+			local textBox = Instance.new("TextBox")
+			textBox.Size = UDim2.new(1, -16, 1, 0)
+			textBox.Position = UDim2.new(0, 8, 0, 0)
+			textBox.BackgroundTransparency = 1
+			textBox.Font = Enum.Font.GothamMedium
+			textBox.PlaceholderText = placeholder
+			textBox.PlaceholderColor3 = THEME.TextSecondary
+			textBox.Text = defaultText
+			textBox.TextColor3 = THEME.TextPrimary
+			textBox.TextSize = 12
+			textBox.TextXAlignment = Enum.TextXAlignment.Left
+			textBox.TextTruncate = Enum.TextTruncate.AtEnd
+			textBox.ClearTextOnFocus = clearOnFocus
+			textBox.Parent = inputHolder
+
+			NightSystem.Flags[flag] = defaultText
+			local InputObj = { Value = defaultText }
+
+			function InputObj:Set(newText: string, silent: boolean?)
+				local str = tostring(newText or "")
+				textBox.Text = str
+				InputObj.Value = str
+				NightSystem.Flags[flag] = str
+				if not silent then
+					safeCallback(callback, str)
+				end
+			end
+
+			InputObj.SetValue = InputObj.Set
+
+			function InputObj:Get(): string
+				return InputObj.Value
+			end
+
+			InputObj.GetValue = InputObj.Get
+
+			function InputObj:OnChanged(cb: (string) -> ())
+				callback = cb
+			end
+
+			textBox.Focused:Connect(function()
+				tween(boxStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+			end)
+			textBox.FocusLost:Connect(function()
+				tween(boxStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+				InputObj.Value = textBox.Text
+				NightSystem.Flags[flag] = textBox.Text
+				safeCallback(callback, textBox.Text)
+			end)
+
+			return InputObj
+		end
+
+		-- 7. Window:CreateKeybind(...)
+		function targetTab:CreateKeybind(opt1: any, opt2: any, opt3: any, opt4: any)
+			local opts = normKeybind(opt1, opt2, opt3, opt4)
+			local name = tostring(opts.Name or "Keybind")
+			local desc = opts.Description
+			local currentKey: EnumItem? = opts.Default or Enum.KeyCode.E
+			local mode = tostring(opts.Mode or "Toggle")
+			local flag = opts.Flag or name
+			local callback = opts.Callback
+
+			local card = createBaseCard("Keybind", name, desc, 44, opts.LayoutOrder)
+
+			local bindBtn = Instance.new("TextButton")
+			bindBtn.AutomaticSize = Enum.AutomaticSize.X
+			bindBtn.Size = UDim2.new(0, 32, 0, 24)
+			bindBtn.Position = UDim2.new(1, -14, 0.5, 0)
+			bindBtn.AnchorPoint = Vector2.new(1, 0.5)
+			bindBtn.BackgroundColor3 = THEME.CardInner
+			bindBtn.BorderSizePixel = 0
+			bindBtn.AutoButtonColor = false
+			bindBtn.Font = Enum.Font.GothamBold
+			bindBtn.Text = formatKeyName(currentKey)
+			bindBtn.TextColor3 = THEME.TextPrimary
+			bindBtn.TextSize = 11
+			bindBtn.Parent = card
+			createCorner(bindBtn, 6)
+			createPadding(bindBtn, 0, 0, 10, 10)
+			local bindStroke = createStroke(bindBtn, THEME.Stroke, 1, 0.2)
+
+			local isBinding = false
+			NightSystem.Flags[flag] = currentKey
+			local KeybindObj = { Value = currentKey, Mode = mode }
+
+			function KeybindObj:Set(newKey: EnumItem?)
+				currentKey = newKey
+				KeybindObj.Value = newKey
+				NightSystem.Flags[flag] = newKey
+				bindBtn.Text = formatKeyName(currentKey)
+			end
+
+			KeybindObj.SetValue = KeybindObj.Set
+
+			function KeybindObj:Get(): EnumItem?
+				return currentKey
+			end
+
+			KeybindObj.GetValue = KeybindObj.Get
+
+			function KeybindObj:OnChanged(cb: (EnumItem?) -> ())
+				callback = cb
+			end
+
+			bindBtn.MouseButton1Click:Connect(function()
+				if isBinding then
+					return
+				end
+				isBinding = true
+				bindBtn.Text = "..."
+				tween(bindStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+			end)
+
+			trackConnection(UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+				if isBinding then
+					if input.UserInputType == Enum.UserInputType.Keyboard then
+						if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace then
+							KeybindObj:Set(nil)
+						else
+							KeybindObj:Set(input.KeyCode)
+						end
+						isBinding = false
+						tween(bindStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+					elseif
+						input.UserInputType == Enum.UserInputType.MouseButton1
+						or input.UserInputType == Enum.UserInputType.MouseButton2
+						or input.UserInputType == Enum.UserInputType.MouseButton3
+					then
+						KeybindObj:Set(input.UserInputType)
+						isBinding = false
+						tween(bindStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+					end
+					return
+				end
+
+				if gameProcessed or UserInputService:GetFocusedTextBox() then
+					return
+				end
+
+				if currentKey then
+					local matched = (input.KeyCode == currentKey) or (input.UserInputType == currentKey)
+					if matched then
+						safeCallback(callback, currentKey)
+					end
+				end
+			end))
+
+			return KeybindObj
+		end
+
+		-- 8. Window:CreateColorPicker(...)
+		function targetTab:CreateColorPicker(opt1: any, opt2: any, opt3: any, opt4: any)
+			local opts = normColorPicker(opt1, opt2, opt3, opt4)
+			local name = tostring(opts.Name or "Color Picker")
+			local desc = opts.Description
+			local currentColor = opts.Default or Color3.fromRGB(255, 255, 255)
+			local flag = opts.Flag or name
+			local callback = opts.Callback
+
+			local h, s, v = 0, 1, 1
+			pcall(function()
+				h, s, v = currentColor:ToHSV()
+			end)
+			local hasDesc = desc ~= nil and desc ~= ""
+			local closedHeight = if hasDesc then 54 else 44
+			local expandedHeight = closedHeight + 158
+
+			local card, cardStroke = createBaseCard("ColorPicker", name, desc, closedHeight, opts.LayoutOrder)
+
+			local previewBtn = Instance.new("TextButton")
+			previewBtn.Size = UDim2.new(0, 108, 0, 26)
+			previewBtn.Position = UDim2.new(1, -14, 0, if hasDesc then 14 else 9)
+			previewBtn.AnchorPoint = Vector2.new(1, 0)
+			previewBtn.BackgroundColor3 = THEME.CardInner
+			previewBtn.BorderSizePixel = 0
+			previewBtn.AutoButtonColor = false
+			previewBtn.Text = ""
+			previewBtn.Parent = card
+			createCorner(previewBtn, 6)
+			createStroke(previewBtn, THEME.Stroke, 1, 0.2)
+
+			local hexPreviewLabel = Instance.new("TextLabel")
+			hexPreviewLabel.Size = UDim2.new(1, -36, 1, 0)
+			hexPreviewLabel.Position = UDim2.new(0, 8, 0, 0)
+			hexPreviewLabel.BackgroundTransparency = 1
+			hexPreviewLabel.Font = Enum.Font.GothamBold
+			hexPreviewLabel.Text = colorToHex(currentColor)
+			hexPreviewLabel.TextColor3 = THEME.TextSecondary
+			hexPreviewLabel.TextSize = 11
+			hexPreviewLabel.TextXAlignment = Enum.TextXAlignment.Left
+			hexPreviewLabel.Parent = previewBtn
+
+			local swatch = Instance.new("Frame")
+			swatch.Size = UDim2.new(0, 20, 0, 16)
+			swatch.Position = UDim2.new(1, -6, 0.5, 0)
+			swatch.AnchorPoint = Vector2.new(1, 0.5)
+			swatch.BackgroundColor3 = currentColor
+			swatch.BorderSizePixel = 0
+			swatch.Parent = previewBtn
+			createCorner(swatch, 4)
+			createStroke(swatch, THEME.Stroke, 1, 0.1)
+
+			local pickerDrawer = Instance.new("Frame")
+			pickerDrawer.Size = UDim2.new(1, -28, 0, 144)
+			pickerDrawer.Position = UDim2.new(0, 14, 0, closedHeight + 4)
+			pickerDrawer.BackgroundColor3 = THEME.CardInner
+			pickerDrawer.BorderSizePixel = 0
+			pickerDrawer.Parent = card
+			createCorner(pickerDrawer, 8)
+			createStroke(pickerDrawer, THEME.Stroke, 1, 0.2)
+
+			local svCanvas = Instance.new("TextButton")
+			svCanvas.Size = UDim2.new(1, -150, 0, 96)
+			svCanvas.Position = UDim2.new(0, 10, 0, 10)
+			svCanvas.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+			svCanvas.BorderSizePixel = 0
+			svCanvas.AutoButtonColor = false
+			svCanvas.Text = ""
+			svCanvas.ClipsDescendants = true
+			svCanvas.Parent = pickerDrawer
+			createCorner(svCanvas, 6)
+			createStroke(svCanvas, THEME.Stroke, 1, 0.2)
+
+			local satLayer = Instance.new("Frame")
+			satLayer.Size = UDim2.new(1, 0, 1, 0)
+			satLayer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			satLayer.BorderSizePixel = 0
+			satLayer.Parent = svCanvas
+			createCorner(satLayer, 6)
+
+			local satGrad = Instance.new("UIGradient")
+			satGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+			satGrad.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			satGrad.Parent = satLayer
+
+			local valLayer = Instance.new("Frame")
+			valLayer.Size = UDim2.new(1, 0, 1, 0)
+			valLayer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			valLayer.BorderSizePixel = 0
+			valLayer.Parent = svCanvas
+			createCorner(valLayer, 6)
+
+			local valGrad = Instance.new("UIGradient")
+			valGrad.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
+			valGrad.Rotation = 90
+			valGrad.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(1, 0),
+			})
+			valGrad.Parent = valLayer
+
+			local svCursor = Instance.new("Frame")
+			svCursor.Size = UDim2.new(0, 10, 0, 10)
+			svCursor.Position = UDim2.new(s, 0, 1 - v, 0)
+			svCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+			svCursor.BackgroundColor3 = THEME.Accent
+			svCursor.BorderSizePixel = 0
+			svCursor.ZIndex = 4
+			svCursor.Parent = svCanvas
+			createCorner(svCursor, 5)
+			createStroke(svCursor, THEME.MainBackground, 2, 0)
+
+			local hueBar = Instance.new("TextButton")
+			hueBar.Size = UDim2.new(1, -150, 0, 14)
+			hueBar.Position = UDim2.new(0, 10, 0, 116)
+			hueBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			hueBar.BorderSizePixel = 0
+			hueBar.AutoButtonColor = false
+			hueBar.Text = ""
+			hueBar.Parent = pickerDrawer
+			createCorner(hueBar, 4)
+			createStroke(hueBar, THEME.Stroke, 1, 0.2)
+
+			local hueGrad = Instance.new("UIGradient")
+			hueGrad.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
+				ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
+				ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 255, 255)),
+				ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),
+				ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0)),
+			})
+			hueGrad.Parent = hueBar
+
+			local hueCursor = Instance.new("Frame")
+			hueCursor.Size = UDim2.new(0, 6, 1, 4)
+			hueCursor.Position = UDim2.new(h, 0, 0.5, 0)
+			hueCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+			hueCursor.BackgroundColor3 = THEME.Accent
+			hueCursor.BorderSizePixel = 0
+			hueCursor.Parent = hueBar
+			createCorner(hueCursor, 3)
+			createStroke(hueCursor, THEME.MainBackground, 1, 0)
+
+			local inputsPanel = Instance.new("Frame")
+			inputsPanel.Size = UDim2.new(0, 124, 0, 120)
+			inputsPanel.Position = UDim2.new(1, -10, 0, 10)
+			inputsPanel.AnchorPoint = Vector2.new(1, 0)
+			inputsPanel.BackgroundTransparency = 1
+			inputsPanel.Parent = pickerDrawer
+
+			local function createSmallField(labelStr: string, yPos: number): TextBox
+				local row = Instance.new("Frame")
+				row.Size = UDim2.new(1, 0, 0, 26)
+				row.Position = UDim2.new(0, 0, 0, yPos)
+				row.BackgroundColor3 = THEME.MainBackground
+				row.BorderSizePixel = 0
+				row.Parent = inputsPanel
+				createCorner(row, 5)
+				createStroke(row, THEME.Stroke, 1, 0.2)
+
+				local tag = Instance.new("TextLabel")
+				tag.Size = UDim2.new(0, 34, 1, 0)
+				tag.Position = UDim2.new(0, 8, 0, 0)
+				tag.BackgroundTransparency = 1
+				tag.Font = Enum.Font.GothamBold
+				tag.Text = labelStr
+				tag.TextColor3 = THEME.TextSecondary
+				tag.TextSize = 10
+				tag.TextXAlignment = Enum.TextXAlignment.Left
+				tag.Parent = row
+
+				local box = Instance.new("TextBox")
+				box.Size = UDim2.new(1, -44, 1, 0)
+				box.Position = UDim2.new(0, 40, 0, 0)
+				box.BackgroundTransparency = 1
+				box.Font = Enum.Font.GothamMedium
+				box.Text = ""
+				box.TextColor3 = THEME.TextPrimary
+				box.TextSize = 11
+				box.TextXAlignment = Enum.TextXAlignment.Right
+				box.ClearTextOnFocus = false
+				box.Parent = row
+
+				return box
+			end
+
+			local hexBox = createSmallField("HEX", 0)
+			local rBox = createSmallField("R", 31)
+			local gBox = createSmallField("G", 62)
+			local bBox = createSmallField("B", 93)
+
+			local ColorPickerObj = { Value = currentColor }
 			NightSystem.Flags[flag] = currentColor
 
-			local hexStr = colorToHex(currentColor)
-			swatch.BackgroundColor3 = currentColor
-			hexPreviewLabel.Text = hexStr
-			svCanvas.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-			svCursor.Position = UDim2.new(s, 0, 1 - v, 0)
-			hueCursor.Position = UDim2.new(h, 0, 0.5, 0)
+			local function syncColorVisuals(silent: boolean?)
+				ColorPickerObj.Value = currentColor
+				NightSystem.Flags[flag] = currentColor
 
-			hexBox.Text = hexStr
-			local cR = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.R) then currentColor.R else 1
-			local cG = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.G) then currentColor.G else 1
-			local cB = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.B) then currentColor.B else 1
-			rBox.Text = tostring(math.round(cR * 255))
-			gBox.Text = tostring(math.round(cG * 255))
-			bBox.Text = tostring(math.round(cB * 255))
+				local hexStr = colorToHex(currentColor)
+				swatch.BackgroundColor3 = currentColor
+				hexPreviewLabel.Text = hexStr
+				svCanvas.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+				svCursor.Position = UDim2.new(s, 0, 1 - v, 0)
+				hueCursor.Position = UDim2.new(h, 0, 0.5, 0)
 
-			if not silent then
-				safeCallback(callback, currentColor)
-			end
-		end
+				hexBox.Text = hexStr
+				local cR = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.R) then currentColor.R else 1
+				local cG = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.G) then currentColor.G else 1
+				local cB = if typeof(currentColor) == "Color3" or (type(currentColor) == "table" and currentColor.B) then currentColor.B else 1
+				rBox.Text = tostring(math.round(cR * 255))
+				gBox.Text = tostring(math.round(cG * 255))
+				bBox.Text = tostring(math.round(cB * 255))
 
-		function ColorPickerObj:Set(newColor: Color3, silent: boolean?)
-			if typeof(newColor) == "Color3" then
-				pcall(function()
-				h, s, v = newColor:ToHSV()
-			end)
-				syncColorVisuals(silent)
-			end
-		end
-
-		function ColorPickerObj:Get(): Color3
-			return currentColor
-		end
-
-		local draggingSV = false
-		local draggingHue = false
-
-		local function updateSV(pos: Vector2)
-			s = math.clamp((pos.X - svCanvas.AbsolutePosition.X) / math.max(1, svCanvas.AbsoluteSize.X), 0, 1)
-			v = 1 - math.clamp((pos.Y - svCanvas.AbsolutePosition.Y) / math.max(1, svCanvas.AbsoluteSize.Y), 0, 1)
-			syncColorVisuals(false)
-		end
-
-		local function updateHue(pos: Vector2)
-			h = math.clamp((pos.X - hueBar.AbsolutePosition.X) / math.max(1, hueBar.AbsoluteSize.X), 0, 1)
-			syncColorVisuals(false)
-		end
-
-		svCanvas.InputBegan:Connect(function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				draggingSV = true
-				updateSV(Vector2.new(input.Position.X, input.Position.Y))
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						draggingSV = false
-					end
-				end)
-			end
-		end)
-
-		hueBar.InputBegan:Connect(function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				draggingHue = true
-				updateHue(Vector2.new(input.Position.X, input.Position.Y))
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						draggingHue = false
-					end
-				end)
-			end
-		end)
-
-		trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-				local p = Vector2.new(input.Position.X, input.Position.Y)
-				if draggingSV then
-					updateSV(p)
-				elseif draggingHue then
-					updateHue(p)
+				if not silent then
+					safeCallback(callback, currentColor)
 				end
 			end
-		end))
 
-		hexBox.FocusLost:Connect(function()
-			local parsed = hexToColor(hexBox.Text)
-			if parsed then
-				ColorPickerObj:Set(parsed, false)
-			else
-				syncColorVisuals(true)
+			function ColorPickerObj:Set(newColor: Color3, silent: boolean?)
+				if typeof(newColor) == "Color3" or (type(newColor) == "table" and newColor.R) then
+					currentColor = newColor
+					pcall(function()
+						h, s, v = newColor:ToHSV()
+					end)
+					syncColorVisuals(silent)
+				end
 			end
-		end)
 
-		local function onRgbEdited()
-			local r = math.clamp(tonumber(rBox.Text) or math.round(currentColor.R * 255), 0, 255)
-			local g = math.clamp(tonumber(gBox.Text) or math.round(currentColor.G * 255), 0, 255)
-			local b = math.clamp(tonumber(bBox.Text) or math.round(currentColor.B * 255), 0, 255)
-			ColorPickerObj:Set(Color3.fromRGB(r, g, b), false)
+			ColorPickerObj.SetValue = ColorPickerObj.Set
+
+			function ColorPickerObj:Get(): Color3
+				return currentColor
+			end
+
+			ColorPickerObj.GetValue = ColorPickerObj.Get
+
+			function ColorPickerObj:OnChanged(cb: (Color3) -> ())
+				callback = cb
+			end
+
+			local draggingSV = false
+			local draggingHue = false
+
+			local function updateSV(pos: Vector2)
+				s = math.clamp((pos.X - svCanvas.AbsolutePosition.X) / math.max(1, svCanvas.AbsoluteSize.X), 0, 1)
+				v = 1 - math.clamp((pos.Y - svCanvas.AbsolutePosition.Y) / math.max(1, svCanvas.AbsoluteSize.Y), 0, 1)
+				currentColor = Color3.fromHSV(h, s, v)
+				syncColorVisuals(false)
+			end
+
+			local function updateHue(pos: Vector2)
+				h = math.clamp((pos.X - hueBar.AbsolutePosition.X) / math.max(1, hueBar.AbsoluteSize.X), 0, 1)
+				currentColor = Color3.fromHSV(h, s, v)
+				syncColorVisuals(false)
+			end
+
+			svCanvas.InputBegan:Connect(function(input: InputObject)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					draggingSV = true
+					updateSV(Vector2.new(input.Position.X, input.Position.Y))
+					input.Changed:Connect(function()
+						if input.UserInputState == Enum.UserInputState.End then
+							draggingSV = false
+						end
+					end)
+				end
+			end)
+
+			hueBar.InputBegan:Connect(function(input: InputObject)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					draggingHue = true
+					updateHue(Vector2.new(input.Position.X, input.Position.Y))
+					input.Changed:Connect(function()
+						if input.UserInputState == Enum.UserInputState.End then
+							draggingHue = false
+						end
+					end)
+				end
+			end)
+
+			trackConnection(UserInputService.InputEnded:Connect(function(input: InputObject)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					draggingSV = false
+					draggingHue = false
+				end
+			end))
+
+			trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
+				if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+					local p = Vector2.new(input.Position.X, input.Position.Y)
+					if draggingSV then
+						updateSV(p)
+					elseif draggingHue then
+						updateHue(p)
+					end
+				end
+			end))
+
+			hexBox.FocusLost:Connect(function()
+				local parsed = hexToColor(hexBox.Text)
+				if parsed then
+					ColorPickerObj:Set(parsed, false)
+				else
+					syncColorVisuals(true)
+				end
+			end)
+
+			local function onRgbEdited()
+				local r = math.clamp(tonumber(rBox.Text) or math.round(currentColor.R * 255), 0, 255)
+				local g = math.clamp(tonumber(gBox.Text) or math.round(currentColor.G * 255), 0, 255)
+				local b = math.clamp(tonumber(bBox.Text) or math.round(currentColor.B * 255), 0, 255)
+				ColorPickerObj:Set(Color3.fromRGB(r, g, b), false)
+			end
+			rBox.FocusLost:Connect(onRgbEdited)
+			gBox.FocusLost:Connect(onRgbEdited)
+			bBox.FocusLost:Connect(onRgbEdited)
+
+			local isExpanded = false
+			previewBtn.MouseButton1Click:Connect(function()
+				isExpanded = not isExpanded
+				if isExpanded then
+					tween(card, TWEEN_MEDIUM, { Size = UDim2.new(1, 0, 0, expandedHeight) })
+					tween(cardStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
+				else
+					tween(card, TWEEN_MEDIUM, { Size = UDim2.new(1, 0, 0, closedHeight) })
+					tween(cardStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+				end
+			end)
+
+			syncColorVisuals(true)
+			return ColorPickerObj
 		end
-		rBox.FocusLost:Connect(onRgbEdited)
-		gBox.FocusLost:Connect(onRgbEdited)
-		bBox.FocusLost:Connect(onRgbEdited)
 
-		local isExpanded = false
-		previewBtn.MouseButton1Click:Connect(function()
-			isExpanded = not isExpanded
-			if isExpanded then
-				tween(card, TWEEN_MEDIUM, { Size = UDim2.new(1, 0, 0, expandedHeight) })
-				tween(cardStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
-			else
-				tween(card, TWEEN_MEDIUM, { Size = UDim2.new(1, 0, 0, closedHeight) })
-				tween(cardStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+		-- 9. Window:CreateLabel(Text)
+		function targetTab:CreateLabel(opt1: any, opt2: any)
+			local opts = normLabel(opt1, opt2)
+			local text = opts.Text
+			local manualOrder = opts.LayoutOrder
+
+			local card = Instance.new("Frame")
+			card.Name = "Label_" .. string.sub(text, 1, 16)
+			card.Size = UDim2.new(1, 0, 0, 34)
+			card.BackgroundColor3 = THEME.CardBackground
+			card.BackgroundTransparency = 0.25
+			card.BorderSizePixel = 0
+			card.LayoutOrder = computeLayoutOrder("Label", manualOrder)
+			card.Parent = tabScroll
+			createCorner(card, 7)
+			createStroke(card, THEME.Stroke, 1, 0.25)
+
+			local dot = Instance.new("Frame")
+			dot.Size = UDim2.new(0, 5, 0, 5)
+			dot.Position = UDim2.new(0, 14, 0.5, 0)
+			dot.AnchorPoint = Vector2.new(0, 0.5)
+			dot.BackgroundColor3 = THEME.Accent
+			dot.BorderSizePixel = 0
+			dot.Parent = card
+			createCorner(dot, 3)
+
+			local lbl = Instance.new("TextLabel")
+			lbl.Size = UDim2.new(1, -36, 1, 0)
+			lbl.Position = UDim2.new(0, 26, 0, 0)
+			lbl.BackgroundTransparency = 1
+			lbl.Font = Enum.Font.GothamMedium
+			lbl.Text = text
+			lbl.TextColor3 = THEME.TextInfo
+			lbl.TextSize = 12
+			lbl.TextXAlignment = Enum.TextXAlignment.Left
+			lbl.TextTruncate = Enum.TextTruncate.AtEnd
+			lbl.Parent = card
+
+			registerSearchable(card, text)
+
+			local LabelObj = {}
+			function LabelObj:Set(newText: string)
+				lbl.Text = tostring(newText)
 			end
-		end)
-
-		syncColorVisuals(true)
-		return ColorPickerObj
-	end
-
-	-- 9. Window:CreateLabel(Text)
-	function targetTab:CreateLabel(labelConfig: any, ...)
-		local opts = normLabel(labelConfig)
-		local text = opts.Text
-		local manualOrder = opts.LayoutOrder
-
-		local card = Instance.new("Frame")
-		card.Name = "Label_" .. string.sub(text, 1, 16)
-		card.Size = UDim2.new(1, 0, 0, 34)
-		card.BackgroundColor3 = THEME.CardBackground
-		card.BackgroundTransparency = 0.25
-		card.BorderSizePixel = 0
-		card.LayoutOrder = computeLayoutOrder("Label", manualOrder)
-		card.Parent = tabScroll
-		createCorner(card, 7)
-		createStroke(card, THEME.Stroke, 1, 0.25)
-
-		local dot = Instance.new("Frame")
-		dot.Size = UDim2.new(0, 5, 0, 5)
-		dot.Position = UDim2.new(0, 14, 0.5, 0)
-		dot.AnchorPoint = Vector2.new(0, 0.5)
-		dot.BackgroundColor3 = THEME.Accent
-		dot.BorderSizePixel = 0
-		dot.Parent = card
-		createCorner(dot, 3)
-
-		local lbl = Instance.new("TextLabel")
-		lbl.Size = UDim2.new(1, -36, 1, 0)
-		lbl.Position = UDim2.new(0, 26, 0, 0)
-		lbl.BackgroundTransparency = 1
-		lbl.Font = Enum.Font.GothamMedium
-		lbl.Text = text
-		lbl.TextColor3 = THEME.TextInfo
-		lbl.TextSize = 12
-		lbl.TextXAlignment = Enum.TextXAlignment.Left
-		lbl.TextTruncate = Enum.TextTruncate.AtEnd
-		lbl.Parent = card
-
-		registerSearchable(card, text)
-
-		local LabelObj = {}
-		function LabelObj:Set(newText: string)
-			lbl.Text = tostring(newText)
+			LabelObj.SetText = LabelObj.Set
+			return LabelObj
 		end
-		return LabelObj
-	end
 
-	-- 10. Window:CreateParagraph({ Title = "...", Content = "..." })
-	function targetTab:CreateParagraph(options: any, ...)
-		local opts = normParagraph(options, ...)
-		local title = tostring(opts.Title or "Information")
-		local content = tostring(opts.Content or "")
+		-- 10. Window:CreateParagraph({ Title = "...", Content = "..." })
+		function targetTab:CreateParagraph(opt1: any, opt2: any)
+			local opts = normParagraph(opt1, opt2)
+			local title = tostring(opts.Title or "Information")
+			local content = tostring(opts.Content or "")
 
-		local card = Instance.new("Frame")
-		card.Name = "Paragraph_" .. title
-		card.AutomaticSize = Enum.AutomaticSize.Y
-		card.Size = UDim2.new(1, 0, 0, 56)
-		card.BackgroundColor3 = THEME.CardBackground
-		card.BorderSizePixel = 0
-		card.LayoutOrder = computeLayoutOrder("Paragraph", opts.LayoutOrder)
-		card.Parent = tabScroll
-		createCorner(card, 8)
-		createStroke(card, THEME.Stroke, 1, 0.2)
-		createPadding(card, 12, 12, 14, 14)
+			local card = Instance.new("Frame")
+			card.Name = "Paragraph_" .. title
+			card.AutomaticSize = Enum.AutomaticSize.Y
+			card.Size = UDim2.new(1, 0, 0, 56)
+			card.BackgroundColor3 = THEME.CardBackground
+			card.BorderSizePixel = 0
+			card.LayoutOrder = computeLayoutOrder("Paragraph", opts.LayoutOrder)
+			card.Parent = tabScroll
+			createCorner(card, 8)
+			createStroke(card, THEME.Stroke, 1, 0.2)
+			createPadding(card, 12, 12, 14, 14)
 
-		local pLayout = Instance.new("UIListLayout")
-		pLayout.FillDirection = Enum.FillDirection.Vertical
-		pLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		pLayout.Padding = UDim.new(0, 4)
-		pLayout.Parent = card
+			local pLayout = Instance.new("UIListLayout")
+			pLayout.FillDirection = Enum.FillDirection.Vertical
+			pLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			pLayout.Padding = UDim.new(0, 4)
+			pLayout.Parent = card
 
-		local titleLbl = Instance.new("TextLabel")
-		titleLbl.Size = UDim2.new(1, 0, 0, 16)
-		titleLbl.BackgroundTransparency = 1
-		titleLbl.Font = Enum.Font.GothamBold
-		titleLbl.Text = title
-		titleLbl.TextColor3 = THEME.TextPrimary
-		titleLbl.TextSize = 13
-		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
-		titleLbl.LayoutOrder = 1
-		titleLbl.Parent = card
+			local titleLbl = Instance.new("TextLabel")
+			titleLbl.Size = UDim2.new(1, 0, 0, 16)
+			titleLbl.BackgroundTransparency = 1
+			titleLbl.Font = Enum.Font.GothamBold
+			titleLbl.Text = title
+			titleLbl.TextColor3 = THEME.TextPrimary
+			titleLbl.TextSize = 13
+			titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+			titleLbl.LayoutOrder = 1
+			titleLbl.Parent = card
 
-		local contentLbl = Instance.new("TextLabel")
-		contentLbl.AutomaticSize = Enum.AutomaticSize.Y
-		contentLbl.Size = UDim2.new(1, 0, 0, 16)
-		contentLbl.BackgroundTransparency = 1
-		contentLbl.Font = Enum.Font.GothamMedium
-		contentLbl.Text = content
-		contentLbl.TextColor3 = THEME.TextInfo
-		contentLbl.TextSize = 12
-		contentLbl.TextWrapped = true
-		contentLbl.TextXAlignment = Enum.TextXAlignment.Left
-		contentLbl.TextYAlignment = Enum.TextYAlignment.Top
-		contentLbl.LineHeight = 1.25
-		contentLbl.LayoutOrder = 2
-		contentLbl.Parent = card
+			local contentLbl = Instance.new("TextLabel")
+			contentLbl.AutomaticSize = Enum.AutomaticSize.Y
+			contentLbl.Size = UDim2.new(1, 0, 0, 16)
+			contentLbl.BackgroundTransparency = 1
+			contentLbl.Font = Enum.Font.GothamMedium
+			contentLbl.Text = content
+			contentLbl.TextColor3 = THEME.TextInfo
+			contentLbl.TextSize = 12
+			contentLbl.TextWrapped = true
+			contentLbl.TextXAlignment = Enum.TextXAlignment.Left
+			contentLbl.TextYAlignment = Enum.TextYAlignment.Top
+			contentLbl.LineHeight = 1.25
+			contentLbl.LayoutOrder = 2
+			contentLbl.Parent = card
 
-		registerSearchable(card, title .. " " .. content)
+			registerSearchable(card, title .. " " .. content)
 
-		local ParagraphObj = {}
-		function ParagraphObj:Set(newOpts: { Title: string?, Content: string? })
-			if newOpts.Title then
-				titleLbl.Text = tostring(newOpts.Title)
+			local ParagraphObj = {}
+			function ParagraphObj:Set(newOpts: { Title: string?, Content: string? } | string, extraContent: string?)
+				if type(newOpts) == "table" then
+					if newOpts.Title then
+						titleLbl.Text = tostring(newOpts.Title)
+					end
+					if newOpts.Content or newOpts.Text or newOpts.Desc then
+						contentLbl.Text = tostring(newOpts.Content or newOpts.Text or newOpts.Desc)
+					end
+				else
+					titleLbl.Text = tostring(newOpts or "")
+					if extraContent ~= nil then
+						contentLbl.Text = tostring(extraContent)
+					end
+				end
 			end
-			if newOpts.Content then
-				contentLbl.Text = tostring(newOpts.Content)
-			end
+			ParagraphObj.SetTitle = function(self, t: string) titleLbl.Text = tostring(t) end
+			ParagraphObj.SetContent = function(self, c: string) contentLbl.Text = tostring(c) end
+			return ParagraphObj
 		end
-		return ParagraphObj
-	end
 
-	-- 11. Window:CreateDivider()
-	function targetTab:CreateDivider(manualOrder: number?)
-		local divHolder = Instance.new("Frame")
-		divHolder.Name = "Divider"
-		divHolder.Size = UDim2.new(1, 0, 0, 10)
-		divHolder.BackgroundTransparency = 1
-		divHolder.LayoutOrder = computeLayoutOrder("Divider", manualOrder)
-		divHolder.Parent = tabScroll
+		-- 11. Window:CreateDivider()
+		function targetTab:CreateDivider(manualOrder: number?)
+			local divHolder = Instance.new("Frame")
+			divHolder.Name = "Divider"
+			divHolder.Size = UDim2.new(1, 0, 0, 10)
+			divHolder.BackgroundTransparency = 1
+			divHolder.LayoutOrder = computeLayoutOrder("Divider", manualOrder)
+			divHolder.Parent = tabScroll
 
-		local line = Instance.new("Frame")
-		line.Size = UDim2.new(1, -8, 0, 1)
-		line.Position = UDim2.new(0.5, 0, 0.5, 0)
-		line.AnchorPoint = Vector2.new(0.5, 0.5)
-		line.BackgroundColor3 = THEME.Stroke
-		line.BackgroundTransparency = 0.2
-		line.BorderSizePixel = 0
-		line.Parent = divHolder
+			local line = Instance.new("Frame")
+			line.Size = UDim2.new(1, -8, 0, 1)
+			line.Position = UDim2.new(0.5, 0, 0.5, 0)
+			line.AnchorPoint = Vector2.new(0.5, 0.5)
+			line.BackgroundColor3 = THEME.Stroke
+			line.BackgroundTransparency = 0.2
+			line.BorderSizePixel = 0
+			line.Parent = divHolder
 
-		return divHolder
-	end
-
-
+			return divHolder
+		end
 
 		-- Multi-Library Aliases on Tab
 		targetTab.AddToggle = targetTab.CreateToggle
