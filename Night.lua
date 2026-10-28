@@ -1,4 +1,28 @@
 --!nocheck
+local gEnv = (type(getgenv) == "function" and getgenv()) or _G
+
+-- If NightSystem is already running in this Roblox session and has an active window, reuse it
+if gEnv and gEnv._NightActiveWindow and gEnv._NightActiveWindow._ScreenGui and gEnv._NightActiveWindow._ScreenGui.Parent and gEnv._NightSystem then
+	return gEnv._NightSystem
+end
+
+-- Fallback for Drawing API in executors where Drawing is nil (prevents visual scripts from crashing before tabs load)
+if gEnv and rawget(gEnv, "Drawing") == nil then
+	local function createDummyDrawing()
+		return setmetatable({}, {
+			__index = function(t, k)
+				if k == "Remove" or k == "Destroy" then return function() end end
+				return t
+			end,
+			__newindex = function() end,
+		})
+	end
+	gEnv.Drawing = {
+		new = function(...) return createDummyDrawing() end,
+		Fonts = { UI = 0, System = 1, Plex = 2, Monospace = 3 }
+	}
+end
+
 --[[
 	================================================================================
 	NIGHT SYSTEM (NightUI) - Standalone Roblox Luau UI Library
@@ -380,9 +404,10 @@ function NightSystem:CreateWindow(config: {
 }?)
 	local cfg = config or {}
 
-	-- If the default window was already auto-created on loadstring load, just update its settings and return it
-	if NightSystem._ActiveWindow and NightSystem._ActiveWindow._ScreenGui and NightSystem._ActiveWindow._ScreenGui.Parent then
-		local existingWin = NightSystem._ActiveWindow
+	-- If the default window was already auto-created on loadstring load (or stored in getgenv), reuse it without destroying
+	local existingWin = NightSystem._ActiveWindow or (gEnv and gEnv._NightActiveWindow)
+	if existingWin and existingWin._ScreenGui and existingWin._ScreenGui.Parent then
+		NightSystem._ActiveWindow = existingWin
 		existingWin:_ApplyConfig(cfg)
 		return existingWin
 	end
@@ -1988,7 +2013,7 @@ function NightSystem:CreateWindow(config: {
 	end)
 
 	task.spawn(function()
-		if game.PlaceId and game.PlaceId > 0 then
+		if typeof(game.PlaceId) == "number" and game.PlaceId > 0 then
 			local ok, info = pcall(function()
 				return MarketplaceService:GetProductInfo(game.PlaceId)
 			end)
@@ -3962,6 +3987,14 @@ function NightSystem:CreateWindow(config: {
 
 		createdTabs[tabName] = TabObj
 		table.insert(tabList, TabObj)
+
+		-- Automatically switch to the newly created tab if it is the first script tab
+		if #tabList == 1 then
+			task.defer(function()
+				switchSidebarTab(tabName, false)
+			end)
+		end
+
 		return TabObj
 	end
 
@@ -4328,19 +4361,73 @@ function NightSystem:CreateWindow(config: {
 				Duration = 3,
 			})
 			task.spawn(function()
+				if gEnv then
+					gEnv._NightActiveWindow = Window
+					gEnv._NightSystem = NightSystem
+					gEnv.NightSystem = NightSystem
+					gEnv.NightUI = NightSystem
+					gEnv.OrionLib = NightSystem
+					gEnv.Rayfield = NightSystem
+				end
+
 				if type(info.Callback) == "function" then
 					safeCallback(info.Callback)
 				elseif sUrl ~= "" then
-					local ok, fn = pcall(function()
-						return loadstring((game :: any):HttpGet(sUrl))
+					local ok, source = pcall(function()
+						return (game :: any):HttpGet(sUrl)
 					end)
-					if ok and type(fn) == "function" then
-						pcall(fn)
+					if ok and type(source) == "string" and source ~= "" then
+						-- Inject active NightSystem so external scripts use the currently running UI
+						-- and avoid stale GitHub CDN caching or duplicate ScreenGui creation
+						local patched = source
+						patched = string.gsub(patched, 'loadstring%(game:HttpGet%([\'"][^\'"]*Night%%.lua[^\'"]*[\'"]%)%)%(%)', 'getgenv()._NightSystem')
+						patched = string.gsub(patched, 'loadstring%(game:HttpGet%([\'"][^\'"]*NightSystemUI%%.lua[^\'"]*[\'"]%)%)%(%)', 'getgenv()._NightSystem')
+						patched = string.gsub(patched, 'loadstring%(game:HttpGet%([\'"][^\'"]*orion%%.lua[^\'"]*[\'"]%)%)%(%)', 'getgenv()._NightSystem')
+
+						local loadOk, fn = pcall(loadstring, patched)
+						if not loadOk or type(fn) ~= "function" then
+							loadOk, fn = pcall(loadstring, source)
+						end
+
+						if loadOk and type(fn) == "function" then
+							local execOk, execErr = pcall(fn)
+							if not execOk then
+								warn("[Night System] Script execution error (" .. sName .. "):", execErr)
+								NightSystem:Notify({
+									Title = "Script Error",
+									Content = tostring(execErr),
+									Duration = 5,
+								})
+							else
+								NightSystem:Notify({
+									Title = "Script Loaded",
+									Content = sName .. " successfully executed!",
+									Duration = 3,
+								})
+							end
+						else
+							warn("[Night System] Failed to compile script (" .. sName .. "):", fn)
+							NightSystem:Notify({
+								Title = "Compile Error",
+								Content = "Could not parse " .. sName,
+								Duration = 4,
+							})
+						end
+					else
+						warn("[Night System] Failed to download script (" .. sName .. ") from:", sUrl)
+						NightSystem:Notify({
+							Title = "Download Failed",
+							Content = "Could not reach " .. sName .. " server",
+							Duration = 4,
+						})
 					end
 				elseif rawLoadstring ~= "" then
 					local ok, fn = pcall(loadstring, rawLoadstring)
 					if ok and type(fn) == "function" then
-						pcall(fn)
+						local execOk, execErr = pcall(fn)
+						if not execOk then
+							warn("[Night System] Script execution error (" .. sName .. "):", execErr)
+						end
 					end
 				end
 			end)
@@ -4501,6 +4588,10 @@ function NightSystem:CreateWindow(config: {
 	function Window:Destroy()
 		disconnectAll()
 		NightSystem._ActiveWindow = nil
+		if gEnv then
+			gEnv._NightActiveWindow = nil
+			gEnv._NightSystem = nil
+		end
 		if ScreenGui and ScreenGui.Parent then
 			ScreenGui:Destroy()
 		end
@@ -4665,6 +4756,16 @@ function NightSystem:CreateWindow(config: {
 
 	local winInstance = setmetatable(Window, Window)
 	NightSystem._ActiveWindow = winInstance
+
+	if gEnv then
+		gEnv._NightActiveWindow = winInstance
+		gEnv._NightSystem = NightSystem
+		gEnv.NightSystem = NightSystem
+		gEnv.NightUI = NightSystem
+		gEnv.OrionLib = NightSystem
+		gEnv.Rayfield = NightSystem
+	end
+
 	return winInstance
 end
 
