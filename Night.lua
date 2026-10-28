@@ -963,13 +963,26 @@ function NightSystem:CreateWindow(config: {
 		})
 	end)
 
-	-- Sidebar Navigation Container
-	local NavContainer = Instance.new("Frame")
+	-- Sidebar Navigation Scrolling Container (Scrollable tab list with auto-canvas size)
+	local NavContainer = Instance.new("ScrollingFrame")
 	NavContainer.Name = "Navigation"
-	NavContainer.Size = UDim2.new(0, 190, 1, -124)
-	NavContainer.Position = UDim2.new(0, 12, 0, 68)
+	NavContainer.Size = UDim2.new(0, 196, 1, -126)
+	NavContainer.Position = UDim2.new(0, 8, 0, 68)
 	NavContainer.BackgroundTransparency = 1
+	NavContainer.BorderSizePixel = 0
+	NavContainer.ClipsDescendants = true
+	NavContainer.ScrollingDirection = Enum.ScrollingDirection.Y
+	NavContainer.ScrollBarThickness = 2
+	NavContainer.ScrollBarImageColor3 = THEME.Accent
+	NavContainer.ScrollBarImageTransparency = 0.4
+	NavContainer.VerticalScrollBarInset = Enum.ScrollBarInset.None
+	NavContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	NavContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+	NavContainer.BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	NavContainer.TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	NavContainer.MidImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
 	NavContainer.Parent = Sidebar
+	createPadding(NavContainer, 2, 8, 2, 4)
 
 	local NavListLayout = Instance.new("UIListLayout")
 	NavListLayout.FillDirection = Enum.FillDirection.Vertical
@@ -978,11 +991,18 @@ function NightSystem:CreateWindow(config: {
 	NavListLayout.Padding = UDim.new(0, 4)
 	NavListLayout.Parent = NavContainer
 
+	local function updateNavCanvasSize()
+		local contentH = NavListLayout.AbsoluteContentSize.Y
+		NavContainer.CanvasSize = UDim2.new(0, 0, 0, contentH + 12)
+	end
+	NavListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateNavCanvasSize)
+	task.defer(updateNavCanvasSize)
+
 	-- Vertical White Accent Bar (3x16px) for active Sidebar Tab
 	local ActiveIndicator = Instance.new("Frame")
 	ActiveIndicator.Name = "ActiveIndicator"
 	ActiveIndicator.Size = UDim2.new(0, 3, 0, 16)
-	ActiveIndicator.Position = UDim2.new(0, 12, 0, 78)
+	ActiveIndicator.Position = UDim2.new(0, 10, 0, 78)
 	ActiveIndicator.BackgroundColor3 = THEME.TextPrimary
 	ActiveIndicator.BorderSizePixel = 0
 	ActiveIndicator.ZIndex = 5
@@ -1235,10 +1255,77 @@ function NightSystem:CreateWindow(config: {
 		return navOrder
 	end
 
+	local function updateActiveIndicator(instant: boolean?)
+		if (ScriptsHubPage and ScriptsHubPage.Visible) or activeTabName == "" then
+			ActiveIndicator.Visible = false
+			return
+		end
+		local target = SidebarTabs[activeTabName]
+		if not target or not target.Button or not target.Button.Parent then
+			ActiveIndicator.Visible = false
+			return
+		end
+		if not target.Button.Visible then
+			ActiveIndicator.Visible = false
+			return
+		end
+
+		local btnAbsY = target.Button.AbsolutePosition.Y
+		local btnH = target.Button.AbsoluteSize.Y
+		local navAbsY = NavContainer.AbsolutePosition.Y
+		local navH = NavContainer.AbsoluteSize.Y
+		local sideAbsY = Sidebar.AbsolutePosition.Y
+
+		local relY = (btnAbsY - sideAbsY) + (btnH - 16) / 2
+		local navTopRel = navAbsY - sideAbsY
+		local navBottomRel = navTopRel + navH
+
+		-- Check if target button is within visible bounds of NavContainer
+		if relY < navTopRel - 4 or (relY + 16) > navBottomRel + 4 then
+			ActiveIndicator.Visible = false
+			return
+		end
+
+		ActiveIndicator.Visible = true
+		local pos = UDim2.new(0, 10, 0, relY)
+		if instant then
+			ActiveIndicator.Position = pos
+		else
+			tween(ActiveIndicator, TWEEN_SMOOTH, { Position = pos })
+		end
+	end
+
+	local function scrollTabIntoView(btn: TextButton)
+		task.defer(function()
+			if not btn or not btn.Parent then
+				return
+			end
+			local btnAbsY = btn.AbsolutePosition.Y
+			local navAbsY = NavContainer.AbsolutePosition.Y
+			local navH = NavContainer.AbsoluteSize.Y
+			local btnH = btn.AbsoluteSize.Y
+
+			if btnAbsY < navAbsY + 4 then
+				local diff = (navAbsY + 4) - btnAbsY
+				local targetY = math.max(0, NavContainer.CanvasPosition.Y - diff)
+				tween(NavContainer, TWEEN_FAST, { CanvasPosition = Vector2.new(0, targetY) })
+			elseif (btnAbsY + btnH) > (navAbsY + navH - 4) then
+				local diff = (btnAbsY + btnH) - (navAbsY + navH - 4)
+				local targetY = NavContainer.CanvasPosition.Y + diff
+				tween(NavContainer, TWEEN_FAST, { CanvasPosition = Vector2.new(0, targetY) })
+			end
+			updateActiveIndicator(false)
+		end)
+	end
+
+	NavContainer:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+		updateActiveIndicator(true)
+	end)
+
 	local function createSidebarCategory(catTitle: string): (Frame, TextLabel)
 		local wrapper = Instance.new("Frame")
 		wrapper.Name = "Category_" .. catTitle
-		wrapper.Size = UDim2.new(0, 190, 0, 22)
+		wrapper.Size = UDim2.new(0, 186, 0, 22)
 		wrapper.BackgroundTransparency = 1
 		wrapper.LayoutOrder = nextNavOrder()
 		wrapper.Parent = NavContainer
@@ -1254,6 +1341,8 @@ function NightSystem:CreateWindow(config: {
 		lbl.TextXAlignment = Enum.TextXAlignment.Left
 		lbl.Parent = wrapper
 
+		wrapper:GetPropertyChangedSignal("Visible"):Connect(updateNavCanvasSize)
+
 		return wrapper, lbl
 	end
 
@@ -1264,6 +1353,7 @@ function NightSystem:CreateWindow(config: {
 			ScriptsHubPage.Visible = false
 			if activeTabName == tabName and SidebarTabs[tabName] then
 				SidebarTabs[tabName].Page.Visible = true
+				updateActiveIndicator(instant)
 				return
 			end
 		end
@@ -1302,17 +1392,7 @@ function NightSystem:CreateWindow(config: {
 			tween(target.Icon, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
 		end
 
-		task.defer(function()
-			local btnAbsY = target.Button.AbsolutePosition.Y
-			local sideAbsY = Sidebar.AbsolutePosition.Y
-			local relY = (btnAbsY - sideAbsY) + (target.Button.AbsoluteSize.Y - 16) / 2
-			local pos = UDim2.new(0, 12, 0, relY)
-			if instant then
-				ActiveIndicator.Position = pos
-			else
-				tween(ActiveIndicator, TWEEN_SMOOTH, { Position = pos })
-			end
-		end)
+		scrollTabIntoView(target.Button)
 
 		target.Page.Visible = true
 		if not instant then
@@ -1326,11 +1406,12 @@ function NightSystem:CreateWindow(config: {
 	local function registerSidebarTab(tabName: string, iconAsset: string): (Frame, TextButton, TextLabel)
 		local btn = Instance.new("TextButton")
 		btn.Name = "Tab_" .. tabName
-		btn.Size = UDim2.new(0, 190, 0, 36)
+		btn.Size = UDim2.new(0, 186, 0, 36)
 		btn.BackgroundColor3 = THEME.TabActiveBg
 		btn.BackgroundTransparency = 1
 		btn.BorderSizePixel = 0
 		btn.AutoButtonColor = false
+		btn.Active = false
 		btn.Text = ""
 		btn.LayoutOrder = nextNavOrder()
 		btn.Parent = NavContainer
@@ -1395,6 +1476,9 @@ function NightSystem:CreateWindow(config: {
 		btn.MouseButton1Click:Connect(function()
 			switchSidebarTab(tabName, false)
 		end)
+
+		btn:GetPropertyChangedSignal("Visible"):Connect(updateNavCanvasSize)
+		updateNavCanvasSize()
 
 		return page, btn, lbl
 	end
@@ -1661,6 +1745,7 @@ function NightSystem:CreateWindow(config: {
 		ScriptsHubPage.Visible = true
 		ScriptsHubPage.Position = UDim2.new(0, 0, 0, 8)
 		tween(ScriptsHubPage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+		updateActiveIndicator(true)
 	end)
 
 	BackToHomeBtn.MouseButton1Click:Connect(function()
@@ -1668,6 +1753,7 @@ function NightSystem:CreateWindow(config: {
 		HomePage.Visible = true
 		HomePage.Position = UDim2.new(0, 0, 0, 8)
 		tween(HomePage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+		updateActiveIndicator(true)
 	end)
 
 	-- Central Player Profile (88x88px Avatar, 10px UICorner, #2A2A2A UIStroke + 26px DisplayName & 15px @Name)
