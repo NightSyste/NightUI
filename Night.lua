@@ -237,10 +237,14 @@ end
 
 local function safeCallback(fn: ((...any) -> ())?, ...: any)
 	if type(fn) == "function" then
-		local ok, err = pcall(fn, ...)
-		if not ok then
-			warn("[NightSystem Callback Error]:", err)
-		end
+		local count = select("#", ...)
+		local args = { ... }
+		task.spawn(function()
+			local ok, err = pcall(fn, table.unpack(args, 1, count))
+			if not ok then
+				warn("[NightSystem Callback Error]:", err)
+			end
+		end)
 	end
 end
 
@@ -683,14 +687,12 @@ function NightSystem:CreateWindow(config: {
 		trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
 			if input == dragInput and isDragging then
 				local delta = input.Position - dragStart
-				tween(target, TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Position = UDim2.new(
-						startPos.X.Scale,
-						startPos.X.Offset + delta.X,
-						startPos.Y.Scale,
-						startPos.Y.Offset + delta.Y
-					),
-				})
+				target.Position = UDim2.new(
+					startPos.X.Scale,
+					startPos.X.Offset + delta.X,
+					startPos.Y.Scale,
+					startPos.Y.Offset + delta.Y
+				)
 			end
 		end))
 	end
@@ -991,62 +993,70 @@ function NightSystem:CreateWindow(config: {
 	NavListLayout.Padding = UDim.new(0, 4)
 	NavListLayout.Parent = NavContainer
 
+	local navUpdateQueued = false
 	local function updateNavCanvasAndScrollCheck()
-		-- 1. Check & count how many tabs and categories are currently in the sidebar
-		local tabCount = 0
-		local categoryCount = 0
+		if navUpdateQueued then return end
+		navUpdateQueued = true
+		task.defer(function()
+			navUpdateQueued = false
+			if not NavContainer or not NavContainer.Parent then return end
 
-		for _, child in ipairs(NavContainer:GetChildren()) do
-			if child:IsA("TextButton") and child.Visible then
-				tabCount += 1
-			elseif child:IsA("Frame") and string.find(child.Name, "Category_", 1, true) and child.Visible then
-				categoryCount += 1
+			-- 1. Check & count how many tabs and categories are currently in the sidebar
+			local tabCount = 0
+			local categoryCount = 0
+
+			for _, child in ipairs(NavContainer:GetChildren()) do
+				if child:IsA("TextButton") and child.Visible then
+					tabCount += 1
+				elseif child:IsA("Frame") and string.find(child.Name, "Category_", 1, true) and child.Visible then
+					categoryCount += 1
+				end
 			end
-		end
 
-		-- 2. Calculate exact total height requirement:
-		-- Each Tab button = 36px height
-		-- Padding between items in UIListLayout = 4px
-		-- Category header = 22px height
-		-- Top padding = 2px, Bottom padding = 14px
-		local TAB_HEIGHT = 36
-		local ITEM_GAP = 4
-		local CAT_HEIGHT = 22
-		local TOP_PAD = 2
-		local BOTTOM_PAD = 14
+			-- 2. Calculate exact total height requirement:
+			-- Each Tab button = 36px height
+			-- Padding between items in UIListLayout = 4px
+			-- Category header = 22px height
+			-- Top padding = 2px, Bottom padding = 14px
+			local TAB_HEIGHT = 36
+			local ITEM_GAP = 4
+			local CAT_HEIGHT = 22
+			local TOP_PAD = 2
+			local BOTTOM_PAD = 14
 
-		local totalItems = tabCount + categoryCount
-		local totalCalculatedHeight = TOP_PAD + BOTTOM_PAD
-			+ (tabCount * TAB_HEIGHT)
-			+ (categoryCount * CAT_HEIGHT)
-			+ (math.max(0, totalItems - 1) * ITEM_GAP)
+			local totalItems = tabCount + categoryCount
+			local totalCalculatedHeight = TOP_PAD + BOTTOM_PAD
+				+ (tabCount * TAB_HEIGHT)
+				+ (categoryCount * CAT_HEIGHT)
+				+ (math.max(0, totalItems - 1) * ITEM_GAP)
 
-		-- Also take layout content size if higher
-		local layoutH = NavListLayout.AbsoluteContentSize.Y
-		if layoutH > 0 then
-			totalCalculatedHeight = math.max(totalCalculatedHeight, layoutH + BOTTOM_PAD)
-		end
+			-- Also take layout content size if higher
+			local layoutH = NavListLayout.AbsoluteContentSize.Y
+			if layoutH > 0 then
+				totalCalculatedHeight = math.max(totalCalculatedHeight, layoutH + BOTTOM_PAD)
+			end
 
-		-- 3. Check visible navigation height based on current / standard UI size
-		local currentNavHeight = NavContainer.AbsoluteSize.Y
-		if currentNavHeight <= 0 then
-			-- Standard UI height is 460px:
-			-- TopBar: 42px, DiscordCard area: 68px, Footer area: 56px => 460 - 42 - 68 - 56 = 294px
-			local standardWindowHeight = 460
-			currentNavHeight = standardWindowHeight - 42 - 68 - 56
-		end
+			-- 3. Check visible navigation height based on current / standard UI size
+			local currentNavHeight = NavContainer.AbsoluteSize.Y
+			if currentNavHeight <= 0 then
+				-- Standard UI height is 460px:
+				-- TopBar: 42px, DiscordCard area: 68px, Footer area: 56px => 460 - 42 - 68 - 56 = 294px
+				local standardWindowHeight = 460
+				currentNavHeight = standardWindowHeight - 42 - 68 - 56
+			end
 
-		-- 4. Check if tabs exceed visible space and enable scrolling accordingly
-		local shouldScroll = totalCalculatedHeight > currentNavHeight
+			-- 4. Check if tabs exceed visible space and enable scrolling accordingly
+			local shouldScroll = totalCalculatedHeight > currentNavHeight
 
-		NavContainer.CanvasSize = UDim2.new(0, 0, 0, totalCalculatedHeight)
-		NavContainer.ScrollingEnabled = true
-		NavContainer.ScrollBarImageTransparency = if shouldScroll then 0.4 else 1
-		NavContainer.ScrollBarThickness = if shouldScroll then 2 else 0
+			NavContainer.CanvasSize = UDim2.new(0, 0, 0, totalCalculatedHeight)
+			NavContainer.ScrollingEnabled = true
+			NavContainer.ScrollBarImageTransparency = if shouldScroll then 0.4 else 1
+			NavContainer.ScrollBarThickness = if shouldScroll then 2 else 0
 
-		if not shouldScroll and NavContainer.CanvasPosition.Y > 0 then
-			NavContainer.CanvasPosition = Vector2.new(0, 0)
-		end
+			if not shouldScroll and NavContainer.CanvasPosition.Y > 0 then
+				NavContainer.CanvasPosition = Vector2.new(0, 0)
+			end
+		end)
 	end
 
 	NavListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateNavCanvasAndScrollCheck)
@@ -1162,6 +1172,7 @@ function NightSystem:CreateWindow(config: {
 		local frames = 0
 		local lastTick = os.clock()
 		trackConnection(RunService.RenderStepped:Connect(function()
+			if not MainFrame.Visible then return end
 			frames += 1
 			local now = os.clock()
 			if now - lastTick >= 0.5 then
@@ -1808,17 +1819,24 @@ function NightSystem:CreateWindow(config: {
 	EmptyHubText.Parent = EmptyHubPlaceholder
 
 	local hubSearchEntries: { { Card: Frame, Query: string } } = {}
+	local searchUpdateQueued = false
 	HubSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-		local q = string.lower(string.gsub(HubSearchBox.Text, "^%s*(.-)%s*$", "%1"))
-		local visibleCount = 0
-		for _, item in ipairs(hubSearchEntries) do
-			local match = (q == "") or (string.find(item.Query, q, 1, true) ~= nil)
-			item.Card.Visible = match
-			if match then
-				visibleCount += 1
+		if searchUpdateQueued then return end
+		searchUpdateQueued = true
+		task.defer(function()
+			searchUpdateQueued = false
+			if not HubSearchBox or not HubSearchBox.Parent then return end
+			local q = string.lower(string.gsub(HubSearchBox.Text, "^%s*(.-)%s*$", "%1"))
+			local visibleCount = 0
+			for _, item in ipairs(hubSearchEntries) do
+				local match = (q == "") or (string.find(item.Query, q, 1, true) ~= nil)
+				item.Card.Visible = match
+				if match then
+					visibleCount += 1
+				end
 			end
-		end
-		EmptyHubPlaceholder.Visible = (#hubSearchEntries > 0 and visibleCount == 0)
+			EmptyHubPlaceholder.Visible = (#hubSearchEntries > 0 and visibleCount == 0)
+		end)
 	end)
 
 	AllScriptsBtn.MouseButton1Click:Connect(function()
@@ -3012,18 +3030,29 @@ function NightSystem:CreateWindow(config: {
 				return math.clamp(math.round(snapped * factor) / factor, minVal, maxVal)
 			end
 
+			local sliding = false
+			local function applyVisual(pct: number, animate: boolean)
+				if animate then
+					tween(fillBar, TWEEN_FAST, { Size = UDim2.new(pct, 0, 1, 0) })
+					tween(knob, TWEEN_FAST, { Position = UDim2.new(pct, 0, 0.5, 0) })
+				else
+					fillBar.Size = UDim2.new(pct, 0, 1, 0)
+					knob.Position = UDim2.new(pct, 0, 0.5, 0)
+				end
+			end
+
 			function SliderObj:Set(val: number, silent: boolean?)
 				local clamped = roundToIncrement(tonumber(val) or minVal)
+				local changed = clamped ~= currentVal
 				currentVal = clamped
 				SliderObj.Value = clamped
 				NightSystem.Flags[flag] = clamped
 
 				local pct = if maxVal > minVal then (clamped - minVal) / (maxVal - minVal) else 0
-				tween(fillBar, TWEEN_FAST, { Size = UDim2.new(pct, 0, 1, 0) })
-				tween(knob, TWEEN_FAST, { Position = UDim2.new(pct, 0, 0.5, 0) })
+				applyVisual(pct, not sliding)
 				valueInput.Text = tostring(clamped) .. suffix
 
-				if not silent then
+				if not silent and changed then
 					safeCallback(callback, clamped)
 				end
 			end
@@ -3040,7 +3069,17 @@ function NightSystem:CreateWindow(config: {
 				callback = cb
 			end
 
-			local sliding = false
+			local moveConn: RBXScriptConnection? = nil
+			local endConn: RBXScriptConnection? = nil
+
+			local function stopSliding()
+				if not sliding then return end
+				sliding = false
+				if moveConn then moveConn:Disconnect(); moveConn = nil end
+				if endConn then endConn:Disconnect(); endConn = nil end
+				tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 12, 0, 12) })
+			end
+
 			local function updateFromMouse(inputPos: Vector2)
 				local trackX = trackBtn.AbsolutePosition.X
 				local trackW = math.max(1, trackBtn.AbsoluteSize.X)
@@ -3053,27 +3092,23 @@ function NightSystem:CreateWindow(config: {
 					sliding = true
 					tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 15, 0, 15) })
 					updateFromMouse(Vector2.new(input.Position.X, input.Position.Y))
-					input.Changed:Connect(function()
-						if input.UserInputState == Enum.UserInputState.End then
-							sliding = false
-							tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 12, 0, 12) })
+
+					if moveConn then moveConn:Disconnect() end
+					if endConn then endConn:Disconnect() end
+
+					moveConn = UserInputService.InputChanged:Connect(function(moveInput: InputObject)
+						if sliding and (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) then
+							updateFromMouse(Vector2.new(moveInput.Position.X, moveInput.Position.Y))
+						end
+					end)
+
+					endConn = UserInputService.InputEnded:Connect(function(endInput: InputObject)
+						if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+							stopSliding()
 						end
 					end)
 				end
 			end)
-
-			trackConnection(UserInputService.InputEnded:Connect(function(input: InputObject)
-				if sliding and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-					sliding = false
-					tween(knob, TWEEN_FAST, { Size = UDim2.new(0, 12, 0, 12) })
-				end
-			end))
-
-			trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
-				if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-					updateFromMouse(Vector2.new(input.Position.X, input.Position.Y))
-				end
-			end))
 
 			valueInput.Focused:Connect(function()
 				tween(valStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
@@ -3894,47 +3929,54 @@ function NightSystem:CreateWindow(config: {
 				syncColorVisuals(false)
 			end
 
+			local pickerMoveConn: RBXScriptConnection? = nil
+			local pickerEndConn: RBXScriptConnection? = nil
+
+			local function stopPickerDrag()
+				draggingSV = false
+				draggingHue = false
+				if pickerMoveConn then pickerMoveConn:Disconnect(); pickerMoveConn = nil end
+				if pickerEndConn then pickerEndConn:Disconnect(); pickerEndConn = nil end
+			end
+
+			local function ensurePickerListeners()
+				if pickerMoveConn and pickerEndConn then return end
+				if pickerMoveConn then pickerMoveConn:Disconnect() end
+				if pickerEndConn then pickerEndConn:Disconnect() end
+
+				pickerMoveConn = UserInputService.InputChanged:Connect(function(input: InputObject)
+					if (draggingSV or draggingHue) and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+						local p = Vector2.new(input.Position.X, input.Position.Y)
+						if draggingSV then
+							updateSV(p)
+						elseif draggingHue then
+							updateHue(p)
+						end
+					end
+				end)
+
+				pickerEndConn = UserInputService.InputEnded:Connect(function(input: InputObject)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+						stopPickerDrag()
+					end
+				end)
+			end
+
 			svCanvas.InputBegan:Connect(function(input: InputObject)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 					draggingSV = true
+					ensurePickerListeners()
 					updateSV(Vector2.new(input.Position.X, input.Position.Y))
-					input.Changed:Connect(function()
-						if input.UserInputState == Enum.UserInputState.End then
-							draggingSV = false
-						end
-					end)
 				end
 			end)
 
 			hueBar.InputBegan:Connect(function(input: InputObject)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 					draggingHue = true
+					ensurePickerListeners()
 					updateHue(Vector2.new(input.Position.X, input.Position.Y))
-					input.Changed:Connect(function()
-						if input.UserInputState == Enum.UserInputState.End then
-							draggingHue = false
-						end
-					end)
 				end
 			end)
-
-			trackConnection(UserInputService.InputEnded:Connect(function(input: InputObject)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					draggingSV = false
-					draggingHue = false
-				end
-			end))
-
-			trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
-				if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-					local p = Vector2.new(input.Position.X, input.Position.Y)
-					if draggingSV then
-						updateSV(p)
-					elseif draggingHue then
-						updateHue(p)
-					end
-				end
-			end))
 
 			hexBox.FocusLost:Connect(function()
 				local parsed = hexToColor(hexBox.Text)
@@ -4252,7 +4294,13 @@ function NightSystem:CreateWindow(config: {
 		ElementListLayout.Parent = ScrollContainer
 
 		local searchableItems: { { Frame: GuiObject, Title: string } } = {}
+		local filterUpdateQueued = false
 		FilterInput:GetPropertyChangedSignal("Text"):Connect(function()
+			if filterUpdateQueued then return end
+		filterUpdateQueued = true
+		task.defer(function()
+			filterUpdateQueued = false
+			if not FilterInput or not FilterInput.Parent then return end
 			local query = string.lower(string.gsub(FilterInput.Text, "^%s*(.-)%s*$", "%1"))
 			for _, item in ipairs(searchableItems) do
 				if query == "" then
@@ -4261,6 +4309,7 @@ function NightSystem:CreateWindow(config: {
 					item.Frame.Visible = string.find(string.lower(item.Title), query, 1, true) ~= nil
 				end
 			end
+		end)
 		end)
 
 		local TabObj = {}
