@@ -991,12 +991,90 @@ function NightSystem:CreateWindow(config: {
 	NavListLayout.Padding = UDim.new(0, 4)
 	NavListLayout.Parent = NavContainer
 
-	local function updateNavCanvasSize()
-		local contentH = NavListLayout.AbsoluteContentSize.Y
-		NavContainer.CanvasSize = UDim2.new(0, 0, 0, contentH + 12)
+	local function updateNavCanvasAndScrollCheck()
+		-- 1. Check & count how many tabs and categories are currently in the sidebar
+		local tabCount = 0
+		local categoryCount = 0
+
+		for _, child in ipairs(NavContainer:GetChildren()) do
+			if child:IsA("TextButton") and child.Visible then
+				tabCount += 1
+			elseif child:IsA("Frame") and string.find(child.Name, "Category_", 1, true) and child.Visible then
+				categoryCount += 1
+			end
+		end
+
+		-- 2. Calculate exact total height requirement:
+		-- Each Tab button = 36px height
+		-- Padding between items in UIListLayout = 4px
+		-- Category header = 22px height
+		-- Top padding = 2px, Bottom padding = 14px
+		local TAB_HEIGHT = 36
+		local ITEM_GAP = 4
+		local CAT_HEIGHT = 22
+		local TOP_PAD = 2
+		local BOTTOM_PAD = 14
+
+		local totalItems = tabCount + categoryCount
+		local totalCalculatedHeight = TOP_PAD + BOTTOM_PAD
+			+ (tabCount * TAB_HEIGHT)
+			+ (categoryCount * CAT_HEIGHT)
+			+ (math.max(0, totalItems - 1) * ITEM_GAP)
+
+		-- Also take layout content size if higher
+		local layoutH = NavListLayout.AbsoluteContentSize.Y
+		if layoutH > 0 then
+			totalCalculatedHeight = math.max(totalCalculatedHeight, layoutH + BOTTOM_PAD)
+		end
+
+		-- 3. Check visible navigation height based on current / standard UI size
+		local currentNavHeight = NavContainer.AbsoluteSize.Y
+		if currentNavHeight <= 0 then
+			-- Standard UI height is 460px:
+			-- TopBar: 42px, DiscordCard area: 68px, Footer area: 56px => 460 - 42 - 68 - 56 = 294px
+			local standardWindowHeight = 460
+			currentNavHeight = standardWindowHeight - 42 - 68 - 56
+		end
+
+		-- 4. Check if tabs exceed visible space and enable scrolling accordingly
+		local shouldScroll = totalCalculatedHeight > currentNavHeight
+
+		NavContainer.CanvasSize = UDim2.new(0, 0, 0, totalCalculatedHeight)
+		NavContainer.ScrollingEnabled = true
+		NavContainer.ScrollBarImageTransparency = if shouldScroll then 0.4 else 1
+		NavContainer.ScrollBarThickness = if shouldScroll then 2 else 0
+
+		if not shouldScroll and NavContainer.CanvasPosition.Y > 0 then
+			NavContainer.CanvasPosition = Vector2.new(0, 0)
+		end
 	end
-	NavListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateNavCanvasSize)
-	task.defer(updateNavCanvasSize)
+
+	NavListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateNavCanvasAndScrollCheck)
+	NavContainer.ChildAdded:Connect(function()
+		task.defer(updateNavCanvasAndScrollCheck)
+	end)
+	NavContainer.ChildRemoved:Connect(function()
+		task.defer(updateNavCanvasAndScrollCheck)
+	end)
+	NavContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateNavCanvasAndScrollCheck)
+	Sidebar:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateNavCanvasAndScrollCheck)
+	MainFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateNavCanvasAndScrollCheck)
+	task.defer(updateNavCanvasAndScrollCheck)
+
+	local function bindMouseWheelToNav(element: GuiObject)
+		element.InputChanged:Connect(function(input: InputObject)
+			if input.UserInputType == Enum.UserInputType.MouseWheel then
+				local scrollDelta = input.Position.Z
+				local step = 38
+				local maxScroll = math.max(0, NavContainer.CanvasSize.Y.Offset - NavContainer.AbsoluteSize.Y)
+				if maxScroll > 0 then
+					local newY = math.clamp(NavContainer.CanvasPosition.Y - (scrollDelta * step), 0, maxScroll)
+					NavContainer.CanvasPosition = Vector2.new(0, newY)
+				end
+			end
+		end)
+	end
+	bindMouseWheelToNav(NavContainer)
 
 	-- Vertical White Accent Bar (3x16px) for active Sidebar Tab
 	local ActiveIndicator = Instance.new("Frame")
@@ -1341,7 +1419,9 @@ function NightSystem:CreateWindow(config: {
 		lbl.TextXAlignment = Enum.TextXAlignment.Left
 		lbl.Parent = wrapper
 
-		wrapper:GetPropertyChangedSignal("Visible"):Connect(updateNavCanvasSize)
+		wrapper:GetPropertyChangedSignal("Visible"):Connect(updateNavCanvasAndScrollCheck)
+		bindMouseWheelToNav(wrapper)
+		updateNavCanvasAndScrollCheck()
 
 		return wrapper, lbl
 	end
@@ -1477,8 +1557,9 @@ function NightSystem:CreateWindow(config: {
 			switchSidebarTab(tabName, false)
 		end)
 
-		btn:GetPropertyChangedSignal("Visible"):Connect(updateNavCanvasSize)
-		updateNavCanvasSize()
+		btn:GetPropertyChangedSignal("Visible"):Connect(updateNavCanvasAndScrollCheck)
+		bindMouseWheelToNav(btn)
+		updateNavCanvasAndScrollCheck()
 
 		return page, btn, lbl
 	end
