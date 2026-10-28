@@ -4158,6 +4158,10 @@ function NightSystem:CreateWindow(config: {
 			end
 		end
 
+		if tabName == "Home" then
+			tabName = "Home Script"
+		end
+
 		if createdTabs[tabName] then
 			return createdTabs[tabName]
 		end
@@ -4645,6 +4649,10 @@ function NightSystem:CreateWindow(config: {
 					tween(cardStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
 				end
 			end)
+
+			-- Clear existing script tabs and close modal before executing new script
+			Window:ClearScriptTabs()
+
 			NightSystem:Notify({
 				Title = "Executing Script",
 				Content = "Starting " .. sName .. "...",
@@ -4659,6 +4667,15 @@ function NightSystem:CreateWindow(config: {
 					gEnv.OrionLib = NightSystem
 					gEnv.Rayfield = NightSystem
 				end
+				pcall(function()
+					local gTable: any = _G
+					gTable._NightActiveWindow = Window
+					gTable._NightSystem = NightSystem
+					gTable.NightSystem = NightSystem
+					gTable.NightUI = NightSystem
+					gTable.OrionLib = NightSystem
+					gTable.Rayfield = NightSystem
+				end)
 
 				if type(info.Callback) == "function" then
 					safeCallback(info.Callback)
@@ -4866,6 +4883,60 @@ function NightSystem:CreateWindow(config: {
 	for _, sData in ipairs(DEFAULT_HUB_SCRIPTS) do
 		Window:AddHubScript(sData)
 	end
+
+	function Window:ClearScriptTabs()
+		-- 1. Close AllScripts hub page if open
+		if ScriptsHubPage and ScriptsHubPage.Parent then
+			ScriptsHubPage.Visible = false
+		end
+
+		-- 2. Destroy all custom script tab buttons and pages recorded in tabList
+		for _, tabObj in ipairs(tabList) do
+			if type(tabObj) == "table" then
+				if tabObj.Button and tabObj.Button.Parent then
+					pcall(function() tabObj.Button:Destroy() end)
+				end
+				if tabObj.Page and tabObj.Page.Parent then
+					pcall(function() tabObj.Page:Destroy() end)
+				end
+			end
+		end
+
+		-- 3. Destroy any other custom tab registered in SidebarTabs (never destroy "Home")
+		for name, sideTab in pairs(SidebarTabs) do
+			if name ~= "Home" and type(sideTab) == "table" then
+				if sideTab.Button and sideTab.Button.Parent then
+					pcall(function() sideTab.Button:Destroy() end)
+				end
+				if sideTab.Page and sideTab.Page.Parent then
+					pcall(function() sideTab.Page:Destroy() end)
+				end
+				SidebarTabs[name] = nil
+			end
+		end
+
+		-- 4. Clear tracking tables and default tab reference
+		table.clear(createdTabs)
+		table.clear(tabList)
+		defaultTabInstance = nil
+
+		-- 5. Hide the dynamic TABS category header in the sidebar
+		TabsCategoryFrame.Visible = false
+
+		-- 6. Switch active tab cleanly back to Home
+		activeTabName = ""
+		switchSidebarTab("Home", true)
+		if HomePage and HomePage.Parent then
+			HomePage.Visible = true
+		end
+
+		-- 7. Reset NavContainer scroll position and recalculate scroll canvas
+		NavContainer.CanvasPosition = Vector2.new(0, 0)
+		updateNavCanvasAndScrollCheck()
+		updateActiveIndicator(true)
+	end
+	Window.ClearTabs = Window.ClearScriptTabs
+	Window.ResetTabs = Window.ClearScriptTabs
 
 	function Window:SelectTab(tabName: string)
 		switchSidebarTab(tabName, false)
@@ -5150,6 +5221,14 @@ function NightSystem:CreateDivider(...)
 end
 NightSystem.AddDivider = NightSystem.CreateDivider
 NightSystem.NewDivider = NightSystem.CreateDivider
+
+function NightSystem:ClearScriptTabs()
+	if NightSystem._ActiveWindow then
+		return NightSystem._ActiveWindow:ClearScriptTabs()
+	end
+end
+NightSystem.ClearTabs = NightSystem.ClearScriptTabs
+NightSystem.ResetTabs = NightSystem.ClearScriptTabs
 
 function NightSystem:AddHubScript(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):AddHubScript(...)
