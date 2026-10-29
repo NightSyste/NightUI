@@ -4695,6 +4695,8 @@ function NightSystem:CreateWindow(config: {
 	end
 	Window.MakeTabs = Window.CreateTabs
 	Window.AddTabs = Window.CreateTabs
+	Window.MakeWindow = function(self, ...) return self end
+	Window.CreateWindow = function(self, ...) return self end
 
 	-- Forward direct Window element calls to DefaultTab
 	function Window:CreateToggle(...) return getDefaultTab():CreateToggle(...) end
@@ -5862,17 +5864,19 @@ function NightSystem:CreateWindow(config: {
 			return not skipLoader
 		end
 
-		if not stepWait(0.25) then goto loaderDone end
-		if statusLbl.Parent then statusLbl.Text = "Checking executor..." end
-		if not stepWait(0.35) then goto loaderDone end
-		if statusLbl.Parent then statusLbl.Text = "Loading Night System Scripts..." end
-		if not stepWait(0.35) then goto loaderDone end
-		if statusLbl.Parent then statusLbl.Text = "Preparing UI & assets..." end
-		if not stepWait(0.25) then goto loaderDone end
-		if statusLbl.Parent then statusLbl.Text = "Ready!" end
-		stepWait(0.15)
-
-		::loaderDone::
+		if stepWait(0.25) then
+			if statusLbl.Parent then statusLbl.Text = "Checking executor..." end
+			if stepWait(0.35) then
+				if statusLbl.Parent then statusLbl.Text = "Loading Night System Scripts..." end
+				if stepWait(0.35) then
+					if statusLbl.Parent then statusLbl.Text = "Preparing UI & assets..." end
+					if stepWait(0.25) then
+						if statusLbl.Parent then statusLbl.Text = "Ready!" end
+						stepWait(0.15)
+					end
+				end
+			end
+		end
 		isLoaderRunning = false
 		isSpinning = false
 		if spinConn then
