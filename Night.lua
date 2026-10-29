@@ -468,7 +468,22 @@ function NightSystem:CreateWindow(config: {
 		end
 	end))
 
-	-- Floating Minimized Badge (Top Bar Pill - Pure Matte Black, ZIndex 80)
+	-- Platform Auto-Detection (PC vs Handy)
+	local function detectAutoPlatform(): string
+		if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+			return "Handy"
+		elseif UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+			return "Handy"
+		end
+		return "PC"
+	end
+
+	local selectedPlatform: string = if (cfg.Platform and tostring(cfg.Platform) ~= "Auto")
+		then (if (tostring(cfg.Platform) == "Handy" or tostring(cfg.Platform) == "Mobile") then "Handy" else "PC")
+		else detectAutoPlatform()
+	NightSystem.Platform = selectedPlatform
+
+	-- Floating Minimized Badge (Top Bar Pill - Nur auf PC sichtbar, auf Handy ausgeblendet!)
 	local FloatingBadge = Instance.new("TextButton")
 	FloatingBadge.Name = "FloatingBadge"
 	FloatingBadge.Size = UDim2.new(0, 160, 0, 38)
@@ -480,15 +495,21 @@ function NightSystem:CreateWindow(config: {
 	FloatingBadge.Text = ""
 	FloatingBadge.Active = true
 	FloatingBadge.ZIndex = 80
-	FloatingBadge.Visible = true
+	FloatingBadge.Visible = (selectedPlatform ~= "Handy")
 	FloatingBadge.Parent = BadgeGui
 	createCorner(FloatingBadge, 10)
 	createStroke(FloatingBadge, THEME.Stroke, 1, 0.15)
 
-	-- Permanent visibility guard: FloatingBadge NEVER disappears on STRG, close, or any event
+	-- Visibility guard: FloatingBadge ist auf PC DAUERHAFT sichtbar, auf Handy IMMER ausgeblendet
 	trackConnection(FloatingBadge:GetPropertyChangedSignal("Visible"):Connect(function()
-		if not FloatingBadge.Visible then
-			FloatingBadge.Visible = true
+		if selectedPlatform == "Handy" then
+			if FloatingBadge.Visible then
+				FloatingBadge.Visible = false
+			end
+		else
+			if not FloatingBadge.Visible then
+				FloatingBadge.Visible = true
+			end
 		end
 	end))
 
@@ -550,7 +571,7 @@ function NightSystem:CreateWindow(config: {
 	MobileToggleBtn.AutoButtonColor = false
 	MobileToggleBtn.Text = ""
 	MobileToggleBtn.ZIndex = 40
-	MobileToggleBtn.Visible = false
+	MobileToggleBtn.Visible = (selectedPlatform == "Handy")
 	MobileToggleBtn.Parent = BadgeGui
 	createCorner(MobileToggleBtn, 22)
 	local mobileStroke = createStroke(MobileToggleBtn, Color3.fromHex("#1E2024"), 1.2, 0.15)
@@ -605,20 +626,6 @@ function NightSystem:CreateWindow(config: {
 	mainFrameScale.Scale = 1.0
 	mainFrameScale.Parent = MainFrame
 
-	local function detectAutoPlatform(): string
-		if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
-			return "Handy"
-		elseif UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
-			return "Handy"
-		end
-		return "PC"
-	end
-
-	local selectedPlatform: string = if (cfg.Platform and tostring(cfg.Platform) ~= "Auto")
-		then (if (tostring(cfg.Platform) == "Handy" or tostring(cfg.Platform) == "Mobile") then "Handy" else "PC")
-		else detectAutoPlatform()
-	NightSystem.Platform = selectedPlatform
-
 	local PlatformValueLabel: TextLabel? = nil
 
 	local function updateMobileScale()
@@ -652,11 +659,10 @@ function NightSystem:CreateWindow(config: {
 			PlatformValueLabel.Text = selectedPlatform
 		end
 
-		if FloatingBadge then
-			FloatingBadge.Visible = true
-		end
-
 		if selectedPlatform == "Handy" then
+			if FloatingBadge then
+				FloatingBadge.Visible = false
+			end
 			updateMobileScale()
 			if MobileToggleBtn then
 				MobileToggleBtn.Visible = true
@@ -664,6 +670,9 @@ function NightSystem:CreateWindow(config: {
 		else
 			if mainFrameScale then
 				mainFrameScale.Scale = 1.0
+			end
+			if FloatingBadge then
+				FloatingBadge.Visible = true
 			end
 			if MobileToggleBtn then
 				MobileToggleBtn.Visible = false
@@ -887,7 +896,9 @@ function NightSystem:CreateWindow(config: {
 		isHidden = false
 		updateBadgeStatus()
 		if BadgeGui then BadgeGui.Enabled = true end
-		FloatingBadge.Visible = true
+		if FloatingBadge then
+			FloatingBadge.Visible = (selectedPlatform ~= "Handy")
+		end
 
 		local focused = UserInputService:GetFocusedTextBox()
 		if focused and focused:IsDescendantOf(ScreenGui) then
@@ -911,7 +922,9 @@ function NightSystem:CreateWindow(config: {
 		isHidden = true
 		updateBadgeStatus()
 		if BadgeGui then BadgeGui.Enabled = true end
-		FloatingBadge.Visible = true -- Stays visible permanently in BadgeGui!
+		if FloatingBadge then
+			FloatingBadge.Visible = (selectedPlatform ~= "Handy")
+		end
 
 		local focused = UserInputService:GetFocusedTextBox()
 		if focused and focused:IsDescendantOf(ScreenGui) then
@@ -929,9 +942,13 @@ function NightSystem:CreateWindow(config: {
 			end
 		end)
 
+		local closeHint = if selectedPlatform == "Handy"
+			then "UI geschlossen - Tippe auf den Night-Button zum Oeffnen."
+			else "UI geschlossen - Klicke auf das Night-Symbol oben oder druecke STRG zum Oeffnen."
+
 		NightSystem:Notify({
 			Title = windowTitle,
-			Content = "UI geschlossen - Klicke auf das Night-Symbol oben oder druecke STRG zum Oeffnen.",
+			Content = closeHint,
 			Duration = 2.5,
 		})
 	end
