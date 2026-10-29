@@ -437,20 +437,36 @@ function NightSystem:CreateWindow(config: {
 	-- Clean up old instances
 	disconnectAll()
 	local parent = getGuiParent()
-	for _, childName in ipairs({ "NightSystem_UI", "NightSystemUI" }) do
+	for _, childName in ipairs({ "NightSystem_UI", "NightSystemUI", "NightSystem_BadgeGui", "NightSystem_Badge" }) do
 		local existing = parent:FindFirstChild(childName)
 		if existing then
 			existing:Destroy()
 		end
 	end
 
-	-- ScreenGui
+	-- Main ScreenGui
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "NightSystem_UI"
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.ResetOnSpawn = false
 	ScreenGui.IgnoreGuiInset = false
 	ScreenGui.Parent = parent
+
+	-- Dedicated Badge ScreenGui (DisplayOrder 999999 - Never hidden or blocked by any GUI)
+	local BadgeGui = Instance.new("ScreenGui")
+	BadgeGui.Name = "NightSystem_BadgeGui"
+	BadgeGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	BadgeGui.ResetOnSpawn = false
+	BadgeGui.IgnoreGuiInset = false
+	BadgeGui.DisplayOrder = 999999
+	BadgeGui.Enabled = true
+	BadgeGui.Parent = parent
+
+	trackConnection(BadgeGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if not BadgeGui.Enabled then
+			BadgeGui.Enabled = true
+		end
+	end))
 
 	-- Floating Minimized Badge (Top Bar Pill - Pure Matte Black, ZIndex 80)
 	local FloatingBadge = Instance.new("TextButton")
@@ -465,7 +481,7 @@ function NightSystem:CreateWindow(config: {
 	FloatingBadge.Active = true
 	FloatingBadge.ZIndex = 80
 	FloatingBadge.Visible = true
-	FloatingBadge.Parent = ScreenGui
+	FloatingBadge.Parent = BadgeGui
 	createCorner(FloatingBadge, 10)
 	createStroke(FloatingBadge, THEME.Stroke, 1, 0.15)
 
@@ -856,6 +872,7 @@ function NightSystem:CreateWindow(config: {
 		isMinimized = false
 		isHidden = false
 		updateBadgeStatus()
+		if BadgeGui then BadgeGui.Enabled = true end
 		FloatingBadge.Visible = true
 
 		local focused = UserInputService:GetFocusedTextBox()
@@ -879,7 +896,8 @@ function NightSystem:CreateWindow(config: {
 		isMinimized = false
 		isHidden = true
 		updateBadgeStatus()
-		FloatingBadge.Visible = true -- Stays visible permanently as requested!
+		if BadgeGui then BadgeGui.Enabled = true end
+		FloatingBadge.Visible = true -- Stays visible permanently in BadgeGui!
 
 		local focused = UserInputService:GetFocusedTextBox()
 		if focused and focused:IsDescendantOf(ScreenGui) then
@@ -2531,6 +2549,7 @@ function NightSystem:CreateWindow(config: {
 	local Window = {}
 	Window.__index = Window
 	Window._ScreenGui = ScreenGui
+	Window._BadgeGui = BadgeGui
 	Window._AutoSort = autoSort
 	Window.Flags = NightSystem.Flags
 
@@ -5332,6 +5351,9 @@ function NightSystem:CreateWindow(config: {
 		end
 		if ScreenGui and ScreenGui.Parent then
 			ScreenGui:Destroy()
+		end
+		if BadgeGui and BadgeGui.Parent then
+			BadgeGui:Destroy()
 		end
 	end
 
