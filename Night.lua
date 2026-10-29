@@ -4,9 +4,14 @@ local isWritableG = pcall(function()
 end)
 local gEnv = (type(getgenv) == "function" and getgenv()) or (isWritableG and _G) or {}
 
--- If NightSystem is already running in this Roblox session and has an active window, reuse it
-if gEnv and gEnv._NightActiveWindow and gEnv._NightActiveWindow._ScreenGui and gEnv._NightActiveWindow._ScreenGui.Parent and gEnv._NightSystem then
-	return gEnv._NightSystem
+-- Allow fresh re-execution of new versions on loadstring: clean up old instances
+if gEnv and gEnv._NightActiveWindow then
+	pcall(function()
+		if gEnv._NightActiveWindow.Destroy then
+			gEnv._NightActiveWindow:Destroy()
+		end
+	end)
+	gEnv._NightActiveWindow = nil
 end
 
 -- Fallback for Drawing API in executors where Drawing is nil (prevents visual scripts from crashing before tabs load)
@@ -414,7 +419,7 @@ function NightSystem:CreateWindow(config: {
 	local cfg = config or {}
 
 	-- If the default window was already auto-created on loadstring load (or stored in getgenv), reuse it without destroying
-	local existingWin = NightSystem._ActiveWindow or (gEnv and gEnv._NightActiveWindow)
+	local existingWin = NightSystem._ActiveWindow
 	if existingWin and existingWin._ScreenGui and existingWin._ScreenGui.Parent then
 		NightSystem._ActiveWindow = existingWin
 		existingWin:_ApplyConfig(cfg)
@@ -463,6 +468,13 @@ function NightSystem:CreateWindow(config: {
 	FloatingBadge.Parent = ScreenGui
 	createCorner(FloatingBadge, 10)
 	createStroke(FloatingBadge, THEME.Stroke, 1, 0.15)
+
+	-- Permanent visibility guard: FloatingBadge NEVER disappears on STRG, close, or any event
+	trackConnection(FloatingBadge:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not FloatingBadge.Visible then
+			FloatingBadge.Visible = true
+		end
+	end))
 
 	local BadgeLogo = Instance.new("Frame")
 	BadgeLogo.Size = UDim2.new(0, 24, 0, 24)
