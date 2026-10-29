@@ -765,10 +765,21 @@ function NightSystem:CreateWindow(config: {
 	end)
 
 	local isMaximized = false
+	local isWindowOpen = false
 	local isMinimized = false
 	local isHidden = false
 	local isLoaderRunning = false
 	local skipLoader = false
+
+	local function updateBadgeStatus()
+		if BadgeRedDot and BadgeRedDot.Parent then
+			if isWindowOpen then
+				BadgeRedDot.BackgroundColor3 = Color3.fromHex("#00E676")
+			else
+				BadgeRedDot.BackgroundColor3 = THEME.AccentRed
+			end
+		end
+	end
 
 	local function makeDraggable(handle: GuiObject, target: GuiObject, pill: Frame?, onClick: (() -> ())?)
 		local isDragging = false
@@ -824,52 +835,39 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local function openWindow()
+		isWindowOpen = true
 		isMinimized = false
 		isHidden = false
-		FloatingBadge.Visible = false
+		updateBadgeStatus()
+		FloatingBadge.Visible = true
+
+		local focused = UserInputService:GetFocusedTextBox()
+		if focused and focused:IsDescendantOf(ScreenGui) then
+			pcall(function() focused:ReleaseFocus() end)
+		end
+
 		MainFrame.Visible = true
 		MainFrame.BackgroundTransparency = 0
 
 		local targetSize = if isMaximized then maximizedSize else normalSize
 		MainFrame.Size = UDim2.new(0, targetSize.X.Offset * 0.94, 0, targetSize.Y.Offset * 0.94)
-		tween(MainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		tween(MainFrame, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Size = targetSize,
 			BackgroundTransparency = 0,
 		})
 	end
 
-	local function minimizeWindow()
-		isMinimized = true
-		isHidden = false
-
-		-- Show FloatingBadge immediately on PC
-		if selectedPlatform == "PC" then
-			FloatingBadge.Visible = true
-			FloatingBadge.BackgroundTransparency = 0
-			FloatingBadge.Size = UDim2.new(0, 144, 0, 34)
-			tween(FloatingBadge, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0, 160, 0, 38),
-			})
-		else
-			FloatingBadge.Visible = false
-		end
-
-		local targetW = if MainFrame.AbsoluteSize.X > 50 then MainFrame.AbsoluteSize.X else 740
-		local shrink = tween(MainFrame, TWEEN_FAST, {
-			Size = UDim2.new(0, targetW, 0, 0),
-			BackgroundTransparency = 1,
-		})
-		shrink.Completed:Connect(function()
-			if isMinimized then
-				MainFrame.Visible = false
-			end
-		end)
-	end
-
 	local function closeWindow()
+		isWindowOpen = false
 		isMinimized = false
 		isHidden = true
-		FloatingBadge.Visible = false
+		updateBadgeStatus()
+		FloatingBadge.Visible = true -- Stays visible permanently as requested!
+
+		local focused = UserInputService:GetFocusedTextBox()
+		if focused and focused:IsDescendantOf(ScreenGui) then
+			pcall(function() focused:ReleaseFocus() end)
+		end
 
 		local targetW = if MainFrame.AbsoluteSize.X > 50 then MainFrame.AbsoluteSize.X else 740
 		local fadeOut = tween(MainFrame, TWEEN_FAST, {
@@ -877,24 +875,26 @@ function NightSystem:CreateWindow(config: {
 			BackgroundTransparency = 1,
 		})
 		fadeOut.Completed:Connect(function()
-			if isHidden then
+			if not isWindowOpen then
 				MainFrame.Visible = false
 			end
 		end)
 
 		NightSystem:Notify({
 			Title = windowTitle,
-			Content = if selectedPlatform == "Handy"
-				then "UI geschlossen - Tippe auf das Night-Symbol, um sie wieder zu oeffnen."
-				else "UI geschlossen - Druecke STRG, um sie wieder zu oeffnen.",
-			Duration = 3,
+			Content = "UI geschlossen - Klicke auf das Night-Symbol oben oder druecke STRG zum Oeffnen.",
+			Duration = 2.5,
 		})
+	end
+
+	local function minimizeWindow()
+		closeWindow()
 	end
 
 	local lastToggleTime = 0
 	local function toggleWindowState()
 		local now = os.clock()
-		if now - lastToggleTime < 0.22 then return end
+		if now - lastToggleTime < 0.18 then return end
 		lastToggleTime = now
 
 		if isLoaderRunning then
@@ -902,20 +902,20 @@ function NightSystem:CreateWindow(config: {
 			return
 		end
 
-		if isHidden or isMinimized or not MainFrame.Visible then
-			openWindow()
+		if isWindowOpen and MainFrame.Visible then
+			closeWindow()
 		else
-			minimizeWindow()
+			openWindow()
 		end
 	end
 
 	makeDraggable(TopBar, MainFrame, DragPill, nil)
 	makeDraggable(FloatingBadge, FloatingBadge, nil, function()
-		openWindow()
+		toggleWindowState()
 	end)
 
 	FloatingBadge.MouseButton1Click:Connect(function()
-		openWindow()
+		toggleWindowState()
 	end)
 
 	FloatingBadge.MouseEnter:Connect(function()
@@ -937,7 +937,7 @@ function NightSystem:CreateWindow(config: {
 	end)
 
 	MinimizeBtn.MouseButton1Click:Connect(function()
-		minimizeWindow()
+		closeWindow()
 	end)
 
 	-- Mobile Button Touch Drag & Tap Toggle
@@ -982,7 +982,7 @@ function NightSystem:CreateWindow(config: {
 							tween(MobileToggleBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 								Size = UDim2.new(0, 38, 0, 38)
 							})
-							task.delay(0.08, function()
+						task.delay(0.08, function()
 								tween(MobileToggleBtn, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 									Size = UDim2.new(0, 44, 0, 44)
 								})
@@ -995,15 +995,16 @@ function NightSystem:CreateWindow(config: {
 		end)
 	end
 
-	trackConnection(UserInputService.InputBegan:Connect(function(input: InputObject)
-		if UserInputService:GetFocusedTextBox() then
-			return
-		end
+	trackConnection(UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
 		local code = input.KeyCode
 		if code == Enum.KeyCode.LeftControl
 			or code == Enum.KeyCode.RightControl
 			or (toggleKey and code == toggleKey)
 		then
+			local focused = UserInputService:GetFocusedTextBox()
+			if focused and focused:IsDescendantOf(ScreenGui) then
+				pcall(function() focused:ReleaseFocus() end)
+			end
 			toggleWindowState()
 		end
 	end))
