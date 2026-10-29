@@ -444,13 +444,28 @@ function NightSystem:CreateWindow(config: {
 		end
 	end
 
-	-- Main ScreenGui
+	local isMaximized = false
+	local isWindowOpen = false
+	local isMinimized = false
+	local isHidden = false
+	local isLoaderRunning = false
+	local skipLoader = false
+
+	-- Main ScreenGui (DisplayOrder 999998 - Stays directly below BadgeGui 999999, never hidden behind game HUDs)
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "NightSystem_UI"
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.ResetOnSpawn = false
 	ScreenGui.IgnoreGuiInset = false
+	ScreenGui.DisplayOrder = 999998
+	ScreenGui.Enabled = true
 	ScreenGui.Parent = parent
+
+	trackConnection(ScreenGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if not ScreenGui.Enabled and isWindowOpen then
+			ScreenGui.Enabled = true
+		end
+	end))
 
 	-- Dedicated Badge ScreenGui (DisplayOrder 999999 - Never hidden or blocked by any GUI)
 	local BadgeGui = Instance.new("ScreenGui")
@@ -819,13 +834,6 @@ function NightSystem:CreateWindow(config: {
 		end
 	end)
 
-	local isMaximized = false
-	local isWindowOpen = false
-	local isMinimized = false
-	local isHidden = false
-	local isLoaderRunning = false
-	local skipLoader = false
-
 	local function updateBadgeStatus()
 		if BadgeRedDot and BadgeRedDot.Parent then
 			if isWindowOpen then
@@ -890,11 +898,15 @@ function NightSystem:CreateWindow(config: {
 		end))
 	end
 
+	local currentOpenCloseTween: Tween? = nil
+
 	local function openWindow()
 		isWindowOpen = true
 		isMinimized = false
 		isHidden = false
 		updateBadgeStatus()
+
+		if ScreenGui then ScreenGui.Enabled = true end
 		if BadgeGui then BadgeGui.Enabled = true end
 		if FloatingBadge then
 			FloatingBadge.Visible = (selectedPlatform ~= "Handy")
@@ -905,12 +917,20 @@ function NightSystem:CreateWindow(config: {
 			pcall(function() focused:ReleaseFocus() end)
 		end
 
+		if currentOpenCloseTween then
+			pcall(function() currentOpenCloseTween:Cancel() end)
+			currentOpenCloseTween = nil
+		end
+
 		MainFrame.Visible = true
 		MainFrame.BackgroundTransparency = 0
 
 		local targetSize = if isMaximized then maximizedSize else normalSize
-		MainFrame.Size = UDim2.new(0, targetSize.X.Offset * 0.94, 0, targetSize.Y.Offset * 0.94)
-		tween(MainFrame, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		if MainFrame.Size.Y.Offset < 60 then
+			MainFrame.Size = UDim2.new(0, targetSize.X.Offset * 0.94, 0, targetSize.Y.Offset * 0.94)
+		end
+
+		currentOpenCloseTween = tween(MainFrame, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Size = targetSize,
 			BackgroundTransparency = 0,
 		})
@@ -921,6 +941,7 @@ function NightSystem:CreateWindow(config: {
 		isMinimized = false
 		isHidden = true
 		updateBadgeStatus()
+
 		if BadgeGui then BadgeGui.Enabled = true end
 		if FloatingBadge then
 			FloatingBadge.Visible = (selectedPlatform ~= "Handy")
@@ -931,13 +952,19 @@ function NightSystem:CreateWindow(config: {
 			pcall(function() focused:ReleaseFocus() end)
 		end
 
+		if currentOpenCloseTween then
+			pcall(function() currentOpenCloseTween:Cancel() end)
+			currentOpenCloseTween = nil
+		end
+
 		local targetW = if isMaximized then maximizedSize.X.Offset else normalSize.X.Offset
-		local fadeOut = tween(MainFrame, TWEEN_FAST, {
+		local tw = tween(MainFrame, TWEEN_FAST, {
 			Size = UDim2.new(0, targetW, 0, 0),
 			BackgroundTransparency = 1,
 		})
-		fadeOut.Completed:Connect(function()
-			if not isWindowOpen then
+		currentOpenCloseTween = tw
+		tw.Completed:Connect(function(playbackState)
+			if not isWindowOpen and playbackState == Enum.PlaybackState.Completed then
 				MainFrame.Visible = false
 			end
 		end)
@@ -960,7 +987,7 @@ function NightSystem:CreateWindow(config: {
 	local lastToggleTime = 0
 	local function toggleWindowState()
 		local now = os.clock()
-		if now - lastToggleTime < 0.18 then return end
+		if now - lastToggleTime < 0.15 then return end
 		lastToggleTime = now
 
 		if isLoaderRunning then
@@ -968,7 +995,7 @@ function NightSystem:CreateWindow(config: {
 			return
 		end
 
-		if isWindowOpen and MainFrame.Visible then
+		if isWindowOpen then
 			closeWindow()
 		else
 			openWindow()
@@ -977,6 +1004,9 @@ function NightSystem:CreateWindow(config: {
 
 	makeDraggable(TopBar, MainFrame, DragPill, nil)
 	makeDraggable(FloatingBadge, FloatingBadge, nil, function()
+		toggleWindowState()
+	end)
+	FloatingBadge.Activated:Connect(function()
 		toggleWindowState()
 	end)
 
