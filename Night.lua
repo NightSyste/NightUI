@@ -551,7 +551,7 @@ function NightSystem:CreateWindow(config: {
 	MobileToggleBtn.Text = ""
 	MobileToggleBtn.ZIndex = 40
 	MobileToggleBtn.Visible = false
-	MobileToggleBtn.Parent = ScreenGui
+	MobileToggleBtn.Parent = BadgeGui
 	createCorner(MobileToggleBtn, 22)
 	local mobileStroke = createStroke(MobileToggleBtn, Color3.fromHex("#1E2024"), 1.2, 0.15)
 
@@ -605,7 +605,18 @@ function NightSystem:CreateWindow(config: {
 	mainFrameScale.Scale = 1.0
 	mainFrameScale.Parent = MainFrame
 
-	local selectedPlatform: string = if (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) then "Handy" else "PC"
+	local function detectAutoPlatform(): string
+		if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+			return "Handy"
+		elseif UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+			return "Handy"
+		end
+		return "PC"
+	end
+
+	local selectedPlatform: string = if (cfg.Platform and tostring(cfg.Platform) ~= "Auto")
+		then (if (tostring(cfg.Platform) == "Handy" or tostring(cfg.Platform) == "Mobile") then "Handy" else "PC")
+		else detectAutoPlatform()
 	NightSystem.Platform = selectedPlatform
 
 	local PlatformValueLabel: TextLabel? = nil
@@ -659,6 +670,9 @@ function NightSystem:CreateWindow(config: {
 			end
 		end
 	end
+
+	-- Sofortige Anwendung der automatisch erkannten oder konfigurierten Plattform
+	applyPlatform(selectedPlatform)
 
 	-- ========================================================================
 	-- TOPBAR & WINDOW CONTROLS
@@ -904,7 +918,7 @@ function NightSystem:CreateWindow(config: {
 			pcall(function() focused:ReleaseFocus() end)
 		end
 
-		local targetW = if MainFrame.AbsoluteSize.X > 50 then MainFrame.AbsoluteSize.X else 740
+		local targetW = if isMaximized then maximizedSize.X.Offset else normalSize.X.Offset
 		local fadeOut = tween(MainFrame, TWEEN_FAST, {
 			Size = UDim2.new(0, targetW, 0, 0),
 			BackgroundTransparency = 1,
@@ -2559,6 +2573,15 @@ function NightSystem:CreateWindow(config: {
 
 	function Window:GetPlatform(): string
 		return selectedPlatform
+	end
+
+	function Window:PromptPlatformSelection(callback: ((string) -> ())?)
+		showPlatformSelectionModal(function(chosenPlatform)
+			applyPlatform(chosenPlatform)
+			if callback then
+				callback(chosenPlatform)
+			end
+		end)
 	end
 
 	function Window:Toggle()
@@ -5361,7 +5384,7 @@ function NightSystem:CreateWindow(config: {
 	-- STARTUP SEQUENCE (Platform Selection Window & Animated Loader)
 	-- ========================================================================
 	local function showPlatformSelectionModal(onSelect: (string) -> ())
-		local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		local isTouchDevice = (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) or (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
 		local recommended = if isTouchDevice then "Handy" else "PC"
 
 		local ModalOverlay = Instance.new("TextButton")
@@ -5791,6 +5814,23 @@ function NightSystem:CreateWindow(config: {
 		createCorner(LoaderFrame, 12)
 		local loaderStroke = createStroke(LoaderFrame, Color3.fromHex("#26292E"), 1, 0.15)
 
+		local loaderScale = Instance.new("UIScale")
+		loaderScale.Name = "LoaderScale"
+		loaderScale.Scale = 1.0
+		loaderScale.Parent = LoaderFrame
+
+		local function updateLoaderScale()
+			local cam = workspace.CurrentCamera
+			local vp = (cam and cam.ViewportSize) or Vector2.new(800, 600)
+			if vp.X > 50 and vp.Y > 50 then
+				local sX = (vp.X - 24) / 320
+				local sY = (vp.Y - 24) / 90
+				loaderScale.Scale = math.clamp(math.min(sX, sY), 0.70, 1.0)
+			end
+		end
+		updateLoaderScale()
+		trackConnection(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateLoaderScale))
+
 		-- Avatar auf der linken Seite
 		local avatarHolder = Instance.new("Frame")
 		avatarHolder.Size = UDim2.new(0, 48, 0, 48)
@@ -5944,17 +5984,19 @@ function NightSystem:CreateWindow(config: {
 		openWindow()
 	end
 
-	-- Startablauf: Vor dem Loader das Plattform-Fenster anzeigen (falls nicht konfiguriert)
-	if cfg.Platform then
-		applyPlatform(tostring(cfg.Platform))
-		task.spawn(runStartupLoader)
-	else
+	-- Startablauf: Automatische Plattform-Erkennung (kein manuelles Auswaehlen noetig)
+	-- Nur falls explizit cfg.PromptPlatform == true uebergeben wird, erscheint das Auswahlfenster
+	applyPlatform(selectedPlatform)
+
+	if cfg.PromptPlatform == true then
 		task.spawn(function()
 			showPlatformSelectionModal(function(chosenPlatform)
 				applyPlatform(chosenPlatform)
 				task.spawn(runStartupLoader)
 			end)
 		end)
+	else
+		task.spawn(runStartupLoader)
 	end
 
 	local winInstance = setmetatable(Window, Window)
