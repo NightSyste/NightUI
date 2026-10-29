@@ -409,6 +409,7 @@ function NightSystem:CreateWindow(config: {
 	MainTabName: string?,
 	AutoSort: boolean?,
 	ToggleKey: Enum.KeyCode?,
+	Platform: string?,
 }?)
 	local cfg = config or {}
 
@@ -446,16 +447,18 @@ function NightSystem:CreateWindow(config: {
 	ScreenGui.IgnoreGuiInset = false
 	ScreenGui.Parent = parent
 
-	-- Floating Minimized Badge
+	-- Floating Minimized Badge (Top Bar Pill - Pure Matte Black, ZIndex 80)
 	local FloatingBadge = Instance.new("TextButton")
 	FloatingBadge.Name = "FloatingBadge"
-	FloatingBadge.Size = UDim2.new(0, 154, 0, 38)
+	FloatingBadge.Size = UDim2.new(0, 160, 0, 38)
 	FloatingBadge.Position = UDim2.new(0.5, 0, 0, 28)
 	FloatingBadge.AnchorPoint = Vector2.new(0.5, 0)
 	FloatingBadge.BackgroundColor3 = THEME.MainBackground
 	FloatingBadge.BorderSizePixel = 0
 	FloatingBadge.AutoButtonColor = false
 	FloatingBadge.Text = ""
+	FloatingBadge.Active = true
+	FloatingBadge.ZIndex = 80
 	FloatingBadge.Visible = false
 	FloatingBadge.Parent = ScreenGui
 	createCorner(FloatingBadge, 10)
@@ -467,6 +470,8 @@ function NightSystem:CreateWindow(config: {
 	BadgeLogo.AnchorPoint = Vector2.new(0, 0.5)
 	BadgeLogo.BackgroundColor3 = Color3.fromHex("#1E1E22")
 	BadgeLogo.BorderSizePixel = 0
+	BadgeLogo.Active = false
+	BadgeLogo.ZIndex = 81
 	BadgeLogo.Parent = FloatingBadge
 	createCorner(BadgeLogo, 6)
 
@@ -477,6 +482,8 @@ function NightSystem:CreateWindow(config: {
 	BadgeLetter.Text = "N"
 	BadgeLetter.TextColor3 = THEME.TextPrimary
 	BadgeLetter.TextSize = 13
+	BadgeLetter.Active = false
+	BadgeLetter.ZIndex = 82
 	BadgeLetter.Parent = BadgeLogo
 
 	local BadgeRedDot = Instance.new("Frame")
@@ -485,6 +492,8 @@ function NightSystem:CreateWindow(config: {
 	BadgeRedDot.AnchorPoint = Vector2.new(0.5, 0.5)
 	BadgeRedDot.BackgroundColor3 = THEME.AccentRed
 	BadgeRedDot.BorderSizePixel = 0
+	BadgeRedDot.Active = false
+	BadgeRedDot.ZIndex = 83
 	BadgeRedDot.Parent = BadgeLogo
 	createCorner(BadgeRedDot, 4)
 
@@ -498,7 +507,52 @@ function NightSystem:CreateWindow(config: {
 	BadgeLabel.TextSize = 13
 	BadgeLabel.TextXAlignment = Enum.TextXAlignment.Left
 	BadgeLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	BadgeLabel.Active = false
+	BadgeLabel.ZIndex = 81
 	BadgeLabel.Parent = FloatingBadge
+
+	-- Mobile Floating Toggle Button (Sleek draggable circular button with 'N' logo and red dot - Pure Matte Black)
+	local MobileToggleBtn = Instance.new("TextButton")
+	MobileToggleBtn.Name = "MobileToggleBtn"
+	MobileToggleBtn.Size = UDim2.new(0, 44, 0, 44)
+	MobileToggleBtn.Position = UDim2.new(0, 16, 0.35, 0)
+	MobileToggleBtn.AnchorPoint = Vector2.new(0, 0.5)
+	MobileToggleBtn.BackgroundColor3 = Color3.fromHex("#08080A")
+	MobileToggleBtn.BorderSizePixel = 0
+	MobileToggleBtn.AutoButtonColor = false
+	MobileToggleBtn.Text = ""
+	MobileToggleBtn.ZIndex = 40
+	MobileToggleBtn.Visible = false
+	MobileToggleBtn.Parent = ScreenGui
+	createCorner(MobileToggleBtn, 22)
+	local mobileStroke = createStroke(MobileToggleBtn, Color3.fromHex("#1E2024"), 1.2, 0.15)
+
+	local mobileLogoHolder = Instance.new("Frame")
+	mobileLogoHolder.Size = UDim2.new(0, 26, 0, 26)
+	mobileLogoHolder.Position = UDim2.new(0.5, 0, 0.5, 0)
+	mobileLogoHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+	mobileLogoHolder.BackgroundColor3 = Color3.fromHex("#101114")
+	mobileLogoHolder.BorderSizePixel = 0
+	mobileLogoHolder.Parent = MobileToggleBtn
+	createCorner(mobileLogoHolder, 6)
+
+	local mobileLogoText = Instance.new("TextLabel")
+	mobileLogoText.Size = UDim2.new(1, 0, 1, 0)
+	mobileLogoText.BackgroundTransparency = 1
+	mobileLogoText.Font = Enum.Font.GothamBold
+	mobileLogoText.Text = "N"
+	mobileLogoText.TextColor3 = THEME.TextPrimary
+	mobileLogoText.TextSize = 15
+	mobileLogoText.Parent = mobileLogoHolder
+
+	local mobileRedDot = Instance.new("Frame")
+	mobileRedDot.Size = UDim2.new(0, 6, 0, 6)
+	mobileRedDot.Position = UDim2.new(1, -2, 0, 2)
+	mobileRedDot.AnchorPoint = Vector2.new(0.5, 0.5)
+	mobileRedDot.BackgroundColor3 = THEME.AccentRed
+	mobileRedDot.BorderSizePixel = 0
+	mobileRedDot.Parent = mobileLogoHolder
+	createCorner(mobileRedDot, 6)
 
 	-- Main Window (740x460px, UICorner 12px, #121212)
 	local normalSize = UDim2.new(0, 740, 0, 460)
@@ -516,6 +570,63 @@ function NightSystem:CreateWindow(config: {
 	MainFrame.Parent = ScreenGui
 	createCorner(MainFrame, 12)
 	createStroke(MainFrame, THEME.Stroke, 1, 0.2)
+
+	-- Dynamic UI Scaling for Mobile & Responsive displays
+	local mainFrameScale = Instance.new("UIScale")
+	mainFrameScale.Name = "WindowScale"
+	mainFrameScale.Scale = 1.0
+	mainFrameScale.Parent = MainFrame
+
+	local selectedPlatform: string = if (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) then "Handy" else "PC"
+	NightSystem.Platform = selectedPlatform
+
+	local PlatformValueLabel: TextLabel? = nil
+
+	local function updateMobileScale()
+		if selectedPlatform ~= "Handy" then
+			if mainFrameScale then mainFrameScale.Scale = 1.0 end
+			return
+		end
+		local cam = workspace.CurrentCamera
+		local vp = (cam and cam.ViewportSize) or Vector2.new(800, 600)
+		if vp.X <= 100 or vp.Y <= 100 then
+			vp = Vector2.new(800, 600)
+		end
+		local availW = math.max(300, vp.X - 28)
+		local availH = math.max(200, vp.Y - 28)
+		local scaleX = availW / 740
+		local scaleY = availH / 460
+		local calculatedScale = math.min(scaleX, scaleY)
+		if mainFrameScale then
+			mainFrameScale.Scale = math.clamp(calculatedScale, 0.50, 0.95)
+		end
+	end
+
+	trackConnection(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateMobileScale))
+	trackConnection(ScreenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateMobileScale))
+
+	local function applyPlatform(platformName: string)
+		selectedPlatform = if (platformName == "Handy" or platformName == "Mobile") then "Handy" else "PC"
+		NightSystem.Platform = selectedPlatform
+
+		if PlatformValueLabel and PlatformValueLabel.Parent then
+			PlatformValueLabel.Text = selectedPlatform
+		end
+
+		if selectedPlatform == "Handy" then
+			updateMobileScale()
+			if MobileToggleBtn then
+				MobileToggleBtn.Visible = true
+			end
+		else
+			if mainFrameScale then
+				mainFrameScale.Scale = 1.0
+			end
+			if MobileToggleBtn then
+				MobileToggleBtn.Visible = false
+			end
+		end
+	end
 
 	-- ========================================================================
 	-- TOPBAR & WINDOW CONTROLS
@@ -653,25 +764,38 @@ function NightSystem:CreateWindow(config: {
 		end
 	end)
 
-	local function makeDraggable(handle: GuiObject, target: GuiObject, pill: Frame?)
+	local isMaximized = false
+	local isMinimized = false
+	local isHidden = false
+	local isLoaderRunning = false
+	local skipLoader = false
+
+	local function makeDraggable(handle: GuiObject, target: GuiObject, pill: Frame?, onClick: (() -> ())?)
 		local isDragging = false
 		local dragInput: InputObject? = nil
 		local dragStart = Vector2.zero
 		local startPos = target.Position
+		local totalMoved = 0
 
 		handle.InputBegan:Connect(function(input: InputObject)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 				isDragging = true
-				dragStart = input.Position
+				totalMoved = 0
+				dragStart = Vector2.new(input.Position.X, input.Position.Y)
 				startPos = target.Position
 				if pill then
 					tween(pill, TWEEN_FAST, { BackgroundColor3 = THEME.TextPrimary })
 				end
-				input.Changed:Connect(function()
+				local endConn: RBXScriptConnection? = nil
+				endConn = input.Changed:Connect(function()
 					if input.UserInputState == Enum.UserInputState.End then
 						isDragging = false
+						if endConn then endConn:Disconnect() end
 						if pill then
 							tween(pill, TWEEN_FAST, { BackgroundColor3 = THEME.DragPill })
+						end
+						if totalMoved < 6 and onClick then
+							onClick()
 						end
 					end
 				end)
@@ -686,7 +810,9 @@ function NightSystem:CreateWindow(config: {
 
 		trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
 			if input == dragInput and isDragging then
-				local delta = input.Position - dragStart
+				local curPos = Vector2.new(input.Position.X, input.Position.Y)
+				local delta = curPos - dragStart
+				totalMoved = delta.Magnitude
 				target.Position = UDim2.new(
 					startPos.X.Scale,
 					startPos.X.Offset + delta.X,
@@ -697,51 +823,57 @@ function NightSystem:CreateWindow(config: {
 		end))
 	end
 
-	makeDraggable(TopBar, MainFrame, DragPill)
-	makeDraggable(FloatingBadge, FloatingBadge, nil)
-
-	local isMaximized = false
-	local isMinimized = false
-	local isHidden = false
-
-	local function setWindowMinimized(state: boolean)
-		isMinimized = state
+	local function openWindow()
+		isMinimized = false
 		isHidden = false
-		if isMinimized then
-			local shrink = tween(MainFrame, TWEEN_MEDIUM, {
-				Size = UDim2.new(0, MainFrame.AbsoluteSize.X, 0, 0),
-				BackgroundTransparency = 1,
+		FloatingBadge.Visible = false
+		MainFrame.Visible = true
+		MainFrame.BackgroundTransparency = 0
+
+		local targetSize = if isMaximized then maximizedSize else normalSize
+		MainFrame.Size = UDim2.new(0, targetSize.X.Offset * 0.94, 0, targetSize.Y.Offset * 0.94)
+		tween(MainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = targetSize,
+			BackgroundTransparency = 0,
+		})
+	end
+
+	local function minimizeWindow()
+		isMinimized = true
+		isHidden = false
+
+		-- Show FloatingBadge immediately on PC
+		if selectedPlatform == "PC" then
+			FloatingBadge.Visible = true
+			FloatingBadge.BackgroundTransparency = 0
+			FloatingBadge.Size = UDim2.new(0, 144, 0, 34)
+			tween(FloatingBadge, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Size = UDim2.new(0, 160, 0, 38),
 			})
-			shrink.Completed:Connect(function()
-				if isMinimized then
-					MainFrame.Visible = false
-					FloatingBadge.Visible = true
-				end
-			end)
 		else
 			FloatingBadge.Visible = false
-			MainFrame.Visible = true
-			tween(MainFrame, TWEEN_SMOOTH, {
-				Size = if isMaximized then maximizedSize else normalSize,
-				BackgroundTransparency = 0,
-			})
 		end
+
+		local targetW = if MainFrame.AbsoluteSize.X > 50 then MainFrame.AbsoluteSize.X else 740
+		local shrink = tween(MainFrame, TWEEN_FAST, {
+			Size = UDim2.new(0, targetW, 0, 0),
+			BackgroundTransparency = 1,
+		})
+		shrink.Completed:Connect(function()
+			if isMinimized then
+				MainFrame.Visible = false
+			end
+		end)
 	end
 
-	local function toggleMinimizeState()
-		if isHidden then
-			setWindowMinimized(false)
-		else
-			setWindowMinimized(not isMinimized)
-		end
-	end
-
-	CloseBtn.MouseButton1Click:Connect(function()
+	local function closeWindow()
 		isMinimized = false
 		isHidden = true
 		FloatingBadge.Visible = false
-		local fadeOut = tween(MainFrame, TWEEN_MEDIUM, {
-			Size = UDim2.new(0, MainFrame.AbsoluteSize.X, 0, 0),
+
+		local targetW = if MainFrame.AbsoluteSize.X > 50 then MainFrame.AbsoluteSize.X else 740
+		local fadeOut = tween(MainFrame, TWEEN_FAST, {
+			Size = UDim2.new(0, targetW, 0, 0),
 			BackgroundTransparency = 1,
 		})
 		fadeOut.Completed:Connect(function()
@@ -749,11 +881,52 @@ function NightSystem:CreateWindow(config: {
 				MainFrame.Visible = false
 			end
 		end)
+
 		NightSystem:Notify({
 			Title = windowTitle,
-			Content = "UI geschlossen – Drücke linke STRG, um sie wieder zu öffnen.",
+			Content = if selectedPlatform == "Handy"
+				then "UI geschlossen - Tippe auf das Night-Symbol, um sie wieder zu oeffnen."
+				else "UI geschlossen - Druecke STRG, um sie wieder zu oeffnen.",
 			Duration = 3,
 		})
+	end
+
+	local lastToggleTime = 0
+	local function toggleWindowState()
+		local now = os.clock()
+		if now - lastToggleTime < 0.22 then return end
+		lastToggleTime = now
+
+		if isLoaderRunning then
+			skipLoader = true
+			return
+		end
+
+		if isHidden or isMinimized or not MainFrame.Visible then
+			openWindow()
+		else
+			minimizeWindow()
+		end
+	end
+
+	makeDraggable(TopBar, MainFrame, DragPill, nil)
+	makeDraggable(FloatingBadge, FloatingBadge, nil, function()
+		openWindow()
+	end)
+
+	FloatingBadge.MouseButton1Click:Connect(function()
+		openWindow()
+	end)
+
+	FloatingBadge.MouseEnter:Connect(function()
+		tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+	end)
+	FloatingBadge.MouseLeave:Connect(function()
+		tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.MainBackground })
+	end)
+
+	CloseBtn.MouseButton1Click:Connect(function()
+		closeWindow()
 	end)
 
 	MaximizeBtn.MouseButton1Click:Connect(function()
@@ -764,19 +937,74 @@ function NightSystem:CreateWindow(config: {
 	end)
 
 	MinimizeBtn.MouseButton1Click:Connect(function()
-		toggleMinimizeState()
+		minimizeWindow()
 	end)
 
-	FloatingBadge.MouseButton1Click:Connect(function()
-		setWindowMinimized(false)
-	end)
+	-- Mobile Button Touch Drag & Tap Toggle
+	do
+		local isDraggingBtn = false
+		local dragStartPos = Vector2.zero
+		local btnStartPos = UDim2.new()
+		local hasMoved = false
+
+		MobileToggleBtn.InputBegan:Connect(function(input: InputObject)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				isDraggingBtn = true
+				hasMoved = false
+				dragStartPos = Vector2.new(input.Position.X, input.Position.Y)
+				btnStartPos = MobileToggleBtn.Position
+
+				local moveConn: RBXScriptConnection? = nil
+				local endConn: RBXScriptConnection? = nil
+
+				moveConn = UserInputService.InputChanged:Connect(function(moveInput: InputObject)
+					if isDraggingBtn and (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) then
+						local curPos = Vector2.new(moveInput.Position.X, moveInput.Position.Y)
+						local delta = curPos - dragStartPos
+						if delta.Magnitude > 6 then
+							hasMoved = true
+							MobileToggleBtn.Position = UDim2.new(
+								btnStartPos.X.Scale,
+								btnStartPos.X.Offset + delta.X,
+								btnStartPos.Y.Scale,
+								btnStartPos.Y.Offset + delta.Y
+							)
+						end
+					end
+				end)
+
+				endConn = UserInputService.InputEnded:Connect(function(endInput: InputObject)
+					if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+						isDraggingBtn = false
+						if moveConn then moveConn:Disconnect() end
+						if endConn then endConn:Disconnect() end
+						if not hasMoved then
+							tween(MobileToggleBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+								Size = UDim2.new(0, 38, 0, 38)
+							})
+							task.delay(0.08, function()
+								tween(MobileToggleBtn, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+									Size = UDim2.new(0, 44, 0, 44)
+								})
+							end)
+							toggleWindowState()
+						end
+					end
+				end)
+			end
+		end)
+	end
 
 	trackConnection(UserInputService.InputBegan:Connect(function(input: InputObject)
 		if UserInputService:GetFocusedTextBox() then
 			return
 		end
-		if input.KeyCode == Enum.KeyCode.LeftControl then
-			toggleMinimizeState()
+		local code = input.KeyCode
+		if code == Enum.KeyCode.LeftControl
+			or code == Enum.KeyCode.RightControl
+			or (toggleKey and code == toggleKey)
+		then
+			toggleWindowState()
 		end
 	end))
 
@@ -1855,17 +2083,17 @@ function NightSystem:CreateWindow(config: {
 		updateActiveIndicator(true)
 	end)
 
-	-- Central Player Profile (88x88px Avatar, 10px UICorner, #2A2A2A UIStroke + 26px DisplayName & 15px @Name)
+	-- Central Player Profile (72x72px Avatar, 10px UICorner, #2A2A2A UIStroke + 22px DisplayName & 14px @Name)
 	local ProfileSection = Instance.new("Frame")
 	ProfileSection.Name = "ProfileSection"
-	ProfileSection.Size = UDim2.new(1, 0, 0, 88)
-	ProfileSection.Position = UDim2.new(0, 0, 0, 62)
+	ProfileSection.Size = UDim2.new(1, 0, 0, 72)
+	ProfileSection.Position = UDim2.new(0, 0, 0, 48)
 	ProfileSection.BackgroundTransparency = 1
 	ProfileSection.Parent = HomePage
 
 	local LargeAvatar = Instance.new("ImageLabel")
 	LargeAvatar.Name = "LargeAvatar"
-	LargeAvatar.Size = UDim2.new(0, 88, 0, 88)
+	LargeAvatar.Size = UDim2.new(0, 72, 0, 72)
 	LargeAvatar.Position = UDim2.new(0, 0, 0, 0)
 	LargeAvatar.BackgroundColor3 = THEME.DiscordBoxBg
 	LargeAvatar.BorderSizePixel = 0
@@ -1874,32 +2102,32 @@ function NightSystem:CreateWindow(config: {
 	createStroke(LargeAvatar, THEME.StrokeActive, 1, 0)
 
 	local ProfileTextContainer = Instance.new("Frame")
-	ProfileTextContainer.Size = UDim2.new(1, -106, 0, 50)
-	ProfileTextContainer.Position = UDim2.new(0, 106, 0.5, 0)
+	ProfileTextContainer.Size = UDim2.new(1, -88, 0, 48)
+	ProfileTextContainer.Position = UDim2.new(0, 88, 0.5, 0)
 	ProfileTextContainer.AnchorPoint = Vector2.new(0, 0.5)
 	ProfileTextContainer.BackgroundTransparency = 1
 	ProfileTextContainer.Parent = ProfileSection
 
 	local LargeDisplayName = Instance.new("TextLabel")
-	LargeDisplayName.Size = UDim2.new(1, 0, 0, 28)
+	LargeDisplayName.Size = UDim2.new(1, 0, 0, 24)
 	LargeDisplayName.Position = UDim2.new(0, 0, 0, 0)
 	LargeDisplayName.BackgroundTransparency = 1
 	LargeDisplayName.Font = Enum.Font.GothamBold
 	LargeDisplayName.Text = LocalPlayer.DisplayName
 	LargeDisplayName.TextColor3 = THEME.TextPrimary
-	LargeDisplayName.TextSize = 26
+	LargeDisplayName.TextSize = 22
 	LargeDisplayName.TextXAlignment = Enum.TextXAlignment.Left
 	LargeDisplayName.TextTruncate = Enum.TextTruncate.AtEnd
 	LargeDisplayName.Parent = ProfileTextContainer
 
 	local LargeUsername = Instance.new("TextLabel")
-	LargeUsername.Size = UDim2.new(1, 0, 0, 18)
-	LargeUsername.Position = UDim2.new(0, 0, 0, 31)
+	LargeUsername.Size = UDim2.new(1, 0, 0, 16)
+	LargeUsername.Position = UDim2.new(0, 0, 0, 26)
 	LargeUsername.BackgroundTransparency = 1
 	LargeUsername.Font = Enum.Font.GothamMedium
 	LargeUsername.Text = "@" .. LocalPlayer.Name
 	LargeUsername.TextColor3 = THEME.TextTabInactive
-	LargeUsername.TextSize = 15
+	LargeUsername.TextSize = 14
 	LargeUsername.TextXAlignment = Enum.TextXAlignment.Left
 	LargeUsername.TextTruncate = Enum.TextTruncate.AtEnd
 	LargeUsername.Parent = ProfileTextContainer
@@ -1907,23 +2135,23 @@ function NightSystem:CreateWindow(config: {
 	-- Info Text Below Profile
 	local InfoTextLabel = Instance.new("TextLabel")
 	InfoTextLabel.Name = "InfoText"
-	InfoTextLabel.Size = UDim2.new(1, 0, 0, 48)
-	InfoTextLabel.Position = UDim2.new(0, 0, 0, 174)
+	InfoTextLabel.Size = UDim2.new(1, 0, 0, 34)
+	InfoTextLabel.Position = UDim2.new(0, 0, 0, 128)
 	InfoTextLabel.BackgroundTransparency = 1
 	InfoTextLabel.Font = Enum.Font.GothamMedium
 	InfoTextLabel.Text = introText
 	InfoTextLabel.TextColor3 = THEME.TextInfo
-	InfoTextLabel.TextSize = 14
+	InfoTextLabel.TextSize = 13
 	InfoTextLabel.TextWrapped = true
 	InfoTextLabel.TextXAlignment = Enum.TextXAlignment.Left
 	InfoTextLabel.TextYAlignment = Enum.TextYAlignment.Top
 	InfoTextLabel.LineHeight = 1.25
 	InfoTextLabel.Parent = HomePage
 
-	-- Bottom Game Statistics (Executor, Place ID, Roblox Version & Your Team separated by 1px #262626 lines)
+	-- Bottom Game Statistics (Platform, Executor, Place ID, Roblox Version & Your Team separated by 1px #262626 lines)
 	local StatsContainer = Instance.new("Frame")
 	StatsContainer.Name = "StatsContainer"
-	StatsContainer.Size = UDim2.new(1, 0, 0, 132)
+	StatsContainer.Size = UDim2.new(1, 0, 0, 166)
 	StatsContainer.Position = UDim2.new(0, 0, 1, 0)
 	StatsContainer.AnchorPoint = Vector2.new(0, 1)
 	StatsContainer.BackgroundTransparency = 1
@@ -1937,10 +2165,63 @@ function NightSystem:CreateWindow(config: {
 	TopStatsDivider.BorderSizePixel = 0
 	TopStatsDivider.Parent = StatsContainer
 
-	-- Row 1: Executor
+	-- Row 1: Plattform (Gerät / Platform) - Directly ABOVE Executor!
+	local PlatformRow = Instance.new("Frame")
+	PlatformRow.Name = "PlatformRow"
+	PlatformRow.Size = UDim2.new(1, 0, 0, 32)
+	PlatformRow.Position = UDim2.new(0, 0, 0, 1)
+	PlatformRow.BackgroundTransparency = 1
+	PlatformRow.Parent = StatsContainer
+
+	local PlatformLabel = Instance.new("TextLabel")
+	PlatformLabel.Size = UDim2.new(0.35, 0, 1, 0)
+	PlatformLabel.BackgroundTransparency = 1
+	PlatformLabel.Font = Enum.Font.GothamMedium
+	PlatformLabel.Text = "Plattform"
+	PlatformLabel.TextColor3 = THEME.TextSecondary
+	PlatformLabel.TextSize = 13
+	PlatformLabel.TextXAlignment = Enum.TextXAlignment.Left
+	PlatformLabel.Parent = PlatformRow
+
+	local PlatformValue = Instance.new("TextLabel")
+	PlatformValue.Name = "PlatformValue"
+	PlatformValue.Size = UDim2.new(0.65, 0, 1, 0)
+	PlatformValue.Position = UDim2.new(0.35, 0, 0, 0)
+	PlatformValue.BackgroundTransparency = 1
+	PlatformValue.Font = Enum.Font.GothamMedium
+	PlatformValue.Text = selectedPlatform
+	PlatformValue.TextColor3 = THEME.TextStatValue
+	PlatformValue.TextSize = 13
+	PlatformValue.TextXAlignment = Enum.TextXAlignment.Right
+	PlatformValue.TextTruncate = Enum.TextTruncate.AtEnd
+	PlatformValue.Parent = PlatformRow
+	PlatformValueLabel = PlatformValue
+
+	-- Allow switching platform by tapping on the platform row
+	PlatformRow.InputBegan:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			local nextPlat = if selectedPlatform == "Handy" then "PC" else "Handy"
+			applyPlatform(nextPlat)
+			NightSystem:Notify({
+				Title = "Plattform gewechselt",
+				Content = "Modus umgeschaltet auf: " .. (if nextPlat == "Handy" then "Handy (Mobile)" else "PC (Desktop)"),
+				Duration = 2.5,
+			})
+		end
+	end)
+
+	local Divider1 = Instance.new("Frame")
+	Divider1.Size = UDim2.new(1, 0, 0, 1)
+	Divider1.Position = UDim2.new(0, 0, 0, 33)
+	Divider1.BackgroundColor3 = THEME.Stroke
+	Divider1.BackgroundTransparency = 0.2
+	Divider1.BorderSizePixel = 0
+	Divider1.Parent = StatsContainer
+
+	-- Row 2: Executor
 	local ExecutorRow = Instance.new("Frame")
 	ExecutorRow.Size = UDim2.new(1, 0, 0, 32)
-	ExecutorRow.Position = UDim2.new(0, 0, 0, 1)
+	ExecutorRow.Position = UDim2.new(0, 0, 0, 34)
 	ExecutorRow.BackgroundTransparency = 1
 	ExecutorRow.Parent = StatsContainer
 
@@ -1986,16 +2267,16 @@ function NightSystem:CreateWindow(config: {
 
 	local Divider2 = Instance.new("Frame")
 	Divider2.Size = UDim2.new(1, 0, 0, 1)
-	Divider2.Position = UDim2.new(0, 0, 0, 33)
+	Divider2.Position = UDim2.new(0, 0, 0, 66)
 	Divider2.BackgroundColor3 = THEME.Stroke
 	Divider2.BackgroundTransparency = 0.2
 	Divider2.BorderSizePixel = 0
 	Divider2.Parent = StatsContainer
 
-	-- Row 2: Place ID
+	-- Row 3: Place ID
 	local PlaceIdRow = Instance.new("Frame")
 	PlaceIdRow.Size = UDim2.new(1, 0, 0, 32)
-	PlaceIdRow.Position = UDim2.new(0, 0, 0, 34)
+	PlaceIdRow.Position = UDim2.new(0, 0, 0, 67)
 	PlaceIdRow.BackgroundTransparency = 1
 	PlaceIdRow.Parent = StatsContainer
 
@@ -2023,16 +2304,16 @@ function NightSystem:CreateWindow(config: {
 
 	local Divider3 = Instance.new("Frame")
 	Divider3.Size = UDim2.new(1, 0, 0, 1)
-	Divider3.Position = UDim2.new(0, 0, 0, 66)
+	Divider3.Position = UDim2.new(0, 0, 0, 99)
 	Divider3.BackgroundColor3 = THEME.Stroke
 	Divider3.BackgroundTransparency = 0.2
 	Divider3.BorderSizePixel = 0
 	Divider3.Parent = StatsContainer
 
-	-- Row 3: Roblox Version (directly below Place ID, always latest)
+	-- Row 4: Roblox Version (directly below Place ID, always latest)
 	local VersionRow = Instance.new("Frame")
 	VersionRow.Size = UDim2.new(1, 0, 0, 32)
-	VersionRow.Position = UDim2.new(0, 0, 0, 67)
+	VersionRow.Position = UDim2.new(0, 0, 0, 100)
 	VersionRow.BackgroundTransparency = 1
 	VersionRow.Parent = StatsContainer
 
@@ -2155,16 +2436,16 @@ function NightSystem:CreateWindow(config: {
 
 	local Divider4 = Instance.new("Frame")
 	Divider4.Size = UDim2.new(1, 0, 0, 1)
-	Divider4.Position = UDim2.new(0, 0, 0, 99)
+	Divider4.Position = UDim2.new(0, 0, 0, 132)
 	Divider4.BackgroundColor3 = THEME.Stroke
 	Divider4.BackgroundTransparency = 0.2
 	Divider4.BorderSizePixel = 0
 	Divider4.Parent = StatsContainer
 
-	-- Row 4: Your Team
+	-- Row 5: Your Team
 	local TeamRow = Instance.new("Frame")
 	TeamRow.Size = UDim2.new(1, 0, 0, 32)
-	TeamRow.Position = UDim2.new(0, 0, 0, 100)
+	TeamRow.Position = UDim2.new(0, 0, 0, 133)
 	TeamRow.BackgroundTransparency = 1
 	TeamRow.Parent = StatsContainer
 
@@ -2235,7 +2516,34 @@ function NightSystem:CreateWindow(config: {
 	Window._AutoSort = autoSort
 	Window.Flags = NightSystem.Flags
 
+	function Window:SetPlatform(platformName: string)
+		applyPlatform(platformName)
+	end
+
+	function Window:GetPlatform(): string
+		return selectedPlatform
+	end
+
+	function Window:Toggle()
+		toggleWindowState()
+	end
+
+	function Window:Minimize()
+		minimizeWindow()
+	end
+
+	function Window:Open()
+		openWindow()
+	end
+
+	function Window:Close()
+		closeWindow()
+	end
+
 	function Window:_ApplyConfig(newCfg: { [string]: any })
+		if newCfg.Platform then
+			applyPlatform(tostring(newCfg.Platform))
+		end
 		if newCfg.Title or newCfg.Name then
 			windowTitle = tostring(newCfg.Title or newCfg.Name)
 			BrandTitle.Text = windowTitle
@@ -5008,9 +5316,426 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	-- ========================================================================
-	-- STARTUP LOADER (Runder Ladekreis / Spinner mit Roblox-Avatar)
+	-- STARTUP SEQUENCE (Platform Selection Window & Animated Loader)
 	-- ========================================================================
-	task.spawn(function()
+	local function showPlatformSelectionModal(onSelect: (string) -> ())
+		local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		local recommended = if isTouchDevice then "Handy" else "PC"
+
+		local ModalOverlay = Instance.new("TextButton")
+		ModalOverlay.Name = "PlatformSelectOverlay"
+		ModalOverlay.Size = UDim2.new(1, 0, 1, 0)
+		ModalOverlay.Position = UDim2.new(0, 0, 0, 0)
+		ModalOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		ModalOverlay.BackgroundTransparency = 1
+		ModalOverlay.AutoButtonColor = false
+		ModalOverlay.Text = ""
+		ModalOverlay.ZIndex = 60
+		ModalOverlay.Parent = ScreenGui
+
+		-- Pure Deep Matte Black Modal Window (#070709)
+		local ModalCard = Instance.new("Frame")
+		ModalCard.Name = "PlatformSelectCard"
+		ModalCard.Size = UDim2.new(0, 410, 0, 276)
+		ModalCard.Position = UDim2.new(0.5, 0, 0.5, 0)
+		ModalCard.AnchorPoint = Vector2.new(0.5, 0.5)
+		ModalCard.BackgroundColor3 = Color3.fromHex("#070709")
+		ModalCard.BorderSizePixel = 0
+		ModalCard.ClipsDescendants = true
+		ModalCard.ZIndex = 61
+		ModalCard.Parent = ModalOverlay
+		createCorner(ModalCard, 14)
+		local modalStroke = createStroke(ModalCard, Color3.fromHex("#1A1B1F"), 1.2, 0.1)
+
+		local cardScale = Instance.new("UIScale")
+		local function updateCardScale()
+			local vp = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(800, 600)
+			local sX = (vp.X - 24) / 420
+			local sY = (vp.Y - 24) / 290
+			cardScale.Scale = math.clamp(math.min(sX, sY), 0.65, 1.0)
+		end
+		updateCardScale()
+		cardScale.Parent = ModalCard
+		trackConnection(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateCardScale))
+
+		-- Header Section
+		local HeaderFrame = Instance.new("Frame")
+		HeaderFrame.Size = UDim2.new(1, -32, 0, 36)
+		HeaderFrame.Position = UDim2.new(0, 16, 0, 16)
+		HeaderFrame.BackgroundTransparency = 1
+		HeaderFrame.ZIndex = 62
+		HeaderFrame.Parent = ModalCard
+
+		local IconBox = Instance.new("Frame")
+		IconBox.Size = UDim2.new(0, 34, 0, 34)
+		IconBox.Position = UDim2.new(0, 0, 0.5, 0)
+		IconBox.AnchorPoint = Vector2.new(0, 0.5)
+		IconBox.BackgroundColor3 = Color3.fromHex("#0F1014")
+		IconBox.BorderSizePixel = 0
+		IconBox.ZIndex = 62
+		IconBox.Parent = HeaderFrame
+		createCorner(IconBox, 8)
+		createStroke(IconBox, Color3.fromHex("#222429"), 1, 0.2)
+
+		local IconLetter = Instance.new("TextLabel")
+		IconLetter.Size = UDim2.new(1, 0, 1, 0)
+		IconLetter.BackgroundTransparency = 1
+		IconLetter.Font = Enum.Font.GothamBold
+		IconLetter.Text = "N"
+		IconLetter.TextColor3 = THEME.TextPrimary
+		IconLetter.TextSize = 17
+		IconLetter.ZIndex = 63
+		IconLetter.Parent = IconBox
+
+		local RedAccentDot = Instance.new("Frame")
+		RedAccentDot.Size = UDim2.new(0, 6, 0, 6)
+		RedAccentDot.Position = UDim2.new(1, -3, 0, 3)
+		RedAccentDot.AnchorPoint = Vector2.new(0.5, 0.5)
+		RedAccentDot.BackgroundColor3 = THEME.AccentRed
+		RedAccentDot.BorderSizePixel = 0
+		RedAccentDot.ZIndex = 64
+		RedAccentDot.Parent = IconBox
+		createCorner(RedAccentDot, 6)
+
+		local TitleLbl = Instance.new("TextLabel")
+		TitleLbl.Size = UDim2.new(1, -44, 0, 18)
+		TitleLbl.Position = UDim2.new(0, 44, 0, 0)
+		TitleLbl.BackgroundTransparency = 1
+		TitleLbl.Font = Enum.Font.GothamBold
+		TitleLbl.Text = "Night System"
+		TitleLbl.TextColor3 = THEME.TextPrimary
+		TitleLbl.TextSize = 15
+		TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+		TitleLbl.ZIndex = 62
+		TitleLbl.Parent = HeaderFrame
+
+		local SubtitleLbl = Instance.new("TextLabel")
+		SubtitleLbl.Size = UDim2.new(1, -44, 0, 14)
+		SubtitleLbl.Position = UDim2.new(0, 44, 0, 18)
+		SubtitleLbl.BackgroundTransparency = 1
+		SubtitleLbl.Font = Enum.Font.GothamMedium
+		SubtitleLbl.Text = "Plattform-Auswahl • Choose Platform"
+		SubtitleLbl.TextColor3 = THEME.TextSecondary
+		SubtitleLbl.TextSize = 11
+		SubtitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+		SubtitleLbl.ZIndex = 62
+		SubtitleLbl.Parent = HeaderFrame
+
+		-- Prompt text
+		local PromptLbl = Instance.new("TextLabel")
+		PromptLbl.Size = UDim2.new(1, -32, 0, 18)
+		PromptLbl.Position = UDim2.new(0, 16, 0, 60)
+		PromptLbl.BackgroundTransparency = 1
+		PromptLbl.Font = Enum.Font.GothamBold
+		PromptLbl.Text = "Auf welchem Gerät spielst du?"
+		PromptLbl.TextColor3 = THEME.TextPrimary
+		PromptLbl.TextSize = 13
+		PromptLbl.TextXAlignment = Enum.TextXAlignment.Left
+		PromptLbl.ZIndex = 62
+		PromptLbl.Parent = ModalCard
+
+		local PromptDesc = Instance.new("TextLabel")
+		PromptDesc.Size = UDim2.new(1, -32, 0, 26)
+		PromptDesc.Position = UDim2.new(0, 16, 0, 78)
+		PromptDesc.BackgroundTransparency = 1
+		PromptDesc.Font = Enum.Font.GothamMedium
+		PromptDesc.Text = "Wähle deine Plattform, um die UI und Steuerung optimal an dein Gerät anzupassen."
+		PromptDesc.TextColor3 = THEME.TextInfo
+		PromptDesc.TextSize = 11
+		PromptDesc.TextWrapped = true
+		PromptDesc.TextXAlignment = Enum.TextXAlignment.Left
+		PromptDesc.TextYAlignment = Enum.TextYAlignment.Top
+		PromptDesc.ZIndex = 62
+		PromptDesc.Parent = ModalCard
+
+		-- Cards Container
+		local CardsContainer = Instance.new("Frame")
+		CardsContainer.Size = UDim2.new(1, -32, 0, 136)
+		CardsContainer.Position = UDim2.new(0, 16, 0, 114)
+		CardsContainer.BackgroundTransparency = 1
+		CardsContainer.ZIndex = 62
+		CardsContainer.Parent = ModalCard
+
+		-- ====================================================================
+		-- CUSTOM BUILT PC MONITOR LOGO (Großer Desktop-Bildschirm)
+		-- ====================================================================
+		local function buildPcMonitorLogo(parent: Instance): (Frame, UIStroke, Frame)
+			local holder = Instance.new("Frame")
+			holder.Name = "PcMonitorLogo"
+			holder.Size = UDim2.new(0, 48, 0, 38)
+			holder.Position = UDim2.new(0, 14, 0, 12)
+			holder.BackgroundTransparency = 1
+			holder.ZIndex = 64
+			holder.Parent = parent
+
+			-- Outer Monitor Bezel (Screen Frame)
+			local screenFrame = Instance.new("Frame")
+			screenFrame.Name = "MonitorBezel"
+			screenFrame.Size = UDim2.new(0, 46, 0, 28)
+			screenFrame.Position = UDim2.new(0.5, 0, 0, 0)
+			screenFrame.AnchorPoint = Vector2.new(0.5, 0)
+			screenFrame.BackgroundColor3 = Color3.fromHex("#08090B")
+			screenFrame.BorderSizePixel = 0
+			screenFrame.ZIndex = 65
+			screenFrame.Parent = holder
+			createCorner(screenFrame, 4)
+			local bezelStroke = createStroke(screenFrame, Color3.fromHex("#D0D4DC"), 1.4, 0)
+
+			-- Inner Display Glass
+			local displayGlass = Instance.new("Frame")
+			displayGlass.Name = "DisplayGlass"
+			displayGlass.Size = UDim2.new(1, -6, 1, -6)
+			displayGlass.Position = UDim2.new(0.5, 0, 0.5, 0)
+			displayGlass.AnchorPoint = Vector2.new(0.5, 0.5)
+			displayGlass.BackgroundColor3 = Color3.fromHex("#111317")
+			displayGlass.BorderSizePixel = 0
+			displayGlass.ZIndex = 66
+			displayGlass.Parent = screenFrame
+			createCorner(displayGlass, 2)
+
+			-- Top Menu Bar on display
+			local topBar = Instance.new("Frame")
+			topBar.Size = UDim2.new(1, -4, 0, 2)
+			topBar.Position = UDim2.new(0.5, 0, 0, 2)
+			topBar.AnchorPoint = Vector2.new(0.5, 0)
+			topBar.BackgroundColor3 = Color3.fromHex("#252830")
+			topBar.BorderSizePixel = 0
+			topBar.ZIndex = 67
+			topBar.Parent = displayGlass
+
+			-- Active terminal cursor / window line
+			local termLine = Instance.new("Frame")
+			termLine.Size = UDim2.new(0, 10, 0, 2)
+			termLine.Position = UDim2.new(0, 3, 0.5, 0)
+			termLine.AnchorPoint = Vector2.new(0, 0.5)
+			termLine.BackgroundColor3 = Color3.fromHex("#7FB4FF")
+			termLine.BorderSizePixel = 0
+			termLine.ZIndex = 67
+			termLine.Parent = displayGlass
+			createCorner(termLine, 1)
+
+			-- Stand Neck
+			local standNeck = Instance.new("Frame")
+			standNeck.Name = "StandNeck"
+			standNeck.Size = UDim2.new(0, 5, 0, 7)
+			standNeck.Position = UDim2.new(0.5, 0, 0, 28)
+			standNeck.AnchorPoint = Vector2.new(0.5, 0)
+			standNeck.BackgroundColor3 = Color3.fromHex("#70757E")
+			standNeck.BorderSizePixel = 0
+			standNeck.ZIndex = 64
+			standNeck.Parent = holder
+
+			-- Stand Base (Foot)
+			local standFoot = Instance.new("Frame")
+			standFoot.Name = "StandFoot"
+			standFoot.Size = UDim2.new(0, 24, 0, 3)
+			standFoot.Position = UDim2.new(0.5, 0, 0, 35)
+			standFoot.AnchorPoint = Vector2.new(0.5, 0)
+			standFoot.BackgroundColor3 = Color3.fromHex("#D0D4DC")
+			standFoot.BorderSizePixel = 0
+			standFoot.ZIndex = 65
+			standFoot.Parent = holder
+			createCorner(standFoot, 1)
+
+			return holder, bezelStroke, standFoot
+		end
+
+		-- ====================================================================
+		-- CUSTOM BUILT HANDY / SMARTPHONE LOGO
+		-- ====================================================================
+		local function buildSmartphoneLogo(parent: Instance): (Frame, UIStroke)
+			local holder = Instance.new("Frame")
+			holder.Name = "SmartphoneLogo"
+			holder.Size = UDim2.new(0, 26, 0, 38)
+			holder.Position = UDim2.new(0, 16, 0, 12)
+			holder.BackgroundTransparency = 1
+			holder.ZIndex = 64
+			holder.Parent = parent
+
+			-- Phone Outer Body Frame
+			local phoneBody = Instance.new("Frame")
+			phoneBody.Name = "PhoneBody"
+			phoneBody.Size = UDim2.new(0, 24, 0, 38)
+			phoneBody.Position = UDim2.new(0.5, 0, 0.5, 0)
+			phoneBody.AnchorPoint = Vector2.new(0.5, 0.5)
+			phoneBody.BackgroundColor3 = Color3.fromHex("#08090B")
+			phoneBody.BorderSizePixel = 0
+			phoneBody.ZIndex = 65
+			phoneBody.Parent = holder
+			createCorner(phoneBody, 6)
+			local phoneStroke = createStroke(phoneBody, Color3.fromHex("#D0D4DC"), 1.4, 0)
+
+			-- Phone Screen Glass
+			local screen = Instance.new("Frame")
+			screen.Name = "PhoneScreen"
+			screen.Size = UDim2.new(1, -6, 1, -8)
+			screen.Position = UDim2.new(0.5, 0, 0.5, 0)
+			screen.AnchorPoint = Vector2.new(0.5, 0.5)
+			screen.BackgroundColor3 = Color3.fromHex("#111317")
+			screen.BorderSizePixel = 0
+			screen.ZIndex = 66
+			screen.Parent = phoneBody
+			createCorner(screen, 3)
+
+			-- Camera / Speaker Notch Pill
+			local notch = Instance.new("Frame")
+			notch.Name = "Notch"
+			notch.Size = UDim2.new(0, 7, 0, 2)
+			notch.Position = UDim2.new(0.5, 0, 0, 2)
+			notch.AnchorPoint = Vector2.new(0.5, 0)
+			notch.BackgroundColor3 = Color3.fromHex("#464A52")
+			notch.BorderSizePixel = 0
+			notch.ZIndex = 67
+			notch.Parent = phoneBody
+			createCorner(notch, 1)
+
+			-- Home Bar Pill
+			local homeBar = Instance.new("Frame")
+			homeBar.Name = "HomeBar"
+			homeBar.Size = UDim2.new(0, 9, 0, 1.5)
+			homeBar.Position = UDim2.new(0.5, 0, 1, -2.5)
+			homeBar.AnchorPoint = Vector2.new(0.5, 1)
+			homeBar.BackgroundColor3 = Color3.fromHex("#70757E")
+			homeBar.BorderSizePixel = 0
+			homeBar.ZIndex = 67
+			homeBar.Parent = screen
+			createCorner(homeBar, 1)
+
+			return holder, phoneStroke
+		end
+
+		local function createPlatformOption(name: string, titleText: string, descText: string, isPhone: boolean, posXScale: number, isRec: boolean)
+			local optBtn = Instance.new("TextButton")
+			optBtn.Name = "Option_" .. name
+			optBtn.Size = UDim2.new(0.5, -6, 1, 0)
+			optBtn.Position = UDim2.new(posXScale, if posXScale == 0 then 0 else 6, 0, 0)
+			optBtn.BackgroundColor3 = if isRec then Color3.fromHex("#0F1115") else Color3.fromHex("#0B0C0E")
+			optBtn.BorderSizePixel = 0
+			optBtn.AutoButtonColor = false
+			optBtn.Text = ""
+			optBtn.ZIndex = 63
+			optBtn.Parent = CardsContainer
+			createCorner(optBtn, 10)
+			local optStroke = createStroke(optBtn, if isRec then Color3.fromHex("#282E38") else Color3.fromHex("#1C1E22"), 1.2, 0.1)
+
+			-- Custom Vector Logo Build
+			local iconHolder, strokeA, extraPart
+			if isPhone then
+				iconHolder, strokeA = buildSmartphoneLogo(optBtn)
+			else
+				iconHolder, strokeA, extraPart = buildPcMonitorLogo(optBtn)
+			end
+
+			if isRec then
+				local recBadge = Instance.new("Frame")
+				recBadge.Size = UDim2.new(0, 58, 0, 18)
+				recBadge.Position = UDim2.new(1, -8, 0, 10)
+				recBadge.AnchorPoint = Vector2.new(1, 0)
+				recBadge.BackgroundColor3 = Color3.fromHex("#181E27")
+				recBadge.BorderSizePixel = 0
+				recBadge.ZIndex = 64
+				recBadge.Parent = optBtn
+				createCorner(recBadge, 4)
+				createStroke(recBadge, Color3.fromHex("#2C3A4D"), 1, 0.2)
+
+				local recText = Instance.new("TextLabel")
+				recText.Size = UDim2.new(1, 0, 1, 0)
+				recText.BackgroundTransparency = 1
+				recText.Font = Enum.Font.GothamBold
+				recText.Text = "Erkannt"
+				recText.TextColor3 = Color3.fromHex("#7FB4FF")
+				recText.TextSize = 9
+				recText.ZIndex = 65
+				recText.Parent = recBadge
+			end
+
+			local optTitle = Instance.new("TextLabel")
+			optTitle.Size = UDim2.new(1, -28, 0, 18)
+			optTitle.Position = UDim2.new(0, 14, 0, 58)
+			optTitle.BackgroundTransparency = 1
+			optTitle.Font = Enum.Font.GothamBold
+			optTitle.Text = titleText
+			optTitle.TextColor3 = THEME.TextPrimary
+			optTitle.TextSize = 13
+			optTitle.TextXAlignment = Enum.TextXAlignment.Left
+			optTitle.ZIndex = 64
+			optTitle.Parent = optBtn
+
+			local optDesc = Instance.new("TextLabel")
+			optDesc.Size = UDim2.new(1, -28, 0, 48)
+			optDesc.Position = UDim2.new(0, 14, 0, 78)
+			optDesc.BackgroundTransparency = 1
+			optDesc.Font = Enum.Font.GothamMedium
+			optDesc.Text = descText
+			optDesc.TextColor3 = Color3.fromHex("#757980")
+			optDesc.TextSize = 10
+			optDesc.TextWrapped = true
+			optDesc.TextXAlignment = Enum.TextXAlignment.Left
+			optDesc.TextYAlignment = Enum.TextYAlignment.Top
+			optDesc.LineHeight = 1.2
+			optDesc.ZIndex = 64
+			optDesc.Parent = optBtn
+
+			optBtn.MouseEnter:Connect(function()
+				tween(optBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#14161B") })
+				tween(optStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+				if strokeA then tween(strokeA, TWEEN_FAST, { Color = Color3.fromHex("#FFFFFF") }) end
+				if extraPart then tween(extraPart, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#FFFFFF") }) end
+			end)
+			optBtn.MouseLeave:Connect(function()
+				tween(optBtn, TWEEN_FAST, { BackgroundColor3 = if isRec then Color3.fromHex("#0F1115") else Color3.fromHex("#0B0C0E") })
+				tween(optStroke, TWEEN_FAST, { Color = if isRec then Color3.fromHex("#282E38") else Color3.fromHex("#1C1E22"), Transparency = 0.1 })
+				if strokeA then tween(strokeA, TWEEN_FAST, { Color = Color3.fromHex("#D0D4DC") }) end
+				if extraPart then tween(extraPart, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#D0D4DC") }) end
+			end)
+
+			return optBtn
+		end
+
+		local pcBtn = createPlatformOption("PC", "PC / Desktop", "Maus & Tastatur (STRG zum Umschalten)", false, 0, recommended == "PC")
+		local mobileBtn = createPlatformOption("Handy", "Handy / Mobile", "Touch-Steuerung & Mobile-Button", true, 0.5, recommended == "Handy")
+
+		local hasSelected = false
+		local function selectAndClose(platformName: string)
+			if hasSelected then return end
+			hasSelected = true
+
+			tween(ModalCard, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Size = UDim2.new(0, 410, 0, 258),
+				BackgroundTransparency = 1,
+			})
+			tween(modalStroke, TWEEN_FAST, { Transparency = 1 })
+			tween(ModalOverlay, TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1,
+			})
+
+			task.wait(0.25)
+			ModalOverlay:Destroy()
+			onSelect(platformName)
+		end
+
+		pcBtn.MouseButton1Click:Connect(function() selectAndClose("PC") end)
+		mobileBtn.MouseButton1Click:Connect(function() selectAndClose("Handy") end)
+
+		-- Smooth fade-in
+		ModalCard.Size = UDim2.new(0, 360, 0, 230)
+		ModalCard.BackgroundTransparency = 0.4
+		tween(ModalOverlay, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 0.45,
+		})
+		tween(ModalCard, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 390, 0, 246),
+			BackgroundTransparency = 0,
+		})
+	end
+
+	local function runStartupLoader()
+		if skipLoader then
+			openWindow()
+			return
+		end
+		isLoaderRunning = true
+
 		local LoaderFrame = Instance.new("Frame")
 		LoaderFrame.Name = "StartupLoader"
 		LoaderFrame.Size = UDim2.new(0, 310, 0, 78)
@@ -5019,6 +5744,7 @@ function NightSystem:CreateWindow(config: {
 		LoaderFrame.BackgroundColor3 = Color3.fromHex("#121417")
 		LoaderFrame.BorderSizePixel = 0
 		LoaderFrame.ClipsDescendants = true
+		LoaderFrame.ZIndex = 70
 		LoaderFrame.Parent = ScreenGui
 		createCorner(LoaderFrame, 12)
 		local loaderStroke = createStroke(LoaderFrame, Color3.fromHex("#26292E"), 1, 0.15)
@@ -5030,6 +5756,7 @@ function NightSystem:CreateWindow(config: {
 		avatarHolder.AnchorPoint = Vector2.new(0, 0.5)
 		avatarHolder.BackgroundColor3 = Color3.fromHex("#181A1D")
 		avatarHolder.BorderSizePixel = 0
+		avatarHolder.ZIndex = 71
 		avatarHolder.Parent = LoaderFrame
 		createCorner(avatarHolder, 24)
 		local avatarStroke = createStroke(avatarHolder, Color3.fromHex("#2F333A"), 1, 0.2)
@@ -5037,6 +5764,7 @@ function NightSystem:CreateWindow(config: {
 		local avatarImg = Instance.new("ImageLabel")
 		avatarImg.Size = UDim2.new(1, 0, 1, 0)
 		avatarImg.BackgroundTransparency = 1
+		avatarImg.ZIndex = 72
 		avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
 		avatarImg.Parent = avatarHolder
 		createCorner(avatarImg, 24)
@@ -5060,10 +5788,11 @@ function NightSystem:CreateWindow(config: {
 		titleLbl.Position = UDim2.new(0, 74, 0, 19)
 		titleLbl.BackgroundTransparency = 1
 		titleLbl.Font = Enum.Font.GothamBold
-		titleLbl.Text = "Night System"
+		titleLbl.Text = windowTitle
 		titleLbl.TextColor3 = THEME.TextPrimary
 		titleLbl.TextSize = 14
 		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+		titleLbl.ZIndex = 71
 		titleLbl.Parent = LoaderFrame
 
 		local statusLbl = Instance.new("TextLabel")
@@ -5076,6 +5805,7 @@ function NightSystem:CreateWindow(config: {
 		statusLbl.TextSize = 11
 		statusLbl.TextXAlignment = Enum.TextXAlignment.Left
 		statusLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		statusLbl.ZIndex = 71
 		statusLbl.Parent = LoaderFrame
 
 		-- Runder Ladekreis (Spinner), der sich kontinuierlich dreht
@@ -5085,9 +5815,9 @@ function NightSystem:CreateWindow(config: {
 		spinner.Position = UDim2.new(1, -22, 0.5, 0)
 		spinner.AnchorPoint = Vector2.new(1, 0.5)
 		spinner.BackgroundTransparency = 1
+		spinner.ZIndex = 71
 		spinner.Parent = LoaderFrame
 
-		-- Gestochen scharfer Kreisbogen mit Verlaufs-Transparenz
 		local spinnerRing = Instance.new("Frame")
 		spinnerRing.Size = UDim2.new(1, 0, 1, 0)
 		spinnerRing.BackgroundTransparency = 1
@@ -5109,60 +5839,79 @@ function NightSystem:CreateWindow(config: {
 		})
 		ringGrad.Parent = ringStroke
 
-		-- Fließende 360-Grad-Rotation des Kreises über RenderStepped
 		local isSpinning = true
 		local spinConn = RunService.RenderStepped:Connect(function(dt)
 			if not isSpinning or not spinner or not spinner.Parent then return end
 			spinner.Rotation = (spinner.Rotation + dt * 380) % 360
 		end)
 
-		-- Sanfter Einblend-Effekt für den Loader
+		-- Sanfter Einblend-Effekt fuer den Loader
 		LoaderFrame.Size = UDim2.new(0, 290, 0, 72)
-		tween(LoaderFrame, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		tween(LoaderFrame, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Size = UDim2.new(0, 310, 0, 78),
 		})
 
-		-- Dynamische Status-Phasen während des Drehens (ca. 5 Sekunden Gesamtdauer)
-		task.wait(1.2)
-		if statusLbl.Parent then statusLbl.Text = "Checking executor..." end
-		task.wait(1.4)
-		if statusLbl.Parent then statusLbl.Text = "Loading Night System Scripts..." end
-		task.wait(1.3)
-		if statusLbl.Parent then statusLbl.Text = "Preparing UI & assets..." end
-		task.wait(0.9)
-		if statusLbl.Parent then statusLbl.Text = "Ready!" end
-		task.wait(0.2)
+		-- Snappy Status-Phasen (~1.2 Sekunden Gesamtdauer, abbrechbar bei Keypress)
+		local function stepWait(dur: number): boolean
+			local passed = 0
+			while passed < dur do
+				if skipLoader then return false end
+				local dt = task.wait(0.05)
+				passed += dt
+			end
+			return not skipLoader
+		end
 
-		-- Loader sanft ausblenden
+		if not stepWait(0.25) then goto loaderDone end
+		if statusLbl.Parent then statusLbl.Text = "Checking executor..." end
+		if not stepWait(0.35) then goto loaderDone end
+		if statusLbl.Parent then statusLbl.Text = "Loading Night System Scripts..." end
+		if not stepWait(0.35) then goto loaderDone end
+		if statusLbl.Parent then statusLbl.Text = "Preparing UI & assets..." end
+		if not stepWait(0.25) then goto loaderDone end
+		if statusLbl.Parent then statusLbl.Text = "Ready!" end
+		stepWait(0.15)
+
+		::loaderDone::
+		isLoaderRunning = false
 		isSpinning = false
 		if spinConn then
 			spinConn:Disconnect()
 		end
 
-		tween(LoaderFrame, TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			Size = UDim2.new(0, 325, 0, 82),
-			BackgroundTransparency = 1,
-		})
-		tween(loaderStroke, TWEEN_FAST, { Transparency = 1 })
-		tween(avatarHolder, TWEEN_FAST, { BackgroundTransparency = 1 })
-		tween(avatarStroke, TWEEN_FAST, { Transparency = 1 })
-		tween(avatarImg, TWEEN_FAST, { ImageTransparency = 1 })
-		tween(titleLbl, TWEEN_FAST, { TextTransparency = 1 })
-		tween(statusLbl, TWEEN_FAST, { TextTransparency = 1 })
-		tween(ringStroke, TWEEN_FAST, { Transparency = 1 })
+		pcall(function()
+			tween(LoaderFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Size = UDim2.new(0, 325, 0, 82),
+				BackgroundTransparency = 1,
+			})
+			tween(loaderStroke, TWEEN_FAST, { Transparency = 1 })
+			tween(avatarHolder, TWEEN_FAST, { BackgroundTransparency = 1 })
+			tween(avatarStroke, TWEEN_FAST, { Transparency = 1 })
+			tween(avatarImg, TWEEN_FAST, { ImageTransparency = 1 })
+			tween(titleLbl, TWEEN_FAST, { TextTransparency = 1 })
+			tween(statusLbl, TWEEN_FAST, { TextTransparency = 1 })
+			tween(ringStroke, TWEEN_FAST, { Transparency = 1 })
+		end)
 
-		task.wait(0.25)
-		LoaderFrame:Destroy()
+		task.wait(0.20)
+		pcall(function() LoaderFrame:Destroy() end)
 
-		-- Night System Haupt-UI einblenden
-		MainFrame.Visible = true
-		MainFrame.Size = UDim2.new(0, normalSize.X.Offset * 0.92, 0, normalSize.Y.Offset * 0.92)
-		MainFrame.BackgroundTransparency = 0.4
-		tween(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = normalSize,
-			BackgroundTransparency = 0,
-		})
-	end)
+		-- Hauptfenster zuverlaessig oeffnen
+		openWindow()
+	end
+
+	-- Startablauf: Vor dem Loader das Plattform-Fenster anzeigen (falls nicht konfiguriert)
+	if cfg.Platform then
+		applyPlatform(tostring(cfg.Platform))
+		task.spawn(runStartupLoader)
+	else
+		task.spawn(function()
+			showPlatformSelectionModal(function(chosenPlatform)
+				applyPlatform(chosenPlatform)
+				task.spawn(runStartupLoader)
+			end)
+		end)
+	end
 
 	local winInstance = setmetatable(Window, Window)
 	NightSystem._ActiveWindow = winInstance
@@ -5271,6 +6020,21 @@ end
 NightSystem.AddDivider = NightSystem.CreateDivider
 NightSystem.NewDivider = NightSystem.CreateDivider
 
+function NightSystem:SetPlatform(platformName: string)
+	if NightSystem._ActiveWindow then
+		NightSystem._ActiveWindow:SetPlatform(platformName)
+	else
+		NightSystem._Platform = platformName
+	end
+end
+
+function NightSystem:GetPlatform(): string
+	if NightSystem._ActiveWindow then
+		return NightSystem._ActiveWindow:GetPlatform()
+	end
+	return NightSystem._Platform or (if (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) then "Handy" else "PC")
+end
+
 function NightSystem:ClearScriptTabs()
 	if NightSystem._ActiveWindow then
 		return NightSystem._ActiveWindow:ClearScriptTabs()
@@ -5281,6 +6045,30 @@ NightSystem.ResetTabs = NightSystem.ClearScriptTabs
 
 function NightSystem:AddHubScript(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):AddHubScript(...)
+end
+
+function NightSystem:Toggle()
+	if NightSystem._ActiveWindow then
+		NightSystem._ActiveWindow:Toggle()
+	end
+end
+
+function NightSystem:Minimize()
+	if NightSystem._ActiveWindow then
+		NightSystem._ActiveWindow:Minimize()
+	end
+end
+
+function NightSystem:Open()
+	if NightSystem._ActiveWindow then
+		NightSystem._ActiveWindow:Open()
+	end
+end
+
+function NightSystem:Close()
+	if NightSystem._ActiveWindow then
+		NightSystem._ActiveWindow:Close()
+	end
 end
 
 -- Fallback metatable on NightSystem so unknown methods never error with attempt to call a nil value
