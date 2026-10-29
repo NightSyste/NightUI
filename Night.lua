@@ -459,7 +459,7 @@ function NightSystem:CreateWindow(config: {
 	FloatingBadge.Text = ""
 	FloatingBadge.Active = true
 	FloatingBadge.ZIndex = 80
-	FloatingBadge.Visible = false
+	FloatingBadge.Visible = true
 	FloatingBadge.Parent = ScreenGui
 	createCorner(FloatingBadge, 10)
 	createStroke(FloatingBadge, THEME.Stroke, 1, 0.15)
@@ -611,6 +611,10 @@ function NightSystem:CreateWindow(config: {
 
 		if PlatformValueLabel and PlatformValueLabel.Parent then
 			PlatformValueLabel.Text = selectedPlatform
+		end
+
+		if FloatingBadge then
+			FloatingBadge.Visible = true
 		end
 
 		if selectedPlatform == "Handy" then
@@ -780,6 +784,7 @@ function NightSystem:CreateWindow(config: {
 			end
 		end
 	end
+	updateBadgeStatus()
 
 	local function makeDraggable(handle: GuiObject, target: GuiObject, pill: Frame?, onClick: (() -> ())?)
 		local isDragging = false
@@ -914,10 +919,6 @@ function NightSystem:CreateWindow(config: {
 		toggleWindowState()
 	end)
 
-	FloatingBadge.MouseButton1Click:Connect(function()
-		toggleWindowState()
-	end)
-
 	FloatingBadge.MouseEnter:Connect(function()
 		tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
 	end)
@@ -1002,8 +1003,12 @@ function NightSystem:CreateWindow(config: {
 			or (toggleKey and code == toggleKey)
 		then
 			local focused = UserInputService:GetFocusedTextBox()
-			if focused and focused:IsDescendantOf(ScreenGui) then
-				pcall(function() focused:ReleaseFocus() end)
+			if focused then
+				if focused:IsDescendantOf(ScreenGui) then
+					pcall(function() focused:ReleaseFocus() end)
+				else
+					return
+				end
 			end
 			toggleWindowState()
 		end
