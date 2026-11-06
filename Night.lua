@@ -4,14 +4,51 @@ local isWritableG = pcall(function()
 end)
 local gEnv = (type(getgenv) == "function" and getgenv()) or (isWritableG and _G) or {}
 
--- Allow fresh re-execution of new versions on loadstring: clean up old instances
-if gEnv and gEnv._NightActiveWindow then
-	pcall(function()
-		if gEnv._NightActiveWindow.Destroy then
-			gEnv._NightActiveWindow:Destroy()
+-- Schutz vor mehrfacher Ausfuehrung (Single-Instance Guard)
+if gEnv and (gEnv._NightLoaded or gEnv._NightSystem or gEnv._NightActiveWindow) then
+	local existingWin = gEnv._NightActiveWindow or (gEnv._NightSystem and gEnv._NightSystem._ActiveWindow)
+	local isAlive = false
+	if existingWin and existingWin._ScreenGui then
+		local p = existingWin._ScreenGui.Parent
+		if p and p ~= game and p:IsDescendantOf(game) then
+			isAlive = true
 		end
-	end)
-	gEnv._NightActiveWindow = nil
+	end
+
+	if not isAlive then
+		local Players = game:GetService("Players")
+		local lp = Players.LocalPlayer
+		local coreGui = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui")
+		local pg = lp and lp:FindFirstChild("PlayerGui")
+		for _, parentObj in ipairs({ coreGui, pg }) do
+			if parentObj and parentObj:FindFirstChild("NightSystem_UI") then
+			isAlive = true
+			break
+		end
+		end
+	end
+
+	if isAlive then
+		print("[NightSystem] Bereits ausgefuehrt! Night UI ist schon geladen und aktiv.")
+		if existingWin then
+			pcall(function()
+				if existingWin.Open then
+					existingWin:Open()
+				elseif existingWin._ScreenGui then
+					existingWin._ScreenGui.Enabled = true
+				end
+				if existingWin.Notify then
+					existingWin:Notify({
+						Title = "Night System",
+						Content = "Bereits ausgefuehrt und aktiv!",
+						Duration = 2.5,
+					})
+				end
+			end)
+			return gEnv._NightSystem or existingWin
+		end
+		return gEnv._NightSystem or {}
+	end
 end
 
 -- Fallback for Drawing API in executors where Drawing is nil (prevents visual scripts from crashing before tabs load)
@@ -6009,6 +6046,7 @@ function NightSystem:CreateWindow(config: {
 		disconnectAll()
 		NightSystem._ActiveWindow = nil
 		if gEnv then
+			gEnv._NightLoaded = nil
 			gEnv._NightActiveWindow = nil
 			gEnv._NightSystem = nil
 		end
@@ -6643,6 +6681,7 @@ function NightSystem:CreateWindow(config: {
 	NightSystem._ActiveWindow = winInstance
 
 	if gEnv then
+		gEnv._NightLoaded = true
 		gEnv._NightActiveWindow = winInstance
 		gEnv._NightSystem = NightSystem
 		gEnv.NightSystem = NightSystem
