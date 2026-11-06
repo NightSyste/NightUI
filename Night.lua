@@ -2088,7 +2088,7 @@ function NightSystem:CreateWindow(config: {
 	HubHeaderSub.Position = UDim2.new(0, 0, 0, 22)
 	HubHeaderSub.BackgroundTransparency = 1
 	HubHeaderSub.Font = Enum.Font.GothamMedium
-	HubHeaderSub.Text = "17 Official Scripts • Click Execute to run or Copy for clipboard"
+	HubHeaderSub.Text = "19 Official Scripts • Click Execute to run or Copy for clipboard"
 	HubHeaderSub.TextColor3 = THEME.TextHeaderSub
 	HubHeaderSub.TextSize = 13
 	HubHeaderSub.TextXAlignment = Enum.TextXAlignment.Left
@@ -2145,7 +2145,7 @@ function NightSystem:CreateWindow(config: {
 	HubSearchBox.Position = UDim2.new(0, 32, 0, 0)
 	HubSearchBox.BackgroundTransparency = 1
 	HubSearchBox.Font = Enum.Font.GothamMedium
-	HubSearchBox.PlaceholderText = "Search 17 Night System scripts (e.g. MM2, Arsenal, MainEH, Build A Boat)..."
+	HubSearchBox.PlaceholderText = "Search 19 Night System scripts (e.g. Military Tycoon, Auto Rob, MM2, Arsenal)..."
 	HubSearchBox.PlaceholderColor3 = THEME.TextSecondary
 	HubSearchBox.Text = ""
 	HubSearchBox.TextColor3 = THEME.TextPrimary
@@ -5895,6 +5895,20 @@ function NightSystem:CreateWindow(config: {
 			PlaceId = 142823291,
 			Description = "Role ESP, Auto Grab Gun, Coin Farm & Fly",
 			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/mm2",
+		},
+		{
+			Name = "Emergency Hamburg (Auto Rob)",
+			Slug = "AutoRob",
+			PlaceId = 7711635737,
+			Description = "Auto Rob, ATM Robbery, Store Rob & Teleport",
+			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/AutoRob",
+		},
+		{
+			Name = "Military Tycoon",
+			Slug = "MillitaryTycoon",
+			PlaceId = 7180042682,
+			Description = "Auto Farm, Base Upgrades, Gun Mods & Vehicle Speed",
+			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MillitaryTycoon",
 		},
 	}
 
