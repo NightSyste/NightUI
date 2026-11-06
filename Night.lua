@@ -1670,7 +1670,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local function updateActiveIndicator(instant: boolean?)
-		if (ScriptsHubPage and ScriptsHubPage.Visible) or activeTabName == "" then
+		if (ScriptsHubPage and ScriptsHubPage.Visible) or (EmotesHubPage and EmotesHubPage.Visible) or activeTabName == "" then
 			ActiveIndicator.Visible = false
 			return
 		end
@@ -1763,10 +1763,20 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local ScriptsHubPage: Frame? = nil
+	local EmotesHubPage: Frame? = nil
+	local stopAllEmotes: (() -> ())? = nil
 
 	local function switchSidebarTab(tabName: string, instant: boolean?)
 		if ScriptsHubPage and ScriptsHubPage.Visible then
 			ScriptsHubPage.Visible = false
+			if activeTabName == tabName and SidebarTabs[tabName] then
+				SidebarTabs[tabName].Page.Visible = true
+				updateActiveIndicator(instant)
+				return
+			end
+		end
+		if EmotesHubPage and EmotesHubPage.Visible then
+			EmotesHubPage.Visible = false
 			if activeTabName == tabName and SidebarTabs[tabName] then
 				SidebarTabs[tabName].Page.Visible = true
 				updateActiveIndicator(instant)
@@ -1999,6 +2009,60 @@ function NightSystem:CreateWindow(config: {
 		tween(AllScriptsArrow, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary, Position = UDim2.new(1, -10, 0.5, 0) })
 	end)
 
+	-- Top-Right "Free Emotes" Button in Home Tab (Directly below All Scripts button)
+	local FreeEmotesBtn = Instance.new("TextButton")
+	FreeEmotesBtn.Name = "FreeEmotesButton"
+	FreeEmotesBtn.Size = UDim2.new(0, 128, 0, 34)
+	FreeEmotesBtn.Position = UDim2.new(1, 0, 0, 42)
+	FreeEmotesBtn.AnchorPoint = Vector2.new(1, 0)
+	FreeEmotesBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
+	FreeEmotesBtn.BorderSizePixel = 0
+	FreeEmotesBtn.AutoButtonColor = false
+	FreeEmotesBtn.Text = ""
+	FreeEmotesBtn.Parent = HomePage
+	createCorner(FreeEmotesBtn, 8)
+	local FreeEmotesStroke = createStroke(FreeEmotesBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
+
+	local FreeEmotesIcon = Instance.new("ImageLabel")
+	FreeEmotesIcon.Size = UDim2.new(0, 14, 0, 14)
+	FreeEmotesIcon.Position = UDim2.new(0, 11, 0.5, 0)
+	FreeEmotesIcon.AnchorPoint = Vector2.new(0, 0.5)
+	FreeEmotesIcon.BackgroundTransparency = 1
+	FreeEmotesIcon.Image = ASSETS.Users
+	FreeEmotesIcon.ImageColor3 = THEME.Accent
+	FreeEmotesIcon.Parent = FreeEmotesBtn
+
+	local FreeEmotesLabel = Instance.new("TextLabel")
+	FreeEmotesLabel.Size = UDim2.new(1, -54, 1, 0)
+	FreeEmotesLabel.Position = UDim2.new(0, 30, 0, 0)
+	FreeEmotesLabel.BackgroundTransparency = 1
+	FreeEmotesLabel.Font = Enum.Font.GothamBold
+	FreeEmotesLabel.Text = "Free Emotes"
+	FreeEmotesLabel.TextColor3 = THEME.TextPrimary
+	FreeEmotesLabel.TextSize = 12
+	FreeEmotesLabel.TextXAlignment = Enum.TextXAlignment.Left
+	FreeEmotesLabel.Parent = FreeEmotesBtn
+
+	local FreeEmotesArrow = Instance.new("ImageLabel")
+	FreeEmotesArrow.Size = UDim2.new(0, 14, 0, 14)
+	FreeEmotesArrow.Position = UDim2.new(1, -10, 0.5, 0)
+	FreeEmotesArrow.AnchorPoint = Vector2.new(1, 0.5)
+	FreeEmotesArrow.BackgroundTransparency = 1
+	FreeEmotesArrow.Image = ASSETS.ChevronRight
+	FreeEmotesArrow.ImageColor3 = THEME.TextSecondary
+	FreeEmotesArrow.Parent = FreeEmotesBtn
+
+	FreeEmotesBtn.MouseEnter:Connect(function()
+		tween(FreeEmotesBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#22262B") })
+		tween(FreeEmotesStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+		tween(FreeEmotesArrow, TWEEN_FAST, { ImageColor3 = THEME.Accent, Position = UDim2.new(1, -8, 0.5, 0) })
+	end)
+	FreeEmotesBtn.MouseLeave:Connect(function()
+		tween(FreeEmotesBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
+		tween(FreeEmotesStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+		tween(FreeEmotesArrow, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary, Position = UDim2.new(1, -10, 0.5, 0) })
+	end)
+
 	-- Dedicated "All Scripts" Hub View (Opened when clicking All Scripts in Home Tab)
 	ScriptsHubPage = Instance.new("Frame")
 	ScriptsHubPage.Name = "ScriptsHub_Page"
@@ -2166,9 +2230,19 @@ function NightSystem:CreateWindow(config: {
 
 	AllScriptsBtn.MouseButton1Click:Connect(function()
 		HomePage.Visible = false
+		if EmotesHubPage then EmotesHubPage.Visible = false end
 		ScriptsHubPage.Visible = true
 		ScriptsHubPage.Position = UDim2.new(0, 0, 0, 8)
 		tween(ScriptsHubPage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+		updateActiveIndicator(true)
+	end)
+
+	FreeEmotesBtn.MouseButton1Click:Connect(function()
+		HomePage.Visible = false
+		if ScriptsHubPage then ScriptsHubPage.Visible = false end
+		EmotesHubPage.Visible = true
+		EmotesHubPage.Position = UDim2.new(0, 0, 0, 8)
+		tween(EmotesHubPage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
 		updateActiveIndicator(true)
 	end)
 
@@ -2179,6 +2253,484 @@ function NightSystem:CreateWindow(config: {
 		tween(HomePage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
 		updateActiveIndicator(true)
 	end)
+
+	-- ========================================================================
+	-- DEDICATED "FREE EMOTES" HUB VIEW (Opened when clicking Free Emotes in Home Tab)
+	-- ========================================================================
+	local EMOTES_DATA = {
+		{ name = "MJ - P.Y.T.", id = 137234266130963 },
+		{ name = "Kawaii Anime Tanz OG", id = 130855166586798 },
+		{ name = "BEST Party-Rock-Hymne", id = 98918840942712 },
+		{ name = "Michael Jackson Mondgang", id = 90850139979211 },
+		{ name = "Niedliches Sitzen", id = 72947568152049 },
+		{ name = "Needy V-Sit Split Drop", id = 100354575525671 },
+		{ name = "Umarmung", id = 125491951751014 },
+		{ name = "Popstar Bewegungen", id = 87757463565936 },
+		{ name = "Zero Two Tanz V3", id = 124963840388798 },
+		{ name = "Party-Rock-Hymne", id = 105248382902194 },
+		{ name = "MJ - Billie Jean", id = 98915045016286 },
+		{ name = "Griddy Tanz", id = 129149402922241 },
+		{ name = "Cupid (Fifty Fifty)", id = 86132602394818 },
+		{ name = "Never Gonna Give You Up (Rickroll)", id = 94960135681008 },
+		{ name = "Rambunctious", id = 108128682361404 },
+		{ name = "Godlike Schwebung", id = 3823158750 },
+		{ name = "Schläfrig (Sleepy)", id = 114701975807821 },
+		{ name = "d4vd - Backflip Salto", id = 15694504637 },
+	}
+
+	local animCache: { [number]: Animation } = {}
+
+	local function getEmoteAnimation(emoteId: number): Animation
+		if animCache[emoteId] then
+			return animCache[emoteId]
+		end
+
+		local success, objs = pcall(function()
+			return game:GetObjects("rbxassetid://" .. tostring(emoteId))
+		end)
+
+		if success and objs and objs[1] then
+			local asset = objs[1]
+			if asset:IsA("Animation") then
+				animCache[emoteId] = asset
+				return asset
+			end
+			local anim = asset:FindFirstChildWhichIsA("Animation", true)
+			if anim then
+				animCache[emoteId] = anim
+				return anim
+			end
+		end
+
+		local fallbackAnim = Instance.new("Animation")
+		fallbackAnim.AnimationId = "rbxassetid://" .. tostring(emoteId)
+		animCache[emoteId] = fallbackAnim
+		return fallbackAnim
+	end
+
+	EmotesHubPage = Instance.new("Frame")
+	EmotesHubPage.Name = "EmotesHub_Page"
+	EmotesHubPage.Size = UDim2.new(1, 0, 1, 0)
+	EmotesHubPage.BackgroundTransparency = 1
+	EmotesHubPage.Visible = false
+	EmotesHubPage.Parent = ContentFrame
+	createPadding(EmotesHubPage, 24, 24, 24, 24)
+
+	local EmotesHeaderTitle = Instance.new("TextLabel")
+	EmotesHeaderTitle.Size = UDim2.new(1, -260, 0, 20)
+	EmotesHeaderTitle.Position = UDim2.new(0, 0, 0, 0)
+	EmotesHeaderTitle.BackgroundTransparency = 1
+	EmotesHeaderTitle.Font = Enum.Font.GothamBold
+	EmotesHeaderTitle.Text = "Free Emotes (" .. tostring(#EMOTES_DATA) .. ")"
+	EmotesHeaderTitle.TextColor3 = THEME.TextHeaderTitle
+	EmotesHeaderTitle.TextSize = 18
+	EmotesHeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+	EmotesHeaderTitle.Parent = EmotesHubPage
+
+	local EmotesHeaderSub = Instance.new("TextLabel")
+	EmotesHeaderSub.Size = UDim2.new(1, -260, 0, 16)
+	EmotesHeaderSub.Position = UDim2.new(0, 0, 0, 22)
+	EmotesHeaderSub.BackgroundTransparency = 1
+	EmotesHeaderSub.Font = Enum.Font.GothamMedium
+	EmotesHeaderSub.Text = "[V] Stopp • Klicken zum Aktivieren/Deaktivieren"
+	EmotesHeaderSub.TextColor3 = THEME.TextHeaderSub
+	EmotesHeaderSub.TextSize = 13
+	EmotesHeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+	EmotesHeaderSub.Parent = EmotesHubPage
+
+	-- Top-Right Controls in Emotes Hub: Back to Home + Quick Stop Button
+	local EmotesBackToHomeBtn = Instance.new("TextButton")
+	EmotesBackToHomeBtn.Name = "EmotesBackToHomeButton"
+	EmotesBackToHomeBtn.Size = UDim2.new(0, 118, 0, 32)
+	EmotesBackToHomeBtn.Position = UDim2.new(1, 0, 0, 2)
+	EmotesBackToHomeBtn.AnchorPoint = Vector2.new(1, 0)
+	EmotesBackToHomeBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
+	EmotesBackToHomeBtn.BorderSizePixel = 0
+	EmotesBackToHomeBtn.AutoButtonColor = false
+	EmotesBackToHomeBtn.Font = Enum.Font.GothamBold
+	EmotesBackToHomeBtn.Text = "‹  Back to Home"
+	EmotesBackToHomeBtn.TextColor3 = THEME.TextPrimary
+	EmotesBackToHomeBtn.TextSize = 12
+	EmotesBackToHomeBtn.Parent = EmotesHubPage
+	createCorner(EmotesBackToHomeBtn, 8)
+	local EmotesBackHomeStroke = createStroke(EmotesBackToHomeBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
+
+	EmotesBackToHomeBtn.MouseEnter:Connect(function()
+		tween(EmotesBackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#22262B") })
+		tween(EmotesBackHomeStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+	end)
+	EmotesBackToHomeBtn.MouseLeave:Connect(function()
+		tween(EmotesBackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
+		tween(EmotesBackHomeStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+	end)
+
+	EmotesBackToHomeBtn.MouseButton1Click:Connect(function()
+		EmotesHubPage.Visible = false
+		HomePage.Visible = true
+		HomePage.Position = UDim2.new(0, 0, 0, 8)
+		tween(HomePage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+		updateActiveIndicator(true)
+	end)
+
+	local EmotesQuickStopBtn = Instance.new("TextButton")
+	EmotesQuickStopBtn.Name = "EmotesQuickStopButton"
+	EmotesQuickStopBtn.Size = UDim2.new(0, 96, 0, 32)
+	EmotesQuickStopBtn.Position = UDim2.new(1, -126, 0, 2)
+	EmotesQuickStopBtn.AnchorPoint = Vector2.new(1, 0)
+	EmotesQuickStopBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
+	EmotesQuickStopBtn.BorderSizePixel = 0
+	EmotesQuickStopBtn.AutoButtonColor = false
+	EmotesQuickStopBtn.Font = Enum.Font.GothamBold
+	EmotesQuickStopBtn.Text = "■  Stop [V]"
+	EmotesQuickStopBtn.TextColor3 = THEME.AccentRed
+	EmotesQuickStopBtn.TextSize = 12
+	EmotesQuickStopBtn.Parent = EmotesHubPage
+	createCorner(EmotesQuickStopBtn, 8)
+	local QuickStopStroke = createStroke(EmotesQuickStopBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
+
+	EmotesQuickStopBtn.MouseEnter:Connect(function()
+		tween(EmotesQuickStopBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#251A1A") })
+		tween(QuickStopStroke, TWEEN_FAST, { Color = THEME.AccentRed, Transparency = 0 })
+	end)
+	EmotesQuickStopBtn.MouseLeave:Connect(function()
+		tween(EmotesQuickStopBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
+		tween(QuickStopStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+	end)
+
+	-- Search Bar
+	local EmotesSearchBar = Instance.new("Frame")
+	EmotesSearchBar.Name = "EmotesSearchBar"
+	EmotesSearchBar.Size = UDim2.new(1, 0, 0, 32)
+	EmotesSearchBar.Position = UDim2.new(0, 0, 0, 46)
+	EmotesSearchBar.BackgroundColor3 = THEME.CardBackground
+	EmotesSearchBar.BorderSizePixel = 0
+	EmotesSearchBar.Parent = EmotesHubPage
+	createCorner(EmotesSearchBar, 8)
+	local EmotesSearchStroke = createStroke(EmotesSearchBar, THEME.Stroke, 1, 0.2)
+
+	local EmotesSearchIcon = Instance.new("ImageLabel")
+	EmotesSearchIcon.Size = UDim2.new(0, 14, 0, 14)
+	EmotesSearchIcon.Position = UDim2.new(0, 12, 0.5, 0)
+	EmotesSearchIcon.AnchorPoint = Vector2.new(0, 0.5)
+	EmotesSearchIcon.BackgroundTransparency = 1
+	EmotesSearchIcon.Image = ASSETS.Search
+	EmotesSearchIcon.ImageColor3 = THEME.TextSecondary
+	EmotesSearchIcon.Parent = EmotesSearchBar
+
+	local EmotesSearchBox = Instance.new("TextBox")
+	EmotesSearchBox.Name = "EmotesSearchBox"
+	EmotesSearchBox.Size = UDim2.new(1, -38, 1, 0)
+	EmotesSearchBox.Position = UDim2.new(0, 32, 0, 0)
+	EmotesSearchBox.BackgroundTransparency = 1
+	EmotesSearchBox.Font = Enum.Font.GothamMedium
+	EmotesSearchBox.PlaceholderText = "Search 18 free emotes (e.g. Griddy, MJ, Cupid, Rickroll)..."
+	EmotesSearchBox.PlaceholderColor3 = THEME.TextSecondary
+	EmotesSearchBox.Text = ""
+	EmotesSearchBox.TextColor3 = THEME.TextPrimary
+	EmotesSearchBox.TextSize = 12
+	EmotesSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+	EmotesSearchBox.ClearTextOnFocus = false
+	EmotesSearchBox.Parent = EmotesSearchBar
+
+	EmotesSearchBox.Focused:Connect(function()
+		tween(EmotesSearchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
+		tween(EmotesSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
+	end)
+	EmotesSearchBox.FocusLost:Connect(function()
+		tween(EmotesSearchStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+		tween(EmotesSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
+	end)
+
+	-- Emotes Scroll List
+	local EmotesScroll = Instance.new("ScrollingFrame")
+	EmotesScroll.Name = "EmotesScroll"
+	EmotesScroll.Size = UDim2.new(1, 0, 1, -86)
+	EmotesScroll.Position = UDim2.new(0, 0, 0, 86)
+	EmotesScroll.BackgroundTransparency = 1
+	EmotesScroll.BorderSizePixel = 0
+	EmotesScroll.ScrollBarThickness = 3
+	EmotesScroll.ScrollBarImageColor3 = THEME.Accent
+	EmotesScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	EmotesScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	EmotesScroll.Parent = EmotesHubPage
+	createPadding(EmotesScroll, 2, 12, 2, 8)
+
+	local EmotesListLayout = Instance.new("UIListLayout")
+	EmotesListLayout.Padding = UDim.new(0, 8)
+	EmotesListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	EmotesListLayout.Parent = EmotesScroll
+
+	local EmptyEmotesPlaceholder = Instance.new("Frame")
+	EmptyEmotesPlaceholder.Name = "EmptyEmotesPlaceholder"
+	EmptyEmotesPlaceholder.Size = UDim2.new(1, 0, 0, 64)
+	EmptyEmotesPlaceholder.BackgroundColor3 = THEME.CardBackground
+	EmptyEmotesPlaceholder.BorderSizePixel = 0
+	EmptyEmotesPlaceholder.Visible = false
+	EmptyEmotesPlaceholder.Parent = EmotesHubPage
+	EmptyEmotesPlaceholder.Position = UDim2.new(0, 0, 0, 86)
+	createCorner(EmptyEmotesPlaceholder, 8)
+	createStroke(EmptyEmotesPlaceholder, THEME.Stroke, 1, 0.2)
+
+	local EmptyEmotesText = Instance.new("TextLabel")
+	EmptyEmotesText.Size = UDim2.new(1, -28, 1, 0)
+	EmptyEmotesText.Position = UDim2.new(0, 14, 0, 0)
+	EmptyEmotesText.BackgroundTransparency = 1
+	EmptyEmotesText.Font = Enum.Font.GothamMedium
+	EmptyEmotesText.Text = "Kein passendes Emote gefunden."
+	EmptyEmotesText.TextColor3 = THEME.TextSecondary
+	EmptyEmotesText.TextSize = 13
+	EmptyEmotesText.TextXAlignment = Enum.TextXAlignment.Left
+	EmptyEmotesText.Parent = EmptyEmotesPlaceholder
+
+	local currentEmoteTrack: AnimationTrack? = nil
+	local activeEmoteId: number? = nil
+	local emoteCards: { [number]: {
+		Card: Frame,
+		Stroke: UIStroke,
+		SwitchBg: Frame,
+		SwitchStroke: UIStroke,
+		Knob: Frame,
+		SubLabel: TextLabel,
+		Name: string,
+		Id: number,
+	} } = {}
+
+	local function updateEmoteVisual(emoteId: number, isPlaying: boolean)
+		local item = emoteCards[emoteId]
+		if not item then return end
+
+		if isPlaying then
+			tween(item.Card, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#171D1B") })
+			tween(item.Stroke, TWEEN_FAST, { Color = Color3.fromRGB(60, 220, 130), Transparency = 0.2 })
+			tween(item.SwitchBg, TWEEN_FAST, { BackgroundColor3 = Color3.fromRGB(60, 220, 130) })
+			tween(item.SwitchStroke, TWEEN_FAST, { Color = Color3.fromRGB(60, 220, 130), Transparency = 0 })
+			tween(item.Knob, TWEEN_FAST, {
+				Position = UDim2.new(1, -17, 0.5, 0),
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			})
+			item.SubLabel.Text = "▶ Aktiv (Taste [V] zum Stoppen)"
+			item.SubLabel.TextColor3 = Color3.fromRGB(80, 235, 145)
+		else
+			tween(item.Card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
+			tween(item.Stroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+			tween(item.SwitchBg, TWEEN_FAST, { BackgroundColor3 = THEME.Stroke })
+			tween(item.SwitchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0.15 })
+			tween(item.Knob, TWEEN_FAST, {
+				Position = UDim2.new(0, 3, 0.5, 0),
+				BackgroundColor3 = THEME.TextTabInactive,
+			})
+			item.SubLabel.Text = "ID: " .. tostring(item.Id) .. " • Klicken zum Abspielen"
+			item.SubLabel.TextColor3 = THEME.TextSecondary
+		end
+	end
+
+	stopAllEmotes = function()
+		if currentEmoteTrack then
+			pcall(function()
+				currentEmoteTrack:Stop(0.2)
+				currentEmoteTrack:Destroy()
+			end)
+			currentEmoteTrack = nil
+		end
+		if activeEmoteId then
+			local oldId = activeEmoteId
+			activeEmoteId = nil
+			updateEmoteVisual(oldId, false)
+		end
+	end
+
+	local function toggleEmote(emoteId: number)
+		if activeEmoteId == emoteId then
+			stopAllEmotes()
+			return
+		end
+
+		stopAllEmotes()
+
+		local character = LocalPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local animator = humanoid and (humanoid:FindFirstChildOfClass("Animator") or humanoid)
+		if not animator then
+			NightSystem:Notify({
+				Title = "Emote Fehler",
+				Content = "Humanoid / Animator nicht gefunden!",
+				Duration = 2,
+			})
+			return
+		end
+
+		local animInstance = getEmoteAnimation(emoteId)
+		local ok, track = pcall(function()
+			return (animator :: any):LoadAnimation(animInstance)
+		end)
+
+		if ok and track then
+			currentEmoteTrack = track
+			track.Priority = Enum.AnimationPriority.Action4
+			track.Looped = true
+			track:Play(0.2)
+
+			activeEmoteId = emoteId
+			updateEmoteVisual(emoteId, true)
+		else
+			NightSystem:Notify({
+				Title = "Animation Fehler",
+				Content = "Konnte Animation nicht laden.",
+				Duration = 2,
+			})
+		end
+	end
+
+	EmotesQuickStopBtn.MouseButton1Click:Connect(function()
+		stopAllEmotes()
+	end)
+
+	local emotesSearchList: { { Card: Frame, Query: string } } = {}
+
+	for index, emote in ipairs(EMOTES_DATA) do
+		local card = Instance.new("Frame")
+		card.Name = "EmoteCard_" .. tostring(emote.id)
+		card.Size = UDim2.new(1, 0, 0, 46)
+		card.BackgroundColor3 = THEME.CardBackground
+		card.BorderSizePixel = 0
+		card.ClipsDescendants = true
+		card.LayoutOrder = index
+		card.Parent = EmotesScroll
+		createCorner(card, 8)
+		local cardStroke = createStroke(card, THEME.Stroke, 1, 0.2)
+
+		local iconHolder = Instance.new("Frame")
+		iconHolder.Size = UDim2.new(0, 30, 0, 30)
+		iconHolder.Position = UDim2.new(0, 10, 0.5, 0)
+		iconHolder.AnchorPoint = Vector2.new(0, 0.5)
+		iconHolder.BackgroundColor3 = THEME.CardInner
+		iconHolder.BorderSizePixel = 0
+		iconHolder.Parent = card
+		createCorner(iconHolder, 6)
+		createStroke(iconHolder, THEME.Stroke, 1, 0.2)
+
+		local iconImg = Instance.new("ImageLabel")
+		iconImg.Size = UDim2.new(0, 16, 0, 16)
+		iconImg.Position = UDim2.new(0.5, 0, 0.5, 0)
+		iconImg.AnchorPoint = Vector2.new(0.5, 0.5)
+		iconImg.BackgroundTransparency = 1
+		iconImg.Image = ASSETS.Users
+		iconImg.ImageColor3 = THEME.TextSecondary
+		iconImg.Parent = iconHolder
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Size = UDim2.new(1, -120, 0, 16)
+		nameLabel.Position = UDim2.new(0, 48, 0, 8)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Font = Enum.Font.GothamBold
+		nameLabel.Text = emote.name
+		nameLabel.TextColor3 = THEME.TextPrimary
+		nameLabel.TextSize = 13
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		nameLabel.Parent = card
+
+		local subLabel = Instance.new("TextLabel")
+		subLabel.Size = UDim2.new(1, -120, 0, 14)
+		subLabel.Position = UDim2.new(0, 48, 0, 24)
+		subLabel.BackgroundTransparency = 1
+		subLabel.Font = Enum.Font.GothamMedium
+		subLabel.Text = "ID: " .. tostring(emote.id) .. " • Klicken zum Abspielen"
+		subLabel.TextColor3 = THEME.TextSecondary
+		subLabel.TextSize = 11
+		subLabel.TextXAlignment = Enum.TextXAlignment.Left
+		subLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		subLabel.Parent = card
+
+		local switchBg = Instance.new("Frame")
+		switchBg.Size = UDim2.new(0, 40, 0, 20)
+		switchBg.Position = UDim2.new(1, -14, 0.5, 0)
+		switchBg.AnchorPoint = Vector2.new(1, 0.5)
+		switchBg.BackgroundColor3 = THEME.Stroke
+		switchBg.BorderSizePixel = 0
+		switchBg.Parent = card
+		createCorner(switchBg, 10)
+		local switchStroke = createStroke(switchBg, THEME.StrokeActive, 1, 0.15)
+
+		local knob = Instance.new("Frame")
+		knob.Size = UDim2.new(0, 14, 0, 14)
+		knob.Position = UDim2.new(0, 3, 0.5, 0)
+		knob.AnchorPoint = Vector2.new(0, 0.5)
+		knob.BackgroundColor3 = THEME.TextTabInactive
+		knob.BorderSizePixel = 0
+		knob.Parent = switchBg
+		createCorner(knob, 7)
+
+		local clickZone = Instance.new("TextButton")
+		clickZone.Size = UDim2.new(1, 0, 1, 0)
+		clickZone.BackgroundTransparency = 1
+		clickZone.Text = ""
+		clickZone.Parent = card
+
+		emoteCards[emote.id] = {
+			Card = card,
+			Stroke = cardStroke,
+			SwitchBg = switchBg,
+			SwitchStroke = switchStroke,
+			Knob = knob,
+			SubLabel = subLabel,
+			Name = emote.name,
+			Id = emote.id,
+		}
+
+		table.insert(emotesSearchList, {
+			Card = card,
+			Query = string.lower(emote.name) .. " " .. tostring(emote.id),
+		})
+
+		clickZone.MouseEnter:Connect(function()
+			if activeEmoteId ~= emote.id then
+				tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+				tween(iconImg, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
+			end
+		end)
+		clickZone.MouseLeave:Connect(function()
+			if activeEmoteId ~= emote.id then
+				tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
+				tween(iconImg, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
+			end
+		end)
+
+		clickZone.MouseButton1Click:Connect(function()
+			toggleEmote(emote.id)
+		end)
+	end
+
+	local emotesSearchQueued = false
+	EmotesSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		if emotesSearchQueued then return end
+		emotesSearchQueued = true
+		task.defer(function()
+			emotesSearchQueued = false
+			if not EmotesSearchBox or not EmotesSearchBox.Parent then return end
+			local q = string.lower(string.gsub(EmotesSearchBox.Text, "^%s*(.-)%s*$", "%1"))
+			local visibleCount = 0
+			for _, item in ipairs(emotesSearchList) do
+				local match = (q == "") or (string.find(item.Query, q, 1, true) ~= nil)
+				item.Card.Visible = match
+				if match then
+					visibleCount += 1
+				end
+			end
+			EmptyEmotesPlaceholder.Visible = (#emotesSearchList > 0 and visibleCount == 0)
+		end)
+	end)
+
+	trackConnection(UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+		if gameProcessed then return end
+		if input.KeyCode == Enum.KeyCode.V then
+			stopAllEmotes()
+		end
+	end))
+
+	trackConnection(LocalPlayer.CharacterAdded:Connect(function()
+		stopAllEmotes()
+	end))
 
 	-- Central Player Profile (72x72px Avatar, 10px UICorner, #2A2A2A UIStroke + 22px DisplayName & 14px @Name)
 	local ProfileSection = Instance.new("Frame")
@@ -2199,7 +2751,7 @@ function NightSystem:CreateWindow(config: {
 	createStroke(LargeAvatar, THEME.StrokeActive, 1, 0)
 
 	local ProfileTextContainer = Instance.new("Frame")
-	ProfileTextContainer.Size = UDim2.new(1, -88, 0, 48)
+	ProfileTextContainer.Size = UDim2.new(1, -226, 0, 48)
 	ProfileTextContainer.Position = UDim2.new(0, 88, 0.5, 0)
 	ProfileTextContainer.AnchorPoint = Vector2.new(0, 0.5)
 	ProfileTextContainer.BackgroundTransparency = 1
@@ -5351,9 +5903,15 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	function Window:ClearScriptTabs()
-		-- 1. Close AllScripts hub page if open
+		-- 1. Close AllScripts and FreeEmotes hub pages if open
 		if ScriptsHubPage and ScriptsHubPage.Parent then
 			ScriptsHubPage.Visible = false
+		end
+		if EmotesHubPage and EmotesHubPage.Parent then
+			EmotesHubPage.Visible = false
+		end
+		if stopAllEmotes then
+			pcall(stopAllEmotes)
 		end
 
 		-- 2. Destroy all custom script tab buttons and pages recorded in tabList
@@ -5404,6 +5962,24 @@ function NightSystem:CreateWindow(config: {
 	Window.ClearTabs = Window.ClearScriptTabs
 	Window.ResetTabs = Window.ClearScriptTabs
 
+	function Window:OpenFreeEmotes()
+		HomePage.Visible = false
+		if ScriptsHubPage then ScriptsHubPage.Visible = false end
+		if EmotesHubPage then
+			EmotesHubPage.Visible = true
+			EmotesHubPage.Position = UDim2.new(0, 0, 0, 8)
+			tween(EmotesHubPage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+			updateActiveIndicator(true)
+		end
+	end
+	Window.OpenEmotes = Window.OpenFreeEmotes
+
+	function Window:StopEmotes()
+		if stopAllEmotes then
+			stopAllEmotes()
+		end
+	end
+
 	function Window:SelectTab(tabName: string)
 		switchSidebarTab(tabName, false)
 	end
@@ -5413,6 +5989,9 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	function Window:Destroy()
+		if stopAllEmotes then
+			pcall(stopAllEmotes)
+		end
 		disconnectAll()
 		NightSystem._ActiveWindow = nil
 		if gEnv then
@@ -6175,6 +6754,19 @@ function NightSystem:ClearScriptTabs()
 end
 NightSystem.ClearTabs = NightSystem.ClearScriptTabs
 NightSystem.ResetTabs = NightSystem.ClearScriptTabs
+
+function NightSystem:OpenFreeEmotes()
+	if NightSystem._ActiveWindow then
+		return NightSystem._ActiveWindow:OpenFreeEmotes()
+	end
+end
+NightSystem.OpenEmotes = NightSystem.OpenFreeEmotes
+
+function NightSystem:StopEmotes()
+	if NightSystem._ActiveWindow then
+		return NightSystem._ActiveWindow:StopEmotes()
+	end
+end
 
 function NightSystem:AddHubScript(...)
 	return (NightSystem._ActiveWindow or NightSystem:CreateWindow()):AddHubScript(...)
