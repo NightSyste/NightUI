@@ -443,6 +443,1089 @@ end
 -- ============================================================================
 -- WINDOW CREATION (NightSystem:CreateWindow)
 -- ============================================================================
+-- Pre-defined static datasets (Module-Level to prevent function register limits)
+local EMOTES_DATA = {
+{ name = "MJ - P.Y.T.", id = 137234266130963 },
+{ name = "Kawaii Anime Tanz OG", id = 130855166586798 },
+{ name = "BEST Party-Rock-Hymne", id = 98918840942712 },
+{ name = "Michael Jackson Mondgang", id = 90850139979211 },
+{ name = "Niedliches Sitzen", id = 72947568152049 },
+{ name = "Needy V-Sit Split Drop", id = 100354575525671 },
+{ name = "Umarmung", id = 125491951751014 },
+{ name = "Popstar Bewegungen", id = 87757463565936 },
+{ name = "Zero Two Tanz V3", id = 124963840388798 },
+{ name = "Party-Rock-Hymne", id = 105248382902194 },
+{ name = "MJ - Billie Jean", id = 98915045016286 },
+{ name = "Griddy Tanz", id = 129149402922241 },
+{ name = "Cupid (Fifty Fifty)", id = 86132602394818 },
+{ name = "Never Gonna Give You Up (Rickroll)", id = 94960135681008 },
+{ name = "Rambunctious", id = 108128682361404 },
+{ name = "Godlike Schwebung", id = 3823158750 },
+{ name = "Schläfrig (Sleepy)", id = 114701975807821 },
+{ name = "d4vd - Backflip Salto", id = 15694504637 },
+}
+
+local DEFAULT_HUB_SCRIPTS = {
+{
+Name = "Build A Boat For Treasure",
+Slug = "Build-A-Boat-For-Treasure",
+PlaceId = 537413528,
+Description = "Auto Farm, Build Tools & Treasure Teleport",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Build-A-Boat-For-Treasure",
+},
+{
+Name = "Fling Things and People",
+Slug = "Fling-Things-and-People",
+PlaceId = 6961824067,
+Description = "Super Fling, Anti-Grab & Reach",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Fling-Things-and-People",
+},
+{
+Name = "Work at a Pizza Place",
+Slug = "Work-at-a-Pizza-Place",
+PlaceId = 192800,
+Description = "Auto Job, Instant Delivery & Cash Farm",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Work-at-a-Pizza-Place",
+},
+{
+Name = "Murderers VS Sheriffs",
+Slug = "MurderVSsheriff",
+PlaceId = 12355337193,
+Description = "Silent Aim, Hitbox Expander & ESP",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MurderVSsheriff",
+},
+{
+Name = "Sniper VS Runner",
+Slug = "SniperVSrunner",
+PlaceId = 16568042538,
+Description = "Auto Win, Aimbot & Speed",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/SniperVSrunner",
+},
+{
+Name = "Dexter Escape",
+Slug = "Dexter-Escape",
+PlaceId = 92122513197996,
+Description = "Auto Escape, ESP & Teleports",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Dexter-Escape",
+},
+{
+Name = "Water Escape",
+Slug = "waterescape",
+PlaceId = 0,
+Description = "Instant Escape, Oxygen & Speed",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/waterescape",
+},
+{
+Name = "German Voice",
+Slug = "GermanVoice",
+PlaceId = 6884319169,
+Description = "Voice Chat Utilities, Troll & Movement",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/GermanVoice",
+},
+{
+Name = "Beach Escape",
+Slug = "BeachEscape",
+PlaceId = 0,
+Description = "Auto Complete, Checkpoints & Fly",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/BeachEscape",
+},
+{
+Name = "Lucky Blocks Battlegrounds",
+Slug = "Luckblock",
+PlaceId = 662417684,
+Description = "Instant Lucky Blocks, All Items & Combat",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Luckblock",
+},
+{
+Name = "Streamer Life",
+Slug = "streamer",
+PlaceId = 16483433878,
+Description = "Infinite Money, Auto Stream & Upgrades",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/streamer",
+},
+{
+Name = "Bundes RP",
+Slug = "bundesRp",
+PlaceId = 13830755469,
+Description = "Roleplay Utilities, Vehicle Mods & ESP",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/bundesRp",
+},
+{
+Name = "Flick FPS",
+Slug = "FlickFPS",
+PlaceId = 17625359962,
+Description = "Aimbot, Silent Aim & Wallhack ESP",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/FlickFPS",
+},
+{
+Name = "Arsenal",
+Slug = "Arselnal",
+PlaceId = 286090429,
+Description = "Silent Aim, Kill All, ESP & Gun Mods",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Arselnal",
+},
+{
+Name = "99 Nights",
+Slug = "99Nights",
+PlaceId = 126884695634066,
+Description = "Survival ESP, Fullbright & Auto Evade",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/99Nights",
+},
+{
+Name = "Emergency Hamburg (Notruf Hamburg)",
+Slug = "MainEH",
+PlaceId = 7711635737,
+Description = "Main Script, Car Fly, ESP & Police Bypass",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MainEH",
+},
+{
+Name = "Murder Mystery 2 (MM2)",
+Slug = "mm2",
+PlaceId = 142823291,
+Description = "Role ESP, Auto Grab Gun, Coin Farm & Fly",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/mm2",
+},
+{
+Name = "Emergency Hamburg (Auto Rob)",
+Slug = "AutoRob",
+PlaceId = 7711635737,
+Description = "Auto Rob, ATM Robbery, Store Rob & Teleport",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/AutoRob",
+},
+{
+Name = "Military Tycoon",
+Slug = "MillitaryTycoon",
+PlaceId = 7180042682,
+Description = "Auto Farm, Base Upgrades, Gun Mods & Vehicle Speed",
+Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MillitaryTycoon",
+},
+}
+
+-- Modular UI Builder functions (Extracted to keep CreateWindow below the 200 local register limit)
+local function setupScriptsHub(ContentFrame: Frame, HomePage: Frame, getActiveTabIndicatorUpdater: () -> ((boolean?) -> ()))
+	local ScriptsHubPage = Instance.new("Frame")
+	ScriptsHubPage.Name = "ScriptsHub_Page"
+	ScriptsHubPage.Size = UDim2.new(1, 0, 1, 0)
+	ScriptsHubPage.BackgroundTransparency = 1
+	ScriptsHubPage.Visible = false
+	ScriptsHubPage.Parent = ContentFrame
+	createPadding(ScriptsHubPage, 24, 24, 24, 24)
+
+	local HubHeaderTitle = Instance.new("TextLabel")
+	HubHeaderTitle.Size = UDim2.new(1, -140, 0, 20)
+	HubHeaderTitle.Position = UDim2.new(0, 0, 0, 0)
+	HubHeaderTitle.BackgroundTransparency = 1
+	HubHeaderTitle.Font = Enum.Font.GothamBold
+	HubHeaderTitle.Text = "Night System Scripts"
+	HubHeaderTitle.TextColor3 = THEME.TextHeaderTitle
+	HubHeaderTitle.TextSize = 18
+	HubHeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+	HubHeaderTitle.Parent = ScriptsHubPage
+
+	local HubHeaderSub = Instance.new("TextLabel")
+	HubHeaderSub.Size = UDim2.new(1, -140, 0, 16)
+	HubHeaderSub.Position = UDim2.new(0, 0, 0, 22)
+	HubHeaderSub.BackgroundTransparency = 1
+	HubHeaderSub.Font = Enum.Font.GothamMedium
+	HubHeaderSub.Text = "19 Official Scripts • Click Execute to run or Copy for clipboard"
+	HubHeaderSub.TextColor3 = THEME.TextHeaderSub
+	HubHeaderSub.TextSize = 13
+	HubHeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+	HubHeaderSub.Parent = ScriptsHubPage
+
+	local BackToHomeBtn = Instance.new("TextButton")
+	BackToHomeBtn.Name = "BackToHomeButton"
+	BackToHomeBtn.Size = UDim2.new(0, 118, 0, 32)
+	BackToHomeBtn.Position = UDim2.new(1, 0, 0, 2)
+	BackToHomeBtn.AnchorPoint = Vector2.new(1, 0)
+	BackToHomeBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
+	BackToHomeBtn.BorderSizePixel = 0
+	BackToHomeBtn.AutoButtonColor = false
+	BackToHomeBtn.Font = Enum.Font.GothamBold
+	BackToHomeBtn.Text = "‹  Back to Home"
+	BackToHomeBtn.TextColor3 = THEME.TextPrimary
+	BackToHomeBtn.TextSize = 12
+	BackToHomeBtn.Parent = ScriptsHubPage
+	createCorner(BackToHomeBtn, 8)
+	local BackHomeStroke = createStroke(BackToHomeBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
+
+	BackToHomeBtn.MouseEnter:Connect(function()
+		tween(BackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#22262B") })
+		tween(BackHomeStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+	end)
+	BackToHomeBtn.MouseLeave:Connect(function()
+		tween(BackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
+		tween(BackHomeStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+	end)
+
+	local HubSearchBar = Instance.new("Frame")
+	HubSearchBar.Name = "HubSearchBar"
+	HubSearchBar.Size = UDim2.new(1, 0, 0, 38)
+	HubSearchBar.Position = UDim2.new(0, 0, 0, 48)
+	HubSearchBar.BackgroundColor3 = THEME.CardBackground
+	HubSearchBar.BorderSizePixel = 0
+	HubSearchBar.Parent = ScriptsHubPage
+	createCorner(HubSearchBar, 8)
+	local HubSearchStroke = createStroke(HubSearchBar, THEME.Stroke, 1, 0.2)
+
+	local HubSearchIcon = Instance.new("ImageLabel")
+	HubSearchIcon.Size = UDim2.new(0, 16, 0, 16)
+	HubSearchIcon.Position = UDim2.new(0, 10, 0.5, 0)
+	HubSearchIcon.AnchorPoint = Vector2.new(0, 0.5)
+	HubSearchIcon.BackgroundTransparency = 1
+	HubSearchIcon.Image = ASSETS.Search
+	HubSearchIcon.ImageColor3 = THEME.TextSecondary
+	HubSearchIcon.Parent = HubSearchBar
+
+	local HubSearchBox = Instance.new("TextBox")
+	HubSearchBox.Name = "HubSearchBox"
+	HubSearchBox.Size = UDim2.new(1, -40, 1, 0)
+	HubSearchBox.Position = UDim2.new(0, 32, 0, 0)
+	HubSearchBox.BackgroundTransparency = 1
+	HubSearchBox.Font = Enum.Font.GothamMedium
+	HubSearchBox.PlaceholderText = "Search 19 Night System scripts (e.g. Military Tycoon, Auto Rob, MM2, Arsenal)..."
+	HubSearchBox.PlaceholderColor3 = THEME.TextSecondary
+	HubSearchBox.Text = ""
+	HubSearchBox.TextColor3 = THEME.TextPrimary
+	HubSearchBox.TextSize = 13
+	HubSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+	HubSearchBox.ClearTextOnFocus = false
+	HubSearchBox.Parent = HubSearchBar
+
+	HubSearchBox.Focused:Connect(function()
+		tween(HubSearchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
+		tween(HubSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
+	end)
+	HubSearchBox.FocusLost:Connect(function()
+		tween(HubSearchStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+		tween(HubSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
+	end)
+
+	local HubScroll = Instance.new("ScrollingFrame")
+	HubScroll.Name = "HubScriptsScroll"
+	HubScroll.Size = UDim2.new(1, 0, 1, -98)
+	HubScroll.Position = UDim2.new(0, 0, 0, 96)
+	HubScroll.BackgroundTransparency = 1
+	HubScroll.BorderSizePixel = 0
+	HubScroll.ScrollBarThickness = 3
+	HubScroll.ScrollBarImageColor3 = THEME.Accent
+	HubScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	HubScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	HubScroll.Parent = ScriptsHubPage
+	createPadding(HubScroll, 2, 12, 2, 8)
+
+	local HubGridLayout = Instance.new("UIGridLayout")
+	HubGridLayout.CellSize = UDim2.new(0, 260, 0, 200)
+	HubGridLayout.CellPadding = UDim2.new(0, 12, 0, 12)
+	HubGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	HubGridLayout.Parent = HubScroll
+
+	local EmptyHubPlaceholder = Instance.new("Frame")
+	EmptyHubPlaceholder.Name = "PlaceholderCard"
+	EmptyHubPlaceholder.Size = UDim2.new(1, 0, 0, 64)
+	EmptyHubPlaceholder.BackgroundColor3 = THEME.CardBackground
+	EmptyHubPlaceholder.BorderSizePixel = 0
+	EmptyHubPlaceholder.Visible = false
+	EmptyHubPlaceholder.Parent = ScriptsHubPage
+	EmptyHubPlaceholder.Position = UDim2.new(0, 0, 0, 96)
+	createCorner(EmptyHubPlaceholder, 8)
+	createStroke(EmptyHubPlaceholder, THEME.Stroke, 1, 0.2)
+
+	local EmptyHubText = Instance.new("TextLabel")
+	EmptyHubText.Size = UDim2.new(1, -28, 1, 0)
+	EmptyHubText.Position = UDim2.new(0, 14, 0, 0)
+	EmptyHubText.BackgroundTransparency = 1
+	EmptyHubText.Font = Enum.Font.GothamMedium
+	EmptyHubText.Text = "No scripts match your search. Try another keyword!"
+	EmptyHubText.TextColor3 = THEME.TextSecondary
+	EmptyHubText.TextSize = 13
+	EmptyHubText.TextXAlignment = Enum.TextXAlignment.Left
+	EmptyHubText.Parent = EmptyHubPlaceholder
+
+	local hubSearchEntries: { { Card: Frame, Query: string } } = {}
+	local searchUpdateQueued = false
+	HubSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		if searchUpdateQueued then return end
+		searchUpdateQueued = true
+		task.defer(function()
+			searchUpdateQueued = false
+			if not HubSearchBox or not HubSearchBox.Parent then return end
+			local q = string.lower(string.gsub(HubSearchBox.Text, "^%s*(.-)%s*$", "%1"))
+			local visibleCount = 0
+			for _, item in ipairs(hubSearchEntries) do
+				local match = (q == "") or (string.find(item.Query, q, 1, true) ~= nil)
+				item.Card.Visible = match
+				if match then visibleCount += 1 end
+			end
+			EmptyHubPlaceholder.Visible = (#hubSearchEntries > 0 and visibleCount == 0)
+		end)
+	end)
+
+	BackToHomeBtn.MouseButton1Click:Connect(function()
+		ScriptsHubPage.Visible = false
+		HomePage.Visible = true
+		HomePage.Position = UDim2.new(0, 0, 0, 8)
+		tween(HomePage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+		local updateInd = getActiveTabIndicatorUpdater()
+		if updateInd then updateInd(true) end
+	end)
+
+	return ScriptsHubPage, HubScroll, EmptyHubPlaceholder, hubSearchEntries
+end
+
+local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTabIndicatorUpdater: () -> ((boolean?) -> ()))
+	local animCache: { [number]: Animation } = {}
+
+	local function getEmoteAnimation(emoteId: number): Animation
+		if animCache[emoteId] then
+			return animCache[emoteId]
+		end
+
+		local success, objs = pcall(function()
+			return game:GetObjects("rbxassetid://" .. tostring(emoteId))
+		end)
+
+		if success and objs and objs[1] then
+			local asset = objs[1]
+			if asset:IsA("Animation") then
+				animCache[emoteId] = asset
+				return asset
+			end
+			local anim = asset:FindFirstChildWhichIsA("Animation", true)
+			if anim then
+				animCache[emoteId] = anim
+				return anim
+			end
+		end
+
+		local fallbackAnim = Instance.new("Animation")
+		fallbackAnim.AnimationId = "rbxassetid://" .. tostring(emoteId)
+		animCache[emoteId] = fallbackAnim
+		return fallbackAnim
+	end
+
+	local EmotesHubPage = Instance.new("Frame")
+	EmotesHubPage.Name = "EmotesHub_Page"
+	EmotesHubPage.Size = UDim2.new(1, 0, 1, 0)
+	EmotesHubPage.BackgroundTransparency = 1
+	EmotesHubPage.Visible = false
+	EmotesHubPage.Parent = ContentFrame
+	createPadding(EmotesHubPage, 24, 24, 24, 24)
+
+	local EmotesHeaderTitle = Instance.new("TextLabel")
+	EmotesHeaderTitle.Size = UDim2.new(1, -260, 0, 20)
+	EmotesHeaderTitle.Position = UDim2.new(0, 0, 0, 0)
+	EmotesHeaderTitle.BackgroundTransparency = 1
+	EmotesHeaderTitle.Font = Enum.Font.GothamBold
+	EmotesHeaderTitle.Text = "Free Emotes (" .. tostring(#EMOTES_DATA) .. ")"
+	EmotesHeaderTitle.TextColor3 = THEME.TextHeaderTitle
+	EmotesHeaderTitle.TextSize = 18
+	EmotesHeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+	EmotesHeaderTitle.Parent = EmotesHubPage
+
+	local EmotesHeaderSub = Instance.new("TextLabel")
+	EmotesHeaderSub.Size = UDim2.new(1, -260, 0, 16)
+	EmotesHeaderSub.Position = UDim2.new(0, 0, 0, 22)
+	EmotesHeaderSub.BackgroundTransparency = 1
+	EmotesHeaderSub.Font = Enum.Font.GothamMedium
+	EmotesHeaderSub.Text = "[V] Stopp • Klicken zum Aktivieren/Deaktivieren"
+	EmotesHeaderSub.TextColor3 = THEME.TextHeaderSub
+	EmotesHeaderSub.TextSize = 13
+	EmotesHeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+	EmotesHeaderSub.Parent = EmotesHubPage
+
+	local EmotesBackToHomeBtn = Instance.new("TextButton")
+	EmotesBackToHomeBtn.Name = "EmotesBackToHomeButton"
+	EmotesBackToHomeBtn.Size = UDim2.new(0, 118, 0, 32)
+	EmotesBackToHomeBtn.Position = UDim2.new(1, 0, 0, 2)
+	EmotesBackToHomeBtn.AnchorPoint = Vector2.new(1, 0)
+	EmotesBackToHomeBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
+	EmotesBackToHomeBtn.BorderSizePixel = 0
+	EmotesBackToHomeBtn.AutoButtonColor = false
+	EmotesBackToHomeBtn.Font = Enum.Font.GothamBold
+	EmotesBackToHomeBtn.Text = "‹  Back to Home"
+	EmotesBackToHomeBtn.TextColor3 = THEME.TextPrimary
+	EmotesBackToHomeBtn.TextSize = 12
+	EmotesBackToHomeBtn.Parent = EmotesHubPage
+	createCorner(EmotesBackToHomeBtn, 8)
+	local EmotesBackHomeStroke = createStroke(EmotesBackToHomeBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
+
+	EmotesBackToHomeBtn.MouseEnter:Connect(function()
+		tween(EmotesBackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#22262B") })
+		tween(EmotesBackHomeStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+	end)
+	EmotesBackToHomeBtn.MouseLeave:Connect(function()
+		tween(EmotesBackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
+		tween(EmotesBackHomeStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+	end)
+
+	local EmotesQuickStopBtn = Instance.new("TextButton")
+	EmotesQuickStopBtn.Name = "EmotesQuickStopButton"
+	EmotesQuickStopBtn.Size = UDim2.new(0, 96, 0, 32)
+	EmotesQuickStopBtn.Position = UDim2.new(1, -126, 0, 2)
+	EmotesQuickStopBtn.AnchorPoint = Vector2.new(1, 0)
+	EmotesQuickStopBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
+	EmotesQuickStopBtn.BorderSizePixel = 0
+	EmotesQuickStopBtn.AutoButtonColor = false
+	EmotesQuickStopBtn.Font = Enum.Font.GothamBold
+	EmotesQuickStopBtn.Text = "■  Stop [V]"
+	EmotesQuickStopBtn.TextColor3 = Color3.fromRGB(255, 95, 95)
+	EmotesQuickStopBtn.TextSize = 12
+	EmotesQuickStopBtn.Parent = EmotesHubPage
+	createCorner(EmotesQuickStopBtn, 8)
+	local QuickStopStroke = createStroke(EmotesQuickStopBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
+
+	EmotesQuickStopBtn.MouseEnter:Connect(function()
+		tween(EmotesQuickStopBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#2B1A1A") })
+		tween(QuickStopStroke, TWEEN_FAST, { Color = Color3.fromRGB(255, 95, 95), Transparency = 0 })
+	end)
+	EmotesQuickStopBtn.MouseLeave:Connect(function()
+		tween(EmotesQuickStopBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
+		tween(QuickStopStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+	end)
+
+	local EmotesSearchBar = Instance.new("Frame")
+	EmotesSearchBar.Name = "EmotesSearchBar"
+	EmotesSearchBar.Size = UDim2.new(1, 0, 0, 38)
+	EmotesSearchBar.Position = UDim2.new(0, 0, 0, 42)
+	EmotesSearchBar.BackgroundColor3 = THEME.CardBackground
+	EmotesSearchBar.BorderSizePixel = 0
+	EmotesSearchBar.Parent = EmotesHubPage
+	createCorner(EmotesSearchBar, 8)
+	local EmotesSearchStroke = createStroke(EmotesSearchBar, THEME.Stroke, 1, 0.2)
+
+	local EmotesSearchIcon = Instance.new("ImageLabel")
+	EmotesSearchIcon.Size = UDim2.new(0, 16, 0, 16)
+	EmotesSearchIcon.Position = UDim2.new(0, 10, 0.5, 0)
+	EmotesSearchIcon.AnchorPoint = Vector2.new(0, 0.5)
+	EmotesSearchIcon.BackgroundTransparency = 1
+	EmotesSearchIcon.Image = ASSETS.Search
+	EmotesSearchIcon.ImageColor3 = THEME.TextSecondary
+	EmotesSearchIcon.Parent = EmotesSearchBar
+
+	local EmotesSearchBox = Instance.new("TextBox")
+	EmotesSearchBox.Name = "EmotesSearchBox"
+	EmotesSearchBox.Size = UDim2.new(1, -40, 1, 0)
+	EmotesSearchBox.Position = UDim2.new(0, 32, 0, 0)
+	EmotesSearchBox.BackgroundTransparency = 1
+	EmotesSearchBox.Font = Enum.Font.GothamMedium
+	EmotesSearchBox.PlaceholderText = "Search 18 free emotes (e.g. Griddy, MJ, Cupid, Rickroll)..."
+	EmotesSearchBox.PlaceholderColor3 = THEME.TextSecondary
+	EmotesSearchBox.Text = ""
+	EmotesSearchBox.TextColor3 = THEME.TextPrimary
+	EmotesSearchBox.TextSize = 12
+	EmotesSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+	EmotesSearchBox.ClearTextOnFocus = false
+	EmotesSearchBox.Parent = EmotesSearchBar
+
+	EmotesSearchBox.Focused:Connect(function()
+		tween(EmotesSearchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
+		tween(EmotesSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
+	end)
+	EmotesSearchBox.FocusLost:Connect(function()
+		tween(EmotesSearchStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+		tween(EmotesSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
+	end)
+
+	local EmotesScroll = Instance.new("ScrollingFrame")
+	EmotesScroll.Name = "EmotesScroll"
+	EmotesScroll.Size = UDim2.new(1, 0, 1, -86)
+	EmotesScroll.Position = UDim2.new(0, 0, 0, 86)
+	EmotesScroll.BackgroundTransparency = 1
+	EmotesScroll.BorderSizePixel = 0
+	EmotesScroll.ScrollBarThickness = 3
+	EmotesScroll.ScrollBarImageColor3 = THEME.Accent
+	EmotesScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	EmotesScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	EmotesScroll.Parent = EmotesHubPage
+	createPadding(EmotesScroll, 2, 12, 2, 8)
+
+	local EmotesListLayout = Instance.new("UIListLayout")
+	EmotesListLayout.Padding = UDim.new(0, 8)
+	EmotesListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	EmotesListLayout.Parent = EmotesScroll
+
+	local EmptyEmotesPlaceholder = Instance.new("Frame")
+	EmptyEmotesPlaceholder.Name = "EmptyEmotesPlaceholder"
+	EmptyEmotesPlaceholder.Size = UDim2.new(1, 0, 0, 64)
+	EmptyEmotesPlaceholder.BackgroundColor3 = THEME.CardBackground
+	EmptyEmotesPlaceholder.BorderSizePixel = 0
+	EmptyEmotesPlaceholder.Visible = false
+	EmptyEmotesPlaceholder.Parent = EmotesHubPage
+	EmptyEmotesPlaceholder.Position = UDim2.new(0, 0, 0, 86)
+	createCorner(EmptyEmotesPlaceholder, 8)
+	createStroke(EmptyEmotesPlaceholder, THEME.Stroke, 1, 0.2)
+
+	local EmptyEmotesText = Instance.new("TextLabel")
+	EmptyEmotesText.Size = UDim2.new(1, -28, 1, 0)
+	EmptyEmotesText.Position = UDim2.new(0, 14, 0, 0)
+	EmptyEmotesText.BackgroundTransparency = 1
+	EmptyEmotesText.Font = Enum.Font.GothamMedium
+	EmptyEmotesText.Text = "Kein passendes Emote gefunden."
+	EmptyEmotesText.TextColor3 = THEME.TextSecondary
+	EmptyEmotesText.TextSize = 13
+	EmptyEmotesText.TextXAlignment = Enum.TextXAlignment.Left
+	EmptyEmotesText.Parent = EmptyEmotesPlaceholder
+
+	local currentEmoteTrack: AnimationTrack? = nil
+	local activeEmoteId: number? = nil
+	local emoteCards = {}
+
+	local function updateEmoteVisual(emoteId: number, isPlaying: boolean)
+		local item = emoteCards[emoteId]
+		if not item then return end
+
+		if isPlaying then
+			tween(item.Card, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#171D1B") })
+			tween(item.Stroke, TWEEN_FAST, { Color = Color3.fromRGB(60, 220, 130), Transparency = 0.2 })
+			tween(item.SwitchBg, TWEEN_FAST, { BackgroundColor3 = Color3.fromRGB(60, 220, 130) })
+			tween(item.SwitchStroke, TWEEN_FAST, { Color = Color3.fromRGB(60, 220, 130), Transparency = 0 })
+			tween(item.Knob, TWEEN_FAST, {
+				Position = UDim2.new(1, -17, 0.5, 0),
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			})
+			item.SubLabel.Text = "▶ Aktiv (Taste [V] zum Stoppen)"
+			item.SubLabel.TextColor3 = Color3.fromRGB(80, 235, 145)
+		else
+			tween(item.Card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
+			tween(item.Stroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
+			tween(item.SwitchBg, TWEEN_FAST, { BackgroundColor3 = THEME.Stroke })
+			tween(item.SwitchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0.15 })
+			tween(item.Knob, TWEEN_FAST, {
+				Position = UDim2.new(0, 3, 0.5, 0),
+				BackgroundColor3 = THEME.TextTabInactive,
+			})
+			item.SubLabel.Text = "ID: " .. tostring(item.Id) .. " • Klicken zum Abspielen"
+			item.SubLabel.TextColor3 = THEME.TextSecondary
+		end
+	end
+
+	local function stopAllEmotes()
+		if currentEmoteTrack then
+			pcall(function()
+				currentEmoteTrack:Stop(0.2)
+				currentEmoteTrack:Destroy()
+			end)
+			currentEmoteTrack = nil
+		end
+		if activeEmoteId then
+			local oldId = activeEmoteId
+			activeEmoteId = nil
+			updateEmoteVisual(oldId, false)
+		end
+	end
+
+	local function toggleEmote(emoteId: number)
+		if activeEmoteId == emoteId then
+			stopAllEmotes()
+			return
+		end
+
+		stopAllEmotes()
+
+		local character = LocalPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local animator = humanoid and (humanoid:FindFirstChildOfClass("Animator") or humanoid)
+		if not animator then
+			NightSystem:Notify({
+				Title = "Emote Fehler",
+				Content = "Humanoid / Animator nicht gefunden!",
+				Duration = 2,
+			})
+			return
+		end
+
+		local animInstance = getEmoteAnimation(emoteId)
+		local ok, track = pcall(function()
+			return (animator :: any):LoadAnimation(animInstance)
+		end)
+
+		if ok and track then
+			currentEmoteTrack = track
+			track.Priority = Enum.AnimationPriority.Action4
+			track.Looped = true
+			track:Play(0.2)
+
+			activeEmoteId = emoteId
+			updateEmoteVisual(emoteId, true)
+		else
+			NightSystem:Notify({
+				Title = "Animation Fehler",
+				Content = "Konnte Animation nicht laden.",
+				Duration = 2,
+			})
+		end
+	end
+
+	EmotesBackToHomeBtn.MouseButton1Click:Connect(function()
+		EmotesHubPage.Visible = false
+		HomePage.Visible = true
+		HomePage.Position = UDim2.new(0, 0, 0, 8)
+		tween(HomePage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+		local updateInd = getActiveTabIndicatorUpdater()
+		if updateInd then updateInd(true) end
+	end)
+
+	EmotesQuickStopBtn.MouseButton1Click:Connect(function()
+		stopAllEmotes()
+	end)
+
+	local emotesSearchList: { { Card: Frame, Query: string } } = {}
+
+	for index, emote in ipairs(EMOTES_DATA) do
+		local card = Instance.new("Frame")
+		card.Name = "EmoteCard_" .. tostring(emote.id)
+		card.Size = UDim2.new(1, 0, 0, 46)
+		card.BackgroundColor3 = THEME.CardBackground
+		card.BorderSizePixel = 0
+		card.ClipsDescendants = true
+		card.LayoutOrder = index
+		card.Parent = EmotesScroll
+		createCorner(card, 8)
+		local cardStroke = createStroke(card, THEME.Stroke, 1, 0.2)
+
+		local iconHolder = Instance.new("Frame")
+		iconHolder.Size = UDim2.new(0, 30, 0, 30)
+		iconHolder.Position = UDim2.new(0, 10, 0.5, 0)
+		iconHolder.AnchorPoint = Vector2.new(0, 0.5)
+		iconHolder.BackgroundColor3 = THEME.CardInner
+		iconHolder.BorderSizePixel = 0
+		iconHolder.Parent = card
+		createCorner(iconHolder, 6)
+		createStroke(iconHolder, THEME.Stroke, 1, 0.2)
+
+		local iconImg = Instance.new("ImageLabel")
+		iconImg.Size = UDim2.new(0, 16, 0, 16)
+		iconImg.Position = UDim2.new(0.5, 0, 0.5, 0)
+		iconImg.AnchorPoint = Vector2.new(0.5, 0.5)
+		iconImg.BackgroundTransparency = 1
+		iconImg.Image = ASSETS.Users
+		iconImg.ImageColor3 = THEME.TextSecondary
+		iconImg.Parent = iconHolder
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Size = UDim2.new(1, -120, 0, 16)
+		nameLabel.Position = UDim2.new(0, 48, 0, 8)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Font = Enum.Font.GothamBold
+		nameLabel.Text = emote.name
+		nameLabel.TextColor3 = THEME.TextPrimary
+		nameLabel.TextSize = 13
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		nameLabel.Parent = card
+
+		local subLabel = Instance.new("TextLabel")
+		subLabel.Size = UDim2.new(1, -120, 0, 14)
+		subLabel.Position = UDim2.new(0, 48, 0, 24)
+		subLabel.BackgroundTransparency = 1
+		subLabel.Font = Enum.Font.GothamMedium
+		subLabel.Text = "ID: " .. tostring(emote.id) .. " • Klicken zum Abspielen"
+		subLabel.TextColor3 = THEME.TextSecondary
+		subLabel.TextSize = 11
+		subLabel.TextXAlignment = Enum.TextXAlignment.Left
+		subLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		subLabel.Parent = card
+
+		local switchBg = Instance.new("Frame")
+		switchBg.Size = UDim2.new(0, 40, 0, 20)
+		switchBg.Position = UDim2.new(1, -14, 0.5, 0)
+		switchBg.AnchorPoint = Vector2.new(1, 0.5)
+		switchBg.BackgroundColor3 = THEME.Stroke
+		switchBg.BorderSizePixel = 0
+		switchBg.Parent = card
+		createCorner(switchBg, 10)
+		local switchStroke = createStroke(switchBg, THEME.StrokeActive, 1, 0.15)
+
+		local knob = Instance.new("Frame")
+		knob.Size = UDim2.new(0, 14, 0, 14)
+		knob.Position = UDim2.new(0, 3, 0.5, 0)
+		knob.AnchorPoint = Vector2.new(0, 0.5)
+		knob.BackgroundColor3 = THEME.TextTabInactive
+		knob.BorderSizePixel = 0
+		knob.Parent = switchBg
+		createCorner(knob, 7)
+
+		local clickZone = Instance.new("TextButton")
+		clickZone.Size = UDim2.new(1, 0, 1, 0)
+		clickZone.BackgroundTransparency = 1
+		clickZone.Text = ""
+		clickZone.Parent = card
+
+		emoteCards[emote.id] = {
+			Card = card,
+			Stroke = cardStroke,
+			SwitchBg = switchBg,
+			SwitchStroke = switchStroke,
+			Knob = knob,
+			SubLabel = subLabel,
+			Name = emote.name,
+			Id = emote.id,
+		}
+
+		table.insert(emotesSearchList, {
+			Card = card,
+			Query = string.lower(emote.name) .. " " .. tostring(emote.id),
+		})
+
+		clickZone.MouseEnter:Connect(function()
+			if activeEmoteId ~= emote.id then
+				tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+				tween(iconImg, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
+			end
+		end)
+		clickZone.MouseLeave:Connect(function()
+			if activeEmoteId ~= emote.id then
+				tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
+				tween(iconImg, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
+			end
+		end)
+
+		clickZone.MouseButton1Click:Connect(function()
+			toggleEmote(emote.id)
+		end)
+	end
+
+	local emotesSearchQueued = false
+	EmotesSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		if emotesSearchQueued then return end
+		emotesSearchQueued = true
+		task.defer(function()
+			emotesSearchQueued = false
+			if not EmotesSearchBox or not EmotesSearchBox.Parent then return end
+			local q = string.lower(string.gsub(EmotesSearchBox.Text, "^%s*(.-)%s*$", "%1"))
+			local visibleCount = 0
+			for _, item in ipairs(emotesSearchList) do
+				local match = (q == "") or (string.find(item.Query, q, 1, true) ~= nil)
+				item.Card.Visible = match
+				if match then
+					visibleCount += 1
+				end
+			end
+			EmptyEmotesPlaceholder.Visible = (#emotesSearchList > 0 and visibleCount == 0)
+		end)
+	end)
+
+	trackConnection(UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+		if gameProcessed then return end
+		if input.KeyCode == Enum.KeyCode.V then
+			stopAllEmotes()
+		end
+	end))
+
+	trackConnection(LocalPlayer.CharacterAdded:Connect(function()
+		stopAllEmotes()
+	end))
+
+	return EmotesHubPage, stopAllEmotes
+end
+
+local function setupProfileAndStats(HomePage: Frame, selectedPlatform: string)
+	local ProfileSection = Instance.new("Frame")
+	ProfileSection.Name = "ProfileSection"
+	ProfileSection.Size = UDim2.new(1, 0, 0, 72)
+	ProfileSection.Position = UDim2.new(0, 0, 0, 48)
+	ProfileSection.BackgroundTransparency = 1
+	ProfileSection.Parent = HomePage
+
+	local LargeAvatar = Instance.new("ImageLabel")
+	LargeAvatar.Name = "LargeAvatar"
+	LargeAvatar.Size = UDim2.new(0, 72, 0, 72)
+	LargeAvatar.Position = UDim2.new(0, 0, 0, 0)
+	LargeAvatar.BackgroundColor3 = THEME.DiscordBoxBg
+	LargeAvatar.BorderSizePixel = 0
+	LargeAvatar.Parent = ProfileSection
+	createCorner(LargeAvatar, 10)
+	createStroke(LargeAvatar, THEME.StrokeActive, 1, 0)
+
+	local ProfileTextContainer = Instance.new("Frame")
+	ProfileTextContainer.Size = UDim2.new(1, -226, 0, 48)
+	ProfileTextContainer.Position = UDim2.new(0, 88, 0.5, 0)
+	ProfileTextContainer.AnchorPoint = Vector2.new(0, 0.5)
+	ProfileTextContainer.BackgroundTransparency = 1
+	ProfileTextContainer.Parent = ProfileSection
+
+	local LargeDisplayName = Instance.new("TextLabel")
+	LargeDisplayName.Size = UDim2.new(1, 0, 0, 24)
+	LargeDisplayName.Position = UDim2.new(0, 0, 0, 0)
+	LargeDisplayName.BackgroundTransparency = 1
+	LargeDisplayName.Font = Enum.Font.GothamBold
+	LargeDisplayName.Text = LocalPlayer.DisplayName
+	LargeDisplayName.TextColor3 = THEME.TextPrimary
+	LargeDisplayName.TextSize = 22
+	LargeDisplayName.TextXAlignment = Enum.TextXAlignment.Left
+	LargeDisplayName.TextTruncate = Enum.TextTruncate.AtEnd
+	LargeDisplayName.Parent = ProfileTextContainer
+
+	local LargeUsername = Instance.new("TextLabel")
+	LargeUsername.Size = UDim2.new(1, 0, 0, 16)
+	LargeUsername.Position = UDim2.new(0, 0, 0, 26)
+	LargeUsername.BackgroundTransparency = 1
+	LargeUsername.Font = Enum.Font.GothamMedium
+	LargeUsername.Text = "@" .. LocalPlayer.Name
+	LargeUsername.TextColor3 = THEME.TextSecondary
+	LargeUsername.TextSize = 14
+	LargeUsername.TextXAlignment = Enum.TextXAlignment.Left
+	LargeUsername.TextTruncate = Enum.TextTruncate.AtEnd
+	LargeUsername.Parent = ProfileTextContainer
+
+	local InfoTextLabel = Instance.new("TextLabel")
+	InfoTextLabel.Name = "InfoTextLabel"
+	InfoTextLabel.Size = UDim2.new(1, 0, 0, 18)
+	InfoTextLabel.Position = UDim2.new(0, 0, 0, 132)
+	InfoTextLabel.BackgroundTransparency = 1
+	InfoTextLabel.Font = Enum.Font.GothamMedium
+	InfoTextLabel.Text = "Night System Scripts in all free"
+	InfoTextLabel.TextColor3 = THEME.TextSecondary
+	InfoTextLabel.TextSize = 13
+	InfoTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+	InfoTextLabel.Parent = HomePage
+
+	local StatsContainer = Instance.new("Frame")
+	StatsContainer.Name = "StatsContainer"
+	StatsContainer.Size = UDim2.new(1, 0, 0, 220)
+	StatsContainer.Position = UDim2.new(0, 0, 0, 160)
+	StatsContainer.BackgroundColor3 = THEME.CardBackground
+	StatsContainer.BorderSizePixel = 0
+	StatsContainer.Parent = HomePage
+	createCorner(StatsContainer, 8)
+	createStroke(StatsContainer, THEME.Stroke, 1, 0.2)
+
+	local TopStatsDivider = Instance.new("Frame")
+	TopStatsDivider.Size = UDim2.new(1, 0, 0, 1)
+	TopStatsDivider.Position = UDim2.new(0, 0, 0, 0)
+	TopStatsDivider.BackgroundColor3 = THEME.Stroke
+	TopStatsDivider.BorderSizePixel = 0
+	TopStatsDivider.Parent = StatsContainer
+
+	local PlatformRow = Instance.new("Frame")
+	PlatformRow.Size = UDim2.new(1, -24, 0, 40)
+	PlatformRow.Position = UDim2.new(0, 12, 0, 2)
+	PlatformRow.BackgroundTransparency = 1
+	PlatformRow.Parent = StatsContainer
+
+	local PlatformLabel = Instance.new("TextLabel")
+	PlatformLabel.Size = UDim2.new(0, 120, 1, 0)
+	PlatformLabel.BackgroundTransparency = 1
+	PlatformLabel.Font = Enum.Font.GothamMedium
+	PlatformLabel.Text = "Platform"
+	PlatformLabel.TextColor3 = THEME.TextSecondary
+	PlatformLabel.TextSize = 13
+	PlatformLabel.TextXAlignment = Enum.TextXAlignment.Left
+	PlatformLabel.Parent = PlatformRow
+
+	local PlatformValue = Instance.new("TextLabel")
+	PlatformValue.Size = UDim2.new(1, -120, 1, 0)
+	PlatformValue.Position = UDim2.new(0, 120, 0, 0)
+	PlatformValue.BackgroundTransparency = 1
+	PlatformValue.Font = Enum.Font.GothamBold
+	PlatformValue.Text = selectedPlatform
+	PlatformValue.TextColor3 = THEME.TextPrimary
+	PlatformValue.TextSize = 13
+	PlatformValue.TextXAlignment = Enum.TextXAlignment.Right
+	PlatformValue.Parent = PlatformRow
+
+	local Divider1 = Instance.new("Frame")
+	Divider1.Size = UDim2.new(1, -24, 0, 1)
+	Divider1.Position = UDim2.new(0, 12, 0, 44)
+	Divider1.BackgroundColor3 = THEME.Stroke
+	Divider1.BorderSizePixel = 0
+	Divider1.Parent = StatsContainer
+
+	local ExecutorRow = Instance.new("Frame")
+	ExecutorRow.Size = UDim2.new(1, -24, 0, 40)
+	ExecutorRow.Position = UDim2.new(0, 12, 0, 46)
+	ExecutorRow.BackgroundTransparency = 1
+	ExecutorRow.Parent = StatsContainer
+
+	local ExecutorLabel = Instance.new("TextLabel")
+	ExecutorLabel.Size = UDim2.new(0, 120, 1, 0)
+	ExecutorLabel.BackgroundTransparency = 1
+	ExecutorLabel.Font = Enum.Font.GothamMedium
+	ExecutorLabel.Text = "Executor"
+	ExecutorLabel.TextColor3 = THEME.TextSecondary
+	ExecutorLabel.TextSize = 13
+	ExecutorLabel.TextXAlignment = Enum.TextXAlignment.Left
+	ExecutorLabel.Parent = ExecutorRow
+
+	local function getExecutorName(): string
+		local ok, name = pcall(function()
+			if type(identifyexecutor) == "function" then
+				local n, v = identifyexecutor()
+				return if v then (tostring(n) .. " " .. tostring(v)) else tostring(n)
+			elseif type(getexecutorname) == "function" then
+				return tostring(getexecutorname())
+			end
+			return "Unknown"
+		end)
+		return if ok and name and name ~= "" then name else "Unknown"
+	end
+
+	local ExecutorValue = Instance.new("TextLabel")
+	ExecutorValue.Size = UDim2.new(1, -120, 1, 0)
+	ExecutorValue.Position = UDim2.new(0, 120, 0, 0)
+	ExecutorValue.BackgroundTransparency = 1
+	ExecutorValue.Font = Enum.Font.GothamBold
+	ExecutorValue.Text = getExecutorName()
+	ExecutorValue.TextColor3 = THEME.TextPrimary
+	ExecutorValue.TextSize = 13
+	ExecutorValue.TextXAlignment = Enum.TextXAlignment.Right
+	ExecutorValue.Parent = ExecutorRow
+
+	local Divider2 = Instance.new("Frame")
+	Divider2.Size = UDim2.new(1, -24, 0, 1)
+	Divider2.Position = UDim2.new(0, 12, 0, 88)
+	Divider2.BackgroundColor3 = THEME.Stroke
+	Divider2.BorderSizePixel = 0
+	Divider2.Parent = StatsContainer
+
+	local PlaceIdRow = Instance.new("Frame")
+	PlaceIdRow.Size = UDim2.new(1, -24, 0, 40)
+	PlaceIdRow.Position = UDim2.new(0, 12, 0, 90)
+	PlaceIdRow.BackgroundTransparency = 1
+	PlaceIdRow.Parent = StatsContainer
+
+	local PlaceIdLabel = Instance.new("TextLabel")
+	PlaceIdLabel.Size = UDim2.new(0, 120, 1, 0)
+	PlaceIdLabel.BackgroundTransparency = 1
+	PlaceIdLabel.Font = Enum.Font.GothamMedium
+	PlaceIdLabel.Text = "PlaceId"
+	PlaceIdLabel.TextColor3 = THEME.TextSecondary
+	PlaceIdLabel.TextSize = 13
+	PlaceIdLabel.TextXAlignment = Enum.TextXAlignment.Left
+	PlaceIdLabel.Parent = PlaceIdRow
+
+	local PlaceIdValue = Instance.new("TextLabel")
+	PlaceIdValue.Size = UDim2.new(1, -120, 1, 0)
+	PlaceIdValue.Position = UDim2.new(0, 120, 0, 0)
+	PlaceIdValue.BackgroundTransparency = 1
+	PlaceIdValue.Font = Enum.Font.GothamBold
+	PlaceIdValue.Text = tostring(game.PlaceId)
+	PlaceIdValue.TextColor3 = THEME.TextPrimary
+	PlaceIdValue.TextSize = 13
+	PlaceIdValue.TextXAlignment = Enum.TextXAlignment.Right
+	PlaceIdValue.Parent = PlaceIdRow
+
+	local Divider3 = Instance.new("Frame")
+	Divider3.Size = UDim2.new(1, -24, 0, 1)
+	Divider3.Position = UDim2.new(0, 12, 0, 132)
+	Divider3.BackgroundColor3 = THEME.Stroke
+	Divider3.BorderSizePixel = 0
+	Divider3.Parent = StatsContainer
+
+	local VersionRow = Instance.new("Frame")
+	VersionRow.Size = UDim2.new(1, -24, 0, 40)
+	VersionRow.Position = UDim2.new(0, 12, 0, 134)
+	VersionRow.BackgroundTransparency = 1
+	VersionRow.Parent = StatsContainer
+
+	local VersionLabel = Instance.new("TextLabel")
+	VersionLabel.Size = UDim2.new(0, 120, 1, 0)
+	VersionLabel.BackgroundTransparency = 1
+	VersionLabel.Font = Enum.Font.GothamMedium
+	VersionLabel.Text = "Version"
+	VersionLabel.TextColor3 = THEME.TextSecondary
+	VersionLabel.TextSize = 13
+	VersionLabel.TextXAlignment = Enum.TextXAlignment.Left
+	VersionLabel.Parent = VersionRow
+
+	local localClientVersion = "1.0.0"
+
+	local VersionValue = Instance.new("TextLabel")
+	VersionValue.Size = UDim2.new(1, -120, 1, 0)
+	VersionValue.Position = UDim2.new(0, 120, 0, 0)
+	VersionValue.BackgroundTransparency = 1
+	VersionValue.Font = Enum.Font.GothamBold
+	VersionValue.Text = localClientVersion
+	VersionValue.TextColor3 = THEME.TextPrimary
+	VersionValue.TextSize = 13
+	VersionValue.TextXAlignment = Enum.TextXAlignment.Right
+	VersionValue.Parent = VersionRow
+
+	task.spawn(function()
+		local vUrl = "https://raw.githubusercontent.com/NightSyste/NightUI/main/Version.json"
+		local success, body = pcall(function()
+			return game:HttpGet(vUrl)
+		end)
+		if success and body then
+			local parseOk, parsed = pcall(function()
+				return HttpService:JSONDecode(body)
+			end)
+			if parseOk and type(parsed) == "table" and parsed.Version then
+				local remoteV = tostring(parsed.Version)
+				if remoteV ~= localClientVersion then
+					VersionValue.Text = localClientVersion .. " (Update: " .. remoteV .. ")"
+					VersionValue.TextColor3 = Color3.fromRGB(255, 170, 0)
+				else
+					VersionValue.Text = localClientVersion .. " (Latest)"
+					VersionValue.TextColor3 = Color3.fromRGB(60, 220, 130)
+				end
+			end
+		end
+	end)
+
+	local Divider4 = Instance.new("Frame")
+	Divider4.Size = UDim2.new(1, -24, 0, 1)
+	Divider4.Position = UDim2.new(0, 12, 0, 176)
+	Divider4.BackgroundColor3 = THEME.Stroke
+	Divider4.BorderSizePixel = 0
+	Divider4.Parent = StatsContainer
+
+	local TeamRow = Instance.new("Frame")
+	TeamRow.Size = UDim2.new(1, -24, 0, 40)
+	TeamRow.Position = UDim2.new(0, 12, 0, 178)
+	TeamRow.BackgroundTransparency = 1
+	TeamRow.Parent = StatsContainer
+
+	local TeamLabel = Instance.new("TextLabel")
+	TeamLabel.Size = UDim2.new(0, 120, 1, 0)
+	TeamLabel.BackgroundTransparency = 1
+	TeamLabel.Font = Enum.Font.GothamMedium
+	TeamLabel.Text = "Team"
+	TeamLabel.TextColor3 = THEME.TextSecondary
+	TeamLabel.TextSize = 13
+	TeamLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TeamLabel.Parent = TeamRow
+
+	local TeamValue = Instance.new("TextLabel")
+	TeamValue.Size = UDim2.new(1, -120, 1, 0)
+	TeamValue.Position = UDim2.new(0, 120, 0, 0)
+	TeamValue.BackgroundTransparency = 1
+	TeamValue.Font = Enum.Font.GothamBold
+	TeamValue.Text = if LocalPlayer.Team then LocalPlayer.Team.Name else "Citizen"
+	TeamValue.TextColor3 = THEME.TextPrimary
+	TeamValue.TextSize = 13
+	TeamValue.TextXAlignment = Enum.TextXAlignment.Right
+	TeamValue.Parent = TeamRow
+
+	task.spawn(function()
+		local uid = if LocalPlayer.UserId > 0 then LocalPlayer.UserId else 1
+		local thumbUrl = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(uid) .. "&w=150&h=150"
+		LargeAvatar.Image = thumbUrl
+	end)
+
+	task.spawn(function()
+		local MarketplaceService = game:GetService("MarketplaceService")
+		local ok, info = pcall(function()
+			return MarketplaceService:GetProductInfo(game.PlaceId)
+		end)
+		if ok and info and info.Name then
+			PlaceIdValue.Text = tostring(game.PlaceId) .. " - " .. tostring(info.Name)
+			return
+		end
+		PlaceIdValue.Text = "7711635737 - Notruf Hamburg"
+	end)
+
+	local function refreshTeam()
+		local t = LocalPlayer.Team
+		TeamValue.Text = if t and t.Name ~= "" then t.Name else "Citizen"
+	end
+	refreshTeam()
+	trackConnection(LocalPlayer:GetPropertyChangedSignal("Team"):Connect(refreshTeam))
+
+	return ProfileSection, InfoTextLabel, PlatformValue
+end
+
 function NightSystem:CreateWindow(config: {
 	Title: string?,
 	Subtitle: string?,
@@ -1802,6 +2885,10 @@ function NightSystem:CreateWindow(config: {
 	local ScriptsHubPage: Frame? = nil
 	local EmotesHubPage: Frame? = nil
 	local stopAllEmotes: (() -> ())? = nil
+	local HubScroll: ScrollingFrame? = nil
+	local EmptyHubPlaceholder: Frame? = nil
+	local hubSearchEntries: { { Card: Frame, Query: string } } = {}
+	local InfoTextLabel: TextLabel? = nil
 
 	local function switchSidebarTab(tabName: string, instant: boolean?)
 		if ScriptsHubPage and ScriptsHubPage.Visible then
@@ -2100,170 +3187,20 @@ function NightSystem:CreateWindow(config: {
 		tween(FreeEmotesArrow, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary, Position = UDim2.new(1, -10, 0.5, 0) })
 	end)
 
-	-- Dedicated "All Scripts" Hub View (Opened when clicking All Scripts in Home Tab)
-	ScriptsHubPage = Instance.new("Frame")
-	ScriptsHubPage.Name = "ScriptsHub_Page"
-	ScriptsHubPage.Size = UDim2.new(1, 0, 1, 0)
-	ScriptsHubPage.BackgroundTransparency = 1
-	ScriptsHubPage.Visible = false
-	ScriptsHubPage.Parent = ContentFrame
-	createPadding(ScriptsHubPage, 24, 24, 24, 24)
-
-	local HubHeaderTitle = Instance.new("TextLabel")
-	HubHeaderTitle.Size = UDim2.new(1, -140, 0, 20)
-	HubHeaderTitle.Position = UDim2.new(0, 0, 0, 0)
-	HubHeaderTitle.BackgroundTransparency = 1
-	HubHeaderTitle.Font = Enum.Font.GothamBold
-	HubHeaderTitle.Text = "Night System Scripts"
-	HubHeaderTitle.TextColor3 = THEME.TextHeaderTitle
-	HubHeaderTitle.TextSize = 18
-	HubHeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-	HubHeaderTitle.Parent = ScriptsHubPage
-
-	local HubHeaderSub = Instance.new("TextLabel")
-	HubHeaderSub.Size = UDim2.new(1, -140, 0, 16)
-	HubHeaderSub.Position = UDim2.new(0, 0, 0, 22)
-	HubHeaderSub.BackgroundTransparency = 1
-	HubHeaderSub.Font = Enum.Font.GothamMedium
-	HubHeaderSub.Text = "19 Official Scripts • Click Execute to run or Copy for clipboard"
-	HubHeaderSub.TextColor3 = THEME.TextHeaderSub
-	HubHeaderSub.TextSize = 13
-	HubHeaderSub.TextXAlignment = Enum.TextXAlignment.Left
-	HubHeaderSub.Parent = ScriptsHubPage
-
-	local BackToHomeBtn = Instance.new("TextButton")
-	BackToHomeBtn.Name = "BackToHomeButton"
-	BackToHomeBtn.Size = UDim2.new(0, 118, 0, 32)
-	BackToHomeBtn.Position = UDim2.new(1, 0, 0, 2)
-	BackToHomeBtn.AnchorPoint = Vector2.new(1, 0)
-	BackToHomeBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
-	BackToHomeBtn.BorderSizePixel = 0
-	BackToHomeBtn.AutoButtonColor = false
-	BackToHomeBtn.Font = Enum.Font.GothamBold
-	BackToHomeBtn.Text = "‹  Back to Home"
-	BackToHomeBtn.TextColor3 = THEME.TextPrimary
-	BackToHomeBtn.TextSize = 12
-	BackToHomeBtn.Parent = ScriptsHubPage
-	createCorner(BackToHomeBtn, 8)
-	local BackHomeStroke = createStroke(BackToHomeBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
-
-	BackToHomeBtn.MouseEnter:Connect(function()
-		tween(BackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#22262B") })
-		tween(BackHomeStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+	-- Initialize Modular Sub-Views (Scripts Hub, Emotes Hub, Profile & Stats)
+	local _sHub, _hScroll, _ePlaceholder, _hEntries = setupScriptsHub(ContentFrame, HomePage, function()
+		return updateActiveIndicator
 	end)
-	BackToHomeBtn.MouseLeave:Connect(function()
-		tween(BackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
-		tween(BackHomeStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+	ScriptsHubPage = _sHub
+	HubScroll = _hScroll
+	EmptyHubPlaceholder = _ePlaceholder
+	hubSearchEntries = _hEntries
+
+	local _eHub, _stopEmotes = setupEmotesHub(ContentFrame, HomePage, function()
+		return updateActiveIndicator
 	end)
-
-	-- Search Bar inside All Scripts Hub
-	local HubSearchBar = Instance.new("Frame")
-	HubSearchBar.Name = "HubSearchBar"
-	HubSearchBar.Size = UDim2.new(1, 0, 0, 32)
-	HubSearchBar.Position = UDim2.new(0, 0, 0, 46)
-	HubSearchBar.BackgroundColor3 = THEME.CardBackground
-	HubSearchBar.BorderSizePixel = 0
-	HubSearchBar.Parent = ScriptsHubPage
-	createCorner(HubSearchBar, 8)
-	local HubSearchStroke = createStroke(HubSearchBar, THEME.Stroke, 1, 0.2)
-
-	local HubSearchIcon = Instance.new("ImageLabel")
-	HubSearchIcon.Size = UDim2.new(0, 14, 0, 14)
-	HubSearchIcon.Position = UDim2.new(0, 12, 0.5, 0)
-	HubSearchIcon.AnchorPoint = Vector2.new(0, 0.5)
-	HubSearchIcon.BackgroundTransparency = 1
-	HubSearchIcon.Image = ASSETS.Search
-	HubSearchIcon.ImageColor3 = THEME.TextSecondary
-	HubSearchIcon.Parent = HubSearchBar
-
-	local HubSearchBox = Instance.new("TextBox")
-	HubSearchBox.Name = "HubSearchBox"
-	HubSearchBox.Size = UDim2.new(1, -38, 1, 0)
-	HubSearchBox.Position = UDim2.new(0, 32, 0, 0)
-	HubSearchBox.BackgroundTransparency = 1
-	HubSearchBox.Font = Enum.Font.GothamMedium
-	HubSearchBox.PlaceholderText = "Search 19 Night System scripts (e.g. Military Tycoon, Auto Rob, MM2, Arsenal)..."
-	HubSearchBox.PlaceholderColor3 = THEME.TextSecondary
-	HubSearchBox.Text = ""
-	HubSearchBox.TextColor3 = THEME.TextPrimary
-	HubSearchBox.TextSize = 12
-	HubSearchBox.TextXAlignment = Enum.TextXAlignment.Left
-	HubSearchBox.ClearTextOnFocus = false
-	HubSearchBox.Parent = HubSearchBar
-
-	HubSearchBox.Focused:Connect(function()
-		tween(HubSearchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
-		tween(HubSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
-	end)
-	HubSearchBox.FocusLost:Connect(function()
-		tween(HubSearchStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-		tween(HubSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
-	end)
-
-	local HubScroll = Instance.new("ScrollingFrame")
-	HubScroll.Name = "HubScriptsScroll"
-	HubScroll.Size = UDim2.new(1, 0, 1, -86)
-	HubScroll.Position = UDim2.new(0, 0, 0, 86)
-	HubScroll.BackgroundTransparency = 1
-	HubScroll.BorderSizePixel = 0
-	HubScroll.ScrollBarThickness = 3
-	HubScroll.ScrollBarImageColor3 = THEME.Accent
-	HubScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	HubScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	HubScroll.Parent = ScriptsHubPage
-	createPadding(HubScroll, 2, 12, 2, 8)
-
-	-- Side-by-Side Grid Layout (Alle Scripts nebeneinander mit Bild + Loadstring)
-	local HubGridLayout = Instance.new("UIGridLayout")
-	HubGridLayout.FillDirection = Enum.FillDirection.Horizontal
-	HubGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	HubGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	HubGridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
-	HubGridLayout.CellSize = UDim2.new(0.5, -6, 0, 216)
-	HubGridLayout.Parent = HubScroll
-
-	local EmptyHubPlaceholder = Instance.new("Frame")
-	EmptyHubPlaceholder.Name = "PlaceholderCard"
-	EmptyHubPlaceholder.Size = UDim2.new(1, 0, 0, 64)
-	EmptyHubPlaceholder.BackgroundColor3 = THEME.CardBackground
-	EmptyHubPlaceholder.BorderSizePixel = 0
-	EmptyHubPlaceholder.Visible = false
-	EmptyHubPlaceholder.Parent = ScriptsHubPage
-	EmptyHubPlaceholder.Position = UDim2.new(0, 0, 0, 86)
-	createCorner(EmptyHubPlaceholder, 8)
-	createStroke(EmptyHubPlaceholder, THEME.Stroke, 1, 0.2)
-
-	local EmptyHubText = Instance.new("TextLabel")
-	EmptyHubText.Size = UDim2.new(1, -28, 1, 0)
-	EmptyHubText.Position = UDim2.new(0, 14, 0, 0)
-	EmptyHubText.BackgroundTransparency = 1
-	EmptyHubText.Font = Enum.Font.GothamMedium
-	EmptyHubText.Text = "No matching scripts found."
-	EmptyHubText.TextColor3 = THEME.TextSecondary
-	EmptyHubText.TextSize = 13
-	EmptyHubText.TextXAlignment = Enum.TextXAlignment.Left
-	EmptyHubText.Parent = EmptyHubPlaceholder
-
-	local hubSearchEntries: { { Card: Frame, Query: string } } = {}
-	local searchUpdateQueued = false
-	HubSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-		if searchUpdateQueued then return end
-		searchUpdateQueued = true
-		task.defer(function()
-			searchUpdateQueued = false
-			if not HubSearchBox or not HubSearchBox.Parent then return end
-			local q = string.lower(string.gsub(HubSearchBox.Text, "^%s*(.-)%s*$", "%1"))
-			local visibleCount = 0
-			for _, item in ipairs(hubSearchEntries) do
-				local match = (q == "") or (string.find(item.Query, q, 1, true) ~= nil)
-				item.Card.Visible = match
-				if match then
-					visibleCount += 1
-				end
-			end
-			EmptyHubPlaceholder.Visible = (#hubSearchEntries > 0 and visibleCount == 0)
-		end)
-	end)
+	EmotesHubPage = _eHub
+	stopAllEmotes = _stopEmotes
 
 	AllScriptsBtn.MouseButton1Click:Connect(function()
 		HomePage.Visible = false
@@ -2283,910 +3220,9 @@ function NightSystem:CreateWindow(config: {
 		updateActiveIndicator(true)
 	end)
 
-	BackToHomeBtn.MouseButton1Click:Connect(function()
-		ScriptsHubPage.Visible = false
-		HomePage.Visible = true
-		HomePage.Position = UDim2.new(0, 0, 0, 8)
-		tween(HomePage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
-		updateActiveIndicator(true)
-	end)
-
-	-- ========================================================================
-	-- DEDICATED "FREE EMOTES" HUB VIEW (Opened when clicking Free Emotes in Home Tab)
-	-- ========================================================================
-	local EMOTES_DATA = {
-		{ name = "MJ - P.Y.T.", id = 137234266130963 },
-		{ name = "Kawaii Anime Tanz OG", id = 130855166586798 },
-		{ name = "BEST Party-Rock-Hymne", id = 98918840942712 },
-		{ name = "Michael Jackson Mondgang", id = 90850139979211 },
-		{ name = "Niedliches Sitzen", id = 72947568152049 },
-		{ name = "Needy V-Sit Split Drop", id = 100354575525671 },
-		{ name = "Umarmung", id = 125491951751014 },
-		{ name = "Popstar Bewegungen", id = 87757463565936 },
-		{ name = "Zero Two Tanz V3", id = 124963840388798 },
-		{ name = "Party-Rock-Hymne", id = 105248382902194 },
-		{ name = "MJ - Billie Jean", id = 98915045016286 },
-		{ name = "Griddy Tanz", id = 129149402922241 },
-		{ name = "Cupid (Fifty Fifty)", id = 86132602394818 },
-		{ name = "Never Gonna Give You Up (Rickroll)", id = 94960135681008 },
-		{ name = "Rambunctious", id = 108128682361404 },
-		{ name = "Godlike Schwebung", id = 3823158750 },
-		{ name = "Schläfrig (Sleepy)", id = 114701975807821 },
-		{ name = "d4vd - Backflip Salto", id = 15694504637 },
-	}
-
-	local animCache: { [number]: Animation } = {}
-
-	local function getEmoteAnimation(emoteId: number): Animation
-		if animCache[emoteId] then
-			return animCache[emoteId]
-		end
-
-		local success, objs = pcall(function()
-			return game:GetObjects("rbxassetid://" .. tostring(emoteId))
-		end)
-
-		if success and objs and objs[1] then
-			local asset = objs[1]
-			if asset:IsA("Animation") then
-				animCache[emoteId] = asset
-				return asset
-			end
-			local anim = asset:FindFirstChildWhichIsA("Animation", true)
-			if anim then
-				animCache[emoteId] = anim
-				return anim
-			end
-		end
-
-		local fallbackAnim = Instance.new("Animation")
-		fallbackAnim.AnimationId = "rbxassetid://" .. tostring(emoteId)
-		animCache[emoteId] = fallbackAnim
-		return fallbackAnim
-	end
-
-	EmotesHubPage = Instance.new("Frame")
-	EmotesHubPage.Name = "EmotesHub_Page"
-	EmotesHubPage.Size = UDim2.new(1, 0, 1, 0)
-	EmotesHubPage.BackgroundTransparency = 1
-	EmotesHubPage.Visible = false
-	EmotesHubPage.Parent = ContentFrame
-	createPadding(EmotesHubPage, 24, 24, 24, 24)
-
-	local EmotesHeaderTitle = Instance.new("TextLabel")
-	EmotesHeaderTitle.Size = UDim2.new(1, -260, 0, 20)
-	EmotesHeaderTitle.Position = UDim2.new(0, 0, 0, 0)
-	EmotesHeaderTitle.BackgroundTransparency = 1
-	EmotesHeaderTitle.Font = Enum.Font.GothamBold
-	EmotesHeaderTitle.Text = "Free Emotes (" .. tostring(#EMOTES_DATA) .. ")"
-	EmotesHeaderTitle.TextColor3 = THEME.TextHeaderTitle
-	EmotesHeaderTitle.TextSize = 18
-	EmotesHeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-	EmotesHeaderTitle.Parent = EmotesHubPage
-
-	local EmotesHeaderSub = Instance.new("TextLabel")
-	EmotesHeaderSub.Size = UDim2.new(1, -260, 0, 16)
-	EmotesHeaderSub.Position = UDim2.new(0, 0, 0, 22)
-	EmotesHeaderSub.BackgroundTransparency = 1
-	EmotesHeaderSub.Font = Enum.Font.GothamMedium
-	EmotesHeaderSub.Text = "[V] Stopp • Klicken zum Aktivieren/Deaktivieren"
-	EmotesHeaderSub.TextColor3 = THEME.TextHeaderSub
-	EmotesHeaderSub.TextSize = 13
-	EmotesHeaderSub.TextXAlignment = Enum.TextXAlignment.Left
-	EmotesHeaderSub.Parent = EmotesHubPage
-
-	-- Top-Right Controls in Emotes Hub: Back to Home + Quick Stop Button
-	local EmotesBackToHomeBtn = Instance.new("TextButton")
-	EmotesBackToHomeBtn.Name = "EmotesBackToHomeButton"
-	EmotesBackToHomeBtn.Size = UDim2.new(0, 118, 0, 32)
-	EmotesBackToHomeBtn.Position = UDim2.new(1, 0, 0, 2)
-	EmotesBackToHomeBtn.AnchorPoint = Vector2.new(1, 0)
-	EmotesBackToHomeBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
-	EmotesBackToHomeBtn.BorderSizePixel = 0
-	EmotesBackToHomeBtn.AutoButtonColor = false
-	EmotesBackToHomeBtn.Font = Enum.Font.GothamBold
-	EmotesBackToHomeBtn.Text = "‹  Back to Home"
-	EmotesBackToHomeBtn.TextColor3 = THEME.TextPrimary
-	EmotesBackToHomeBtn.TextSize = 12
-	EmotesBackToHomeBtn.Parent = EmotesHubPage
-	createCorner(EmotesBackToHomeBtn, 8)
-	local EmotesBackHomeStroke = createStroke(EmotesBackToHomeBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
-
-	EmotesBackToHomeBtn.MouseEnter:Connect(function()
-		tween(EmotesBackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#22262B") })
-		tween(EmotesBackHomeStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
-	end)
-	EmotesBackToHomeBtn.MouseLeave:Connect(function()
-		tween(EmotesBackToHomeBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
-		tween(EmotesBackHomeStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
-	end)
-
-	EmotesBackToHomeBtn.MouseButton1Click:Connect(function()
-		EmotesHubPage.Visible = false
-		HomePage.Visible = true
-		HomePage.Position = UDim2.new(0, 0, 0, 8)
-		tween(HomePage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
-		updateActiveIndicator(true)
-	end)
-
-	local EmotesQuickStopBtn = Instance.new("TextButton")
-	EmotesQuickStopBtn.Name = "EmotesQuickStopButton"
-	EmotesQuickStopBtn.Size = UDim2.new(0, 96, 0, 32)
-	EmotesQuickStopBtn.Position = UDim2.new(1, -126, 0, 2)
-	EmotesQuickStopBtn.AnchorPoint = Vector2.new(1, 0)
-	EmotesQuickStopBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
-	EmotesQuickStopBtn.BorderSizePixel = 0
-	EmotesQuickStopBtn.AutoButtonColor = false
-	EmotesQuickStopBtn.Font = Enum.Font.GothamBold
-	EmotesQuickStopBtn.Text = "■  Stop [V]"
-	EmotesQuickStopBtn.TextColor3 = THEME.AccentRed
-	EmotesQuickStopBtn.TextSize = 12
-	EmotesQuickStopBtn.Parent = EmotesHubPage
-	createCorner(EmotesQuickStopBtn, 8)
-	local QuickStopStroke = createStroke(EmotesQuickStopBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
-
-	EmotesQuickStopBtn.MouseEnter:Connect(function()
-		tween(EmotesQuickStopBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#251A1A") })
-		tween(QuickStopStroke, TWEEN_FAST, { Color = THEME.AccentRed, Transparency = 0 })
-	end)
-	EmotesQuickStopBtn.MouseLeave:Connect(function()
-		tween(EmotesQuickStopBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
-		tween(QuickStopStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
-	end)
-
-	-- Search Bar
-	local EmotesSearchBar = Instance.new("Frame")
-	EmotesSearchBar.Name = "EmotesSearchBar"
-	EmotesSearchBar.Size = UDim2.new(1, 0, 0, 32)
-	EmotesSearchBar.Position = UDim2.new(0, 0, 0, 46)
-	EmotesSearchBar.BackgroundColor3 = THEME.CardBackground
-	EmotesSearchBar.BorderSizePixel = 0
-	EmotesSearchBar.Parent = EmotesHubPage
-	createCorner(EmotesSearchBar, 8)
-	local EmotesSearchStroke = createStroke(EmotesSearchBar, THEME.Stroke, 1, 0.2)
-
-	local EmotesSearchIcon = Instance.new("ImageLabel")
-	EmotesSearchIcon.Size = UDim2.new(0, 14, 0, 14)
-	EmotesSearchIcon.Position = UDim2.new(0, 12, 0.5, 0)
-	EmotesSearchIcon.AnchorPoint = Vector2.new(0, 0.5)
-	EmotesSearchIcon.BackgroundTransparency = 1
-	EmotesSearchIcon.Image = ASSETS.Search
-	EmotesSearchIcon.ImageColor3 = THEME.TextSecondary
-	EmotesSearchIcon.Parent = EmotesSearchBar
-
-	local EmotesSearchBox = Instance.new("TextBox")
-	EmotesSearchBox.Name = "EmotesSearchBox"
-	EmotesSearchBox.Size = UDim2.new(1, -38, 1, 0)
-	EmotesSearchBox.Position = UDim2.new(0, 32, 0, 0)
-	EmotesSearchBox.BackgroundTransparency = 1
-	EmotesSearchBox.Font = Enum.Font.GothamMedium
-	EmotesSearchBox.PlaceholderText = "Search 18 free emotes (e.g. Griddy, MJ, Cupid, Rickroll)..."
-	EmotesSearchBox.PlaceholderColor3 = THEME.TextSecondary
-	EmotesSearchBox.Text = ""
-	EmotesSearchBox.TextColor3 = THEME.TextPrimary
-	EmotesSearchBox.TextSize = 12
-	EmotesSearchBox.TextXAlignment = Enum.TextXAlignment.Left
-	EmotesSearchBox.ClearTextOnFocus = false
-	EmotesSearchBox.Parent = EmotesSearchBar
-
-	EmotesSearchBox.Focused:Connect(function()
-		tween(EmotesSearchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0 })
-		tween(EmotesSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
-	end)
-	EmotesSearchBox.FocusLost:Connect(function()
-		tween(EmotesSearchStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-		tween(EmotesSearchIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
-	end)
-
-	-- Emotes Scroll List
-	local EmotesScroll = Instance.new("ScrollingFrame")
-	EmotesScroll.Name = "EmotesScroll"
-	EmotesScroll.Size = UDim2.new(1, 0, 1, -86)
-	EmotesScroll.Position = UDim2.new(0, 0, 0, 86)
-	EmotesScroll.BackgroundTransparency = 1
-	EmotesScroll.BorderSizePixel = 0
-	EmotesScroll.ScrollBarThickness = 3
-	EmotesScroll.ScrollBarImageColor3 = THEME.Accent
-	EmotesScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	EmotesScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	EmotesScroll.Parent = EmotesHubPage
-	createPadding(EmotesScroll, 2, 12, 2, 8)
-
-	local EmotesListLayout = Instance.new("UIListLayout")
-	EmotesListLayout.Padding = UDim.new(0, 8)
-	EmotesListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	EmotesListLayout.Parent = EmotesScroll
-
-	local EmptyEmotesPlaceholder = Instance.new("Frame")
-	EmptyEmotesPlaceholder.Name = "EmptyEmotesPlaceholder"
-	EmptyEmotesPlaceholder.Size = UDim2.new(1, 0, 0, 64)
-	EmptyEmotesPlaceholder.BackgroundColor3 = THEME.CardBackground
-	EmptyEmotesPlaceholder.BorderSizePixel = 0
-	EmptyEmotesPlaceholder.Visible = false
-	EmptyEmotesPlaceholder.Parent = EmotesHubPage
-	EmptyEmotesPlaceholder.Position = UDim2.new(0, 0, 0, 86)
-	createCorner(EmptyEmotesPlaceholder, 8)
-	createStroke(EmptyEmotesPlaceholder, THEME.Stroke, 1, 0.2)
-
-	local EmptyEmotesText = Instance.new("TextLabel")
-	EmptyEmotesText.Size = UDim2.new(1, -28, 1, 0)
-	EmptyEmotesText.Position = UDim2.new(0, 14, 0, 0)
-	EmptyEmotesText.BackgroundTransparency = 1
-	EmptyEmotesText.Font = Enum.Font.GothamMedium
-	EmptyEmotesText.Text = "Kein passendes Emote gefunden."
-	EmptyEmotesText.TextColor3 = THEME.TextSecondary
-	EmptyEmotesText.TextSize = 13
-	EmptyEmotesText.TextXAlignment = Enum.TextXAlignment.Left
-	EmptyEmotesText.Parent = EmptyEmotesPlaceholder
-
-	local currentEmoteTrack: AnimationTrack? = nil
-	local activeEmoteId: number? = nil
-	local emoteCards: { [number]: {
-		Card: Frame,
-		Stroke: UIStroke,
-		SwitchBg: Frame,
-		SwitchStroke: UIStroke,
-		Knob: Frame,
-		SubLabel: TextLabel,
-		Name: string,
-		Id: number,
-	} } = {}
-
-	local function updateEmoteVisual(emoteId: number, isPlaying: boolean)
-		local item = emoteCards[emoteId]
-		if not item then return end
-
-		if isPlaying then
-			tween(item.Card, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#171D1B") })
-			tween(item.Stroke, TWEEN_FAST, { Color = Color3.fromRGB(60, 220, 130), Transparency = 0.2 })
-			tween(item.SwitchBg, TWEEN_FAST, { BackgroundColor3 = Color3.fromRGB(60, 220, 130) })
-			tween(item.SwitchStroke, TWEEN_FAST, { Color = Color3.fromRGB(60, 220, 130), Transparency = 0 })
-			tween(item.Knob, TWEEN_FAST, {
-				Position = UDim2.new(1, -17, 0.5, 0),
-				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			})
-			item.SubLabel.Text = "▶ Aktiv (Taste [V] zum Stoppen)"
-			item.SubLabel.TextColor3 = Color3.fromRGB(80, 235, 145)
-		else
-			tween(item.Card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
-			tween(item.Stroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-			tween(item.SwitchBg, TWEEN_FAST, { BackgroundColor3 = THEME.Stroke })
-			tween(item.SwitchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0.15 })
-			tween(item.Knob, TWEEN_FAST, {
-				Position = UDim2.new(0, 3, 0.5, 0),
-				BackgroundColor3 = THEME.TextTabInactive,
-			})
-			item.SubLabel.Text = "ID: " .. tostring(item.Id) .. " • Klicken zum Abspielen"
-			item.SubLabel.TextColor3 = THEME.TextSecondary
-		end
-	end
-
-	stopAllEmotes = function()
-		if currentEmoteTrack then
-			pcall(function()
-				currentEmoteTrack:Stop(0.2)
-				currentEmoteTrack:Destroy()
-			end)
-			currentEmoteTrack = nil
-		end
-		if activeEmoteId then
-			local oldId = activeEmoteId
-			activeEmoteId = nil
-			updateEmoteVisual(oldId, false)
-		end
-	end
-
-	local function toggleEmote(emoteId: number)
-		if activeEmoteId == emoteId then
-			stopAllEmotes()
-			return
-		end
-
-		stopAllEmotes()
-
-		local character = LocalPlayer.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local animator = humanoid and (humanoid:FindFirstChildOfClass("Animator") or humanoid)
-		if not animator then
-			NightSystem:Notify({
-				Title = "Emote Fehler",
-				Content = "Humanoid / Animator nicht gefunden!",
-				Duration = 2,
-			})
-			return
-		end
-
-		local animInstance = getEmoteAnimation(emoteId)
-		local ok, track = pcall(function()
-			return (animator :: any):LoadAnimation(animInstance)
-		end)
-
-		if ok and track then
-			currentEmoteTrack = track
-			track.Priority = Enum.AnimationPriority.Action4
-			track.Looped = true
-			track:Play(0.2)
-
-			activeEmoteId = emoteId
-			updateEmoteVisual(emoteId, true)
-		else
-			NightSystem:Notify({
-				Title = "Animation Fehler",
-				Content = "Konnte Animation nicht laden.",
-				Duration = 2,
-			})
-		end
-	end
-
-	EmotesQuickStopBtn.MouseButton1Click:Connect(function()
-		stopAllEmotes()
-	end)
-
-	local emotesSearchList: { { Card: Frame, Query: string } } = {}
-
-	for index, emote in ipairs(EMOTES_DATA) do
-		local card = Instance.new("Frame")
-		card.Name = "EmoteCard_" .. tostring(emote.id)
-		card.Size = UDim2.new(1, 0, 0, 46)
-		card.BackgroundColor3 = THEME.CardBackground
-		card.BorderSizePixel = 0
-		card.ClipsDescendants = true
-		card.LayoutOrder = index
-		card.Parent = EmotesScroll
-		createCorner(card, 8)
-		local cardStroke = createStroke(card, THEME.Stroke, 1, 0.2)
-
-		local iconHolder = Instance.new("Frame")
-		iconHolder.Size = UDim2.new(0, 30, 0, 30)
-		iconHolder.Position = UDim2.new(0, 10, 0.5, 0)
-		iconHolder.AnchorPoint = Vector2.new(0, 0.5)
-		iconHolder.BackgroundColor3 = THEME.CardInner
-		iconHolder.BorderSizePixel = 0
-		iconHolder.Parent = card
-		createCorner(iconHolder, 6)
-		createStroke(iconHolder, THEME.Stroke, 1, 0.2)
-
-		local iconImg = Instance.new("ImageLabel")
-		iconImg.Size = UDim2.new(0, 16, 0, 16)
-		iconImg.Position = UDim2.new(0.5, 0, 0.5, 0)
-		iconImg.AnchorPoint = Vector2.new(0.5, 0.5)
-		iconImg.BackgroundTransparency = 1
-		iconImg.Image = ASSETS.Users
-		iconImg.ImageColor3 = THEME.TextSecondary
-		iconImg.Parent = iconHolder
-
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(1, -120, 0, 16)
-		nameLabel.Position = UDim2.new(0, 48, 0, 8)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Font = Enum.Font.GothamBold
-		nameLabel.Text = emote.name
-		nameLabel.TextColor3 = THEME.TextPrimary
-		nameLabel.TextSize = 13
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		nameLabel.Parent = card
-
-		local subLabel = Instance.new("TextLabel")
-		subLabel.Size = UDim2.new(1, -120, 0, 14)
-		subLabel.Position = UDim2.new(0, 48, 0, 24)
-		subLabel.BackgroundTransparency = 1
-		subLabel.Font = Enum.Font.GothamMedium
-		subLabel.Text = "ID: " .. tostring(emote.id) .. " • Klicken zum Abspielen"
-		subLabel.TextColor3 = THEME.TextSecondary
-		subLabel.TextSize = 11
-		subLabel.TextXAlignment = Enum.TextXAlignment.Left
-		subLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		subLabel.Parent = card
-
-		local switchBg = Instance.new("Frame")
-		switchBg.Size = UDim2.new(0, 40, 0, 20)
-		switchBg.Position = UDim2.new(1, -14, 0.5, 0)
-		switchBg.AnchorPoint = Vector2.new(1, 0.5)
-		switchBg.BackgroundColor3 = THEME.Stroke
-		switchBg.BorderSizePixel = 0
-		switchBg.Parent = card
-		createCorner(switchBg, 10)
-		local switchStroke = createStroke(switchBg, THEME.StrokeActive, 1, 0.15)
-
-		local knob = Instance.new("Frame")
-		knob.Size = UDim2.new(0, 14, 0, 14)
-		knob.Position = UDim2.new(0, 3, 0.5, 0)
-		knob.AnchorPoint = Vector2.new(0, 0.5)
-		knob.BackgroundColor3 = THEME.TextTabInactive
-		knob.BorderSizePixel = 0
-		knob.Parent = switchBg
-		createCorner(knob, 7)
-
-		local clickZone = Instance.new("TextButton")
-		clickZone.Size = UDim2.new(1, 0, 1, 0)
-		clickZone.BackgroundTransparency = 1
-		clickZone.Text = ""
-		clickZone.Parent = card
-
-		emoteCards[emote.id] = {
-			Card = card,
-			Stroke = cardStroke,
-			SwitchBg = switchBg,
-			SwitchStroke = switchStroke,
-			Knob = knob,
-			SubLabel = subLabel,
-			Name = emote.name,
-			Id = emote.id,
-		}
-
-		table.insert(emotesSearchList, {
-			Card = card,
-			Query = string.lower(emote.name) .. " " .. tostring(emote.id),
-		})
-
-		clickZone.MouseEnter:Connect(function()
-			if activeEmoteId ~= emote.id then
-				tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
-				tween(iconImg, TWEEN_FAST, { ImageColor3 = THEME.TextPrimary })
-			end
-		end)
-		clickZone.MouseLeave:Connect(function()
-			if activeEmoteId ~= emote.id then
-				tween(card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
-				tween(iconImg, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
-			end
-		end)
-
-		clickZone.MouseButton1Click:Connect(function()
-			toggleEmote(emote.id)
-		end)
-	end
-
-	local emotesSearchQueued = false
-	EmotesSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-		if emotesSearchQueued then return end
-		emotesSearchQueued = true
-		task.defer(function()
-			emotesSearchQueued = false
-			if not EmotesSearchBox or not EmotesSearchBox.Parent then return end
-			local q = string.lower(string.gsub(EmotesSearchBox.Text, "^%s*(.-)%s*$", "%1"))
-			local visibleCount = 0
-			for _, item in ipairs(emotesSearchList) do
-				local match = (q == "") or (string.find(item.Query, q, 1, true) ~= nil)
-				item.Card.Visible = match
-				if match then
-					visibleCount += 1
-				end
-			end
-			EmptyEmotesPlaceholder.Visible = (#emotesSearchList > 0 and visibleCount == 0)
-		end)
-	end)
-
-	trackConnection(UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
-		if gameProcessed then return end
-		if input.KeyCode == Enum.KeyCode.V then
-			stopAllEmotes()
-		end
-	end))
-
-	trackConnection(LocalPlayer.CharacterAdded:Connect(function()
-		stopAllEmotes()
-	end))
-
-	-- Central Player Profile (72x72px Avatar, 10px UICorner, #2A2A2A UIStroke + 22px DisplayName & 14px @Name)
-	local ProfileSection = Instance.new("Frame")
-	ProfileSection.Name = "ProfileSection"
-	ProfileSection.Size = UDim2.new(1, 0, 0, 72)
-	ProfileSection.Position = UDim2.new(0, 0, 0, 48)
-	ProfileSection.BackgroundTransparency = 1
-	ProfileSection.Parent = HomePage
-
-	local LargeAvatar = Instance.new("ImageLabel")
-	LargeAvatar.Name = "LargeAvatar"
-	LargeAvatar.Size = UDim2.new(0, 72, 0, 72)
-	LargeAvatar.Position = UDim2.new(0, 0, 0, 0)
-	LargeAvatar.BackgroundColor3 = THEME.DiscordBoxBg
-	LargeAvatar.BorderSizePixel = 0
-	LargeAvatar.Parent = ProfileSection
-	createCorner(LargeAvatar, 10)
-	createStroke(LargeAvatar, THEME.StrokeActive, 1, 0)
-
-	local ProfileTextContainer = Instance.new("Frame")
-	ProfileTextContainer.Size = UDim2.new(1, -226, 0, 48)
-	ProfileTextContainer.Position = UDim2.new(0, 88, 0.5, 0)
-	ProfileTextContainer.AnchorPoint = Vector2.new(0, 0.5)
-	ProfileTextContainer.BackgroundTransparency = 1
-	ProfileTextContainer.Parent = ProfileSection
-
-	local LargeDisplayName = Instance.new("TextLabel")
-	LargeDisplayName.Size = UDim2.new(1, 0, 0, 24)
-	LargeDisplayName.Position = UDim2.new(0, 0, 0, 0)
-	LargeDisplayName.BackgroundTransparency = 1
-	LargeDisplayName.Font = Enum.Font.GothamBold
-	LargeDisplayName.Text = LocalPlayer.DisplayName
-	LargeDisplayName.TextColor3 = THEME.TextPrimary
-	LargeDisplayName.TextSize = 22
-	LargeDisplayName.TextXAlignment = Enum.TextXAlignment.Left
-	LargeDisplayName.TextTruncate = Enum.TextTruncate.AtEnd
-	LargeDisplayName.Parent = ProfileTextContainer
-
-	local LargeUsername = Instance.new("TextLabel")
-	LargeUsername.Size = UDim2.new(1, 0, 0, 16)
-	LargeUsername.Position = UDim2.new(0, 0, 0, 26)
-	LargeUsername.BackgroundTransparency = 1
-	LargeUsername.Font = Enum.Font.GothamMedium
-	LargeUsername.Text = "@" .. LocalPlayer.Name
-	LargeUsername.TextColor3 = THEME.TextTabInactive
-	LargeUsername.TextSize = 14
-	LargeUsername.TextXAlignment = Enum.TextXAlignment.Left
-	LargeUsername.TextTruncate = Enum.TextTruncate.AtEnd
-	LargeUsername.Parent = ProfileTextContainer
-
-	-- Info Text Below Profile
-	local InfoTextLabel = Instance.new("TextLabel")
-	InfoTextLabel.Name = "InfoText"
-	InfoTextLabel.Size = UDim2.new(1, 0, 0, 34)
-	InfoTextLabel.Position = UDim2.new(0, 0, 0, 128)
-	InfoTextLabel.BackgroundTransparency = 1
-	InfoTextLabel.Font = Enum.Font.GothamMedium
-	InfoTextLabel.Text = introText
-	InfoTextLabel.TextColor3 = THEME.TextInfo
-	InfoTextLabel.TextSize = 13
-	InfoTextLabel.TextWrapped = true
-	InfoTextLabel.TextXAlignment = Enum.TextXAlignment.Left
-	InfoTextLabel.TextYAlignment = Enum.TextYAlignment.Top
-	InfoTextLabel.LineHeight = 1.25
-	InfoTextLabel.Parent = HomePage
-
-	-- Bottom Game Statistics (Platform, Executor, Place ID, Roblox Version & Your Team separated by 1px #262626 lines)
-	local StatsContainer = Instance.new("Frame")
-	StatsContainer.Name = "StatsContainer"
-	StatsContainer.Size = UDim2.new(1, 0, 0, 166)
-	StatsContainer.Position = UDim2.new(0, 0, 1, 0)
-	StatsContainer.AnchorPoint = Vector2.new(0, 1)
-	StatsContainer.BackgroundTransparency = 1
-	StatsContainer.Parent = HomePage
-
-	local TopStatsDivider = Instance.new("Frame")
-	TopStatsDivider.Size = UDim2.new(1, 0, 0, 1)
-	TopStatsDivider.Position = UDim2.new(0, 0, 0, 0)
-	TopStatsDivider.BackgroundColor3 = THEME.Stroke
-	TopStatsDivider.BackgroundTransparency = 0.2
-	TopStatsDivider.BorderSizePixel = 0
-	TopStatsDivider.Parent = StatsContainer
-
-	-- Row 1: Plattform (Gerät / Platform) - Directly ABOVE Executor!
-	local PlatformRow = Instance.new("Frame")
-	PlatformRow.Name = "PlatformRow"
-	PlatformRow.Size = UDim2.new(1, 0, 0, 32)
-	PlatformRow.Position = UDim2.new(0, 0, 0, 1)
-	PlatformRow.BackgroundTransparency = 1
-	PlatformRow.Parent = StatsContainer
-
-	local PlatformLabel = Instance.new("TextLabel")
-	PlatformLabel.Size = UDim2.new(0.35, 0, 1, 0)
-	PlatformLabel.BackgroundTransparency = 1
-	PlatformLabel.Font = Enum.Font.GothamMedium
-	PlatformLabel.Text = "Plattform"
-	PlatformLabel.TextColor3 = THEME.TextSecondary
-	PlatformLabel.TextSize = 13
-	PlatformLabel.TextXAlignment = Enum.TextXAlignment.Left
-	PlatformLabel.Parent = PlatformRow
-
-	local PlatformValue = Instance.new("TextLabel")
-	PlatformValue.Name = "PlatformValue"
-	PlatformValue.Size = UDim2.new(0.65, 0, 1, 0)
-	PlatformValue.Position = UDim2.new(0.35, 0, 0, 0)
-	PlatformValue.BackgroundTransparency = 1
-	PlatformValue.Font = Enum.Font.GothamMedium
-	PlatformValue.Text = selectedPlatform
-	PlatformValue.TextColor3 = THEME.TextStatValue
-	PlatformValue.TextSize = 13
-	PlatformValue.TextXAlignment = Enum.TextXAlignment.Right
-	PlatformValue.TextTruncate = Enum.TextTruncate.AtEnd
-	PlatformValue.Parent = PlatformRow
-	PlatformValueLabel = PlatformValue
-
-	-- Allow switching platform by tapping on the platform row
-	PlatformRow.InputBegan:Connect(function(input: InputObject)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			local nextPlat = if selectedPlatform == "Handy" then "PC" else "Handy"
-			applyPlatform(nextPlat)
-			NightSystem:Notify({
-				Title = "Plattform gewechselt",
-				Content = "Modus umgeschaltet auf: " .. (if nextPlat == "Handy" then "Handy (Mobile)" else "PC (Desktop)"),
-				Duration = 2.5,
-			})
-		end
-	end)
-
-	local Divider1 = Instance.new("Frame")
-	Divider1.Size = UDim2.new(1, 0, 0, 1)
-	Divider1.Position = UDim2.new(0, 0, 0, 33)
-	Divider1.BackgroundColor3 = THEME.Stroke
-	Divider1.BackgroundTransparency = 0.2
-	Divider1.BorderSizePixel = 0
-	Divider1.Parent = StatsContainer
-
-	-- Row 2: Executor
-	local ExecutorRow = Instance.new("Frame")
-	ExecutorRow.Size = UDim2.new(1, 0, 0, 32)
-	ExecutorRow.Position = UDim2.new(0, 0, 0, 34)
-	ExecutorRow.BackgroundTransparency = 1
-	ExecutorRow.Parent = StatsContainer
-
-	local ExecutorLabel = Instance.new("TextLabel")
-	ExecutorLabel.Size = UDim2.new(0.35, 0, 1, 0)
-	ExecutorLabel.BackgroundTransparency = 1
-	ExecutorLabel.Font = Enum.Font.GothamMedium
-	ExecutorLabel.Text = "Executor"
-	ExecutorLabel.TextColor3 = THEME.TextSecondary
-	ExecutorLabel.TextSize = 13
-	ExecutorLabel.TextXAlignment = Enum.TextXAlignment.Left
-	ExecutorLabel.Parent = ExecutorRow
-
-	local function detectExecutorName(): string
-		local env = getfenv() :: any
-		local identifyFn = env.identifyexecutor or env.getexecutorname
-		if type(identifyFn) == "function" then
-			local ok, name, ver = pcall(identifyFn)
-			if ok and name and tostring(name) ~= "" then
-				if ver and tostring(ver) ~= "" then
-					return tostring(name) .. " " .. tostring(ver)
-				end
-				return tostring(name)
-			end
-		end
-		if RunService:IsStudio() then
-			return "Roblox Studio"
-		end
-		return "Unknown Executor"
-	end
-
-	local ExecutorValue = Instance.new("TextLabel")
-	ExecutorValue.Size = UDim2.new(0.65, 0, 1, 0)
-	ExecutorValue.Position = UDim2.new(0.35, 0, 0, 0)
-	ExecutorValue.BackgroundTransparency = 1
-	ExecutorValue.Font = Enum.Font.GothamMedium
-	ExecutorValue.Text = detectExecutorName()
-	ExecutorValue.TextColor3 = THEME.TextStatValue
-	ExecutorValue.TextSize = 13
-	ExecutorValue.TextXAlignment = Enum.TextXAlignment.Right
-	ExecutorValue.TextTruncate = Enum.TextTruncate.AtEnd
-	ExecutorValue.Parent = ExecutorRow
-
-	local Divider2 = Instance.new("Frame")
-	Divider2.Size = UDim2.new(1, 0, 0, 1)
-	Divider2.Position = UDim2.new(0, 0, 0, 66)
-	Divider2.BackgroundColor3 = THEME.Stroke
-	Divider2.BackgroundTransparency = 0.2
-	Divider2.BorderSizePixel = 0
-	Divider2.Parent = StatsContainer
-
-	-- Row 3: Place ID
-	local PlaceIdRow = Instance.new("Frame")
-	PlaceIdRow.Size = UDim2.new(1, 0, 0, 32)
-	PlaceIdRow.Position = UDim2.new(0, 0, 0, 67)
-	PlaceIdRow.BackgroundTransparency = 1
-	PlaceIdRow.Parent = StatsContainer
-
-	local PlaceIdLabel = Instance.new("TextLabel")
-	PlaceIdLabel.Size = UDim2.new(0.35, 0, 1, 0)
-	PlaceIdLabel.BackgroundTransparency = 1
-	PlaceIdLabel.Font = Enum.Font.GothamMedium
-	PlaceIdLabel.Text = "Place ID"
-	PlaceIdLabel.TextColor3 = THEME.TextSecondary
-	PlaceIdLabel.TextSize = 13
-	PlaceIdLabel.TextXAlignment = Enum.TextXAlignment.Left
-	PlaceIdLabel.Parent = PlaceIdRow
-
-	local PlaceIdValue = Instance.new("TextLabel")
-	PlaceIdValue.Size = UDim2.new(0.65, 0, 1, 0)
-	PlaceIdValue.Position = UDim2.new(0.35, 0, 0, 0)
-	PlaceIdValue.BackgroundTransparency = 1
-	PlaceIdValue.Font = Enum.Font.GothamMedium
-	PlaceIdValue.Text = "7711635737 - Notruf Hamburg"
-	PlaceIdValue.TextColor3 = THEME.TextStatValue
-	PlaceIdValue.TextSize = 13
-	PlaceIdValue.TextXAlignment = Enum.TextXAlignment.Right
-	PlaceIdValue.TextTruncate = Enum.TextTruncate.AtEnd
-	PlaceIdValue.Parent = PlaceIdRow
-
-	local Divider3 = Instance.new("Frame")
-	Divider3.Size = UDim2.new(1, 0, 0, 1)
-	Divider3.Position = UDim2.new(0, 0, 0, 99)
-	Divider3.BackgroundColor3 = THEME.Stroke
-	Divider3.BackgroundTransparency = 0.2
-	Divider3.BorderSizePixel = 0
-	Divider3.Parent = StatsContainer
-
-	-- Row 4: Roblox Version (directly below Place ID, always latest)
-	local VersionRow = Instance.new("Frame")
-	VersionRow.Size = UDim2.new(1, 0, 0, 32)
-	VersionRow.Position = UDim2.new(0, 0, 0, 100)
-	VersionRow.BackgroundTransparency = 1
-	VersionRow.Parent = StatsContainer
-
-	local VersionLabel = Instance.new("TextLabel")
-	VersionLabel.Size = UDim2.new(0.35, 0, 1, 0)
-	VersionLabel.BackgroundTransparency = 1
-	VersionLabel.Font = Enum.Font.GothamMedium
-	VersionLabel.Text = "Roblox Version"
-	VersionLabel.TextColor3 = THEME.TextSecondary
-	VersionLabel.TextSize = 13
-	VersionLabel.TextXAlignment = Enum.TextXAlignment.Left
-	VersionLabel.Parent = VersionRow
-
-	local localClientVersion = "Latest"
-	pcall(function()
-		if type(version) == "function" then
-			localClientVersion = tostring(version())
-		elseif type(Version) == "function" then
-			localClientVersion = tostring(Version())
-		end
-	end)
-
-	local VersionValue = Instance.new("TextLabel")
-	VersionValue.Size = UDim2.new(0.65, 0, 1, 0)
-	VersionValue.Position = UDim2.new(0.35, 0, 0, 0)
-	VersionValue.BackgroundTransparency = 1
-	VersionValue.Font = Enum.Font.GothamMedium
-	VersionValue.Text = localClientVersion
-	VersionValue.TextColor3 = THEME.TextStatValue
-	VersionValue.TextSize = 13
-	VersionValue.TextXAlignment = Enum.TextXAlignment.Right
-	VersionValue.TextTruncate = Enum.TextTruncate.AtEnd
-	VersionValue.Parent = VersionRow
-
-	-- Fetch latest live Roblox version + release date/time ("seit wann die neu ist")
-	task.spawn(function()
-		local function formatRelativeTime(unixTs: number): string
-			local diff = math.max(0, os.time() - unixTs)
-			local dateStr = os.date("%d.%m.%Y", unixTs)
-			if diff < 3600 then
-				local mins = math.max(1, math.floor(diff / 60))
-				return string.format("seit %s (vor %d Min.)", dateStr, mins)
-			elseif diff < 86400 then
-				local hours = math.floor(diff / 3600)
-				return string.format("seit %s (vor %d Std.)", dateStr, hours)
-			else
-				local days = math.floor(diff / 86400)
-				return string.format("seit %s (vor %d Tag%s)", dateStr, days, if days == 1 then "" else "en")
-			end
-		end
-
-		local fenv = getfenv() :: any
-		local genv = (type(fenv.getgenv) == "function" and fenv.getgenv()) or _G or fenv
-		local reqFn = genv.request
-			or genv.http_request
-			or (type(genv.syn) == "table" and genv.syn.request)
-			or (type(genv.http) == "table" and genv.http.request)
-			or fenv.request
-			or fenv.http_request
-
-		-- 1. Try WEAO live version endpoint (includes exact Unix timestamp of latest Roblox release)
-		local fetchedWithDate = false
-		if type(reqFn) == "function" then
-			local ok, resp = pcall(function()
-				return reqFn({
-					Url = "https://weao.xyz/api/versions/current",
-					Method = "GET",
-					Headers = { ["User-Agent"] = "WEAO-3PService" },
-				})
-			end)
-			if ok and type(resp) == "table" and type(resp.Body) == "string" then
-				local decOk, data = pcall(function()
-					return HttpService:JSONDecode(resp.Body)
-				end)
-				if decOk and type(data) == "table" and type(data.WindowsResponse) == "table" then
-					local verStr = tostring(data.WindowsResponse.version or localClientVersion)
-					local ts = tonumber(data.WindowsResponse.timestamp)
-					if ts and ts > 0 then
-						VersionValue.Text = string.format("%s • %s", verStr, formatRelativeTime(ts))
-						fetchedWithDate = true
-					elseif data.WindowsDate then
-						VersionValue.Text = string.format("%s • seit %s", verStr, tostring(data.WindowsDate))
-						fetchedWithDate = true
-					end
-				end
-			end
-		end
-
-		if fetchedWithDate then
-			return
-		end
-
-		-- 2. Fallback: Roblox ClientSettings CDN + Official DeployHistory.txt
-		local latestVer = localClientVersion
-		pcall(function()
-			local rawJson = (game :: any):HttpGet("https://clientsettingscdn.roblox.com/v2/client-version/WindowsPlayer")
-			local data = HttpService:JSONDecode(rawJson)
-			if type(data) == "table" and data.version then
-				latestVer = tostring(data.version)
-			end
-		end)
-
-		local dateSuffix = ""
-		pcall(function()
-			local historyTxt = (game :: any):HttpGet("https://setup.rbxcdn.com/DeployHistory.txt")
-			if type(historyTxt) == "string" and #historyTxt > 0 then
-				local tail = string.sub(historyTxt, math.max(1, #historyTxt - 4000))
-				local lastMonth, lastDay, lastYear, lastTime = nil, nil, nil, nil
-				for m, d, y, t in string.gmatch(tail, "New WindowsPlayer [^\r\n]- at (%d+)/(%d+)/(%d+) ([%d:]+ [AP]M)") do
-					lastMonth, lastDay, lastYear, lastTime = m, d, y, t
-				end
-				if lastMonth and lastDay and lastYear then
-					dateSuffix = string.format(" • seit %02d.%02d.%s (%s)", tonumber(lastDay) or 1, tonumber(lastMonth) or 1, lastYear, tostring(lastTime or ""))
-				end
-			end
-		end)
-
-		VersionValue.Text = latestVer .. dateSuffix
-	end)
-
-	local Divider4 = Instance.new("Frame")
-	Divider4.Size = UDim2.new(1, 0, 0, 1)
-	Divider4.Position = UDim2.new(0, 0, 0, 132)
-	Divider4.BackgroundColor3 = THEME.Stroke
-	Divider4.BackgroundTransparency = 0.2
-	Divider4.BorderSizePixel = 0
-	Divider4.Parent = StatsContainer
-
-	-- Row 5: Your Team
-	local TeamRow = Instance.new("Frame")
-	TeamRow.Size = UDim2.new(1, 0, 0, 32)
-	TeamRow.Position = UDim2.new(0, 0, 0, 133)
-	TeamRow.BackgroundTransparency = 1
-	TeamRow.Parent = StatsContainer
-
-	local TeamLabel = Instance.new("TextLabel")
-	TeamLabel.Size = UDim2.new(0.35, 0, 1, 0)
-	TeamLabel.BackgroundTransparency = 1
-	TeamLabel.Font = Enum.Font.GothamMedium
-	TeamLabel.Text = "Your Team"
-	TeamLabel.TextColor3 = THEME.TextSecondary
-	TeamLabel.TextSize = 13
-	TeamLabel.TextXAlignment = Enum.TextXAlignment.Left
-	TeamLabel.Parent = TeamRow
-
-	local TeamValue = Instance.new("TextLabel")
-	TeamValue.Size = UDim2.new(0.65, 0, 1, 0)
-	TeamValue.Position = UDim2.new(0.35, 0, 0, 0)
-	TeamValue.BackgroundTransparency = 1
-	TeamValue.Font = Enum.Font.GothamMedium
-	TeamValue.Text = if LocalPlayer.Team then LocalPlayer.Team.Name else "Citizen"
-	TeamValue.TextColor3 = THEME.TextStatValue
-	TeamValue.TextSize = 13
-	TeamValue.TextXAlignment = Enum.TextXAlignment.Right
-	TeamValue.Parent = TeamRow
-
-	-- Load Avatars & Game Metadata asynchronously
-	task.spawn(function()
-		local uid = if LocalPlayer.UserId > 0 then LocalPlayer.UserId else 1
-		local ok, thumb = pcall(function()
-			return Players:GetUserThumbnailAsync(uid, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
-		end)
-		if ok and thumb then
-			FooterAvatar.Image = thumb
-			LargeAvatar.Image = thumb
-		end
-	end)
-
-	task.spawn(function()
-		if typeof(game.PlaceId) == "number" and game.PlaceId > 0 then
-			local ok, info = pcall(function()
-				return MarketplaceService:GetProductInfo(game.PlaceId)
-			end)
-			if ok and type(info) == "table" and info.Name then
-				PlaceIdValue.Text = string.format("%d - %s", game.PlaceId, tostring(info.Name))
-				return
-			end
-		end
-		PlaceIdValue.Text = "7711635737 - Notruf Hamburg"
-	end)
-
-	local function refreshTeam()
-		local t = LocalPlayer.Team
-		TeamValue.Text = if t and t.Name ~= "" then t.Name else "Citizen"
-	end
-	refreshTeam()
-	trackConnection(LocalPlayer:GetPropertyChangedSignal("Team"):Connect(refreshTeam))
+	local _profSec, _infoLbl, _platVal = setupProfileAndStats(HomePage, selectedPlatform)
+	InfoTextLabel = _infoLbl
+	PlatformValueLabel = _platVal
 
 	-- ========================================================================
 
@@ -5812,142 +5848,7 @@ function NightSystem:CreateWindow(config: {
 		return card
 	end
 
-	-- Pre-register all 17 Official Night System Scripts in the built-in All Scripts Hub
-	local DEFAULT_HUB_SCRIPTS = {
-		{
-			Name = "Build A Boat For Treasure",
-			Slug = "Build-A-Boat-For-Treasure",
-			PlaceId = 537413528,
-			Description = "Auto Farm, Build Tools & Treasure Teleport",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Build-A-Boat-For-Treasure",
-		},
-		{
-			Name = "Fling Things and People",
-			Slug = "Fling-Things-and-People",
-			PlaceId = 6961824067,
-			Description = "Super Fling, Anti-Grab & Reach",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Fling-Things-and-People",
-		},
-		{
-			Name = "Work at a Pizza Place",
-			Slug = "Work-at-a-Pizza-Place",
-			PlaceId = 192800,
-			Description = "Auto Job, Instant Delivery & Cash Farm",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Work-at-a-Pizza-Place",
-		},
-		{
-			Name = "Murderers VS Sheriffs",
-			Slug = "MurderVSsheriff",
-			PlaceId = 12355337193,
-			Description = "Silent Aim, Hitbox Expander & ESP",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MurderVSsheriff",
-		},
-		{
-			Name = "Sniper VS Runner",
-			Slug = "SniperVSrunner",
-			PlaceId = 16568042538,
-			Description = "Auto Win, Aimbot & Speed",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/SniperVSrunner",
-		},
-		{
-			Name = "Dexter Escape",
-			Slug = "Dexter-Escape",
-			PlaceId = 92122513197996,
-			Description = "Auto Escape, ESP & Teleports",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Dexter-Escape",
-		},
-		{
-			Name = "Water Escape",
-			Slug = "waterescape",
-			PlaceId = 0,
-			Description = "Instant Escape, Oxygen & Speed",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/waterescape",
-		},
-		{
-			Name = "German Voice",
-			Slug = "GermanVoice",
-			PlaceId = 6884319169,
-			Description = "Voice Chat Utilities, Troll & Movement",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/GermanVoice",
-		},
-		{
-			Name = "Beach Escape",
-			Slug = "BeachEscape",
-			PlaceId = 0,
-			Description = "Auto Complete, Checkpoints & Fly",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/BeachEscape",
-		},
-		{
-			Name = "Lucky Blocks Battlegrounds",
-			Slug = "Luckblock",
-			PlaceId = 662417684,
-			Description = "Instant Lucky Blocks, All Items & Combat",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Luckblock",
-		},
-		{
-			Name = "Streamer Life",
-			Slug = "streamer",
-			PlaceId = 16483433878,
-			Description = "Infinite Money, Auto Stream & Upgrades",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/streamer",
-		},
-		{
-			Name = "Bundes RP",
-			Slug = "bundesRp",
-			PlaceId = 13830755469,
-			Description = "Roleplay Utilities, Vehicle Mods & ESP",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/bundesRp",
-		},
-		{
-			Name = "Flick FPS",
-			Slug = "FlickFPS",
-			PlaceId = 17625359962,
-			Description = "Aimbot, Silent Aim & Wallhack ESP",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/FlickFPS",
-		},
-		{
-			Name = "Arsenal",
-			Slug = "Arselnal",
-			PlaceId = 286090429,
-			Description = "Silent Aim, Kill All, ESP & Gun Mods",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Arselnal",
-		},
-		{
-			Name = "99 Nights",
-			Slug = "99Nights",
-			PlaceId = 126884695634066,
-			Description = "Survival ESP, Fullbright & Auto Evade",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/99Nights",
-		},
-		{
-			Name = "Emergency Hamburg (Notruf Hamburg)",
-			Slug = "MainEH",
-			PlaceId = 7711635737,
-			Description = "Main Script, Car Fly, ESP & Police Bypass",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MainEH",
-		},
-		{
-			Name = "Murder Mystery 2 (MM2)",
-			Slug = "mm2",
-			PlaceId = 142823291,
-			Description = "Role ESP, Auto Grab Gun, Coin Farm & Fly",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/mm2",
-		},
-		{
-			Name = "Emergency Hamburg (Auto Rob)",
-			Slug = "AutoRob",
-			PlaceId = 7711635737,
-			Description = "Auto Rob, ATM Robbery, Store Rob & Teleport",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/AutoRob",
-		},
-		{
-			Name = "Military Tycoon",
-			Slug = "MillitaryTycoon",
-			PlaceId = 7180042682,
-			Description = "Auto Farm, Base Upgrades, Gun Mods & Vehicle Speed",
-			Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MillitaryTycoon",
-		},
-	}
+	-- Pre-register all Official Night System Scripts from module dataset
 
 	for _, sData in ipairs(DEFAULT_HUB_SCRIPTS) do
 		Window:AddHubScript(sData)
