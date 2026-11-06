@@ -715,10 +715,21 @@ local function setupScriptsHub(ContentFrame: Frame, HomePage: Frame, getActiveTa
 	createPadding(HubScroll, 2, 12, 2, 8)
 
 	local HubGridLayout = Instance.new("UIGridLayout")
-	HubGridLayout.CellSize = UDim2.new(0, 260, 0, 200)
-	HubGridLayout.CellPadding = UDim2.new(0, 12, 0, 12)
+	HubGridLayout.CellSize = UDim2.new(0, 145, 0, 195)
+	HubGridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
 	HubGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	HubGridLayout.Parent = HubScroll
+
+	local function updateHubGrid()
+		local availableW = HubScroll.AbsoluteSize.X - 16
+		if availableW > 80 then
+			local gap = 10
+			local cardW = math.max(120, math.floor((availableW - (gap * 2)) / 3))
+			HubGridLayout.CellSize = UDim2.new(0, cardW, 0, 195)
+		end
+	end
+	HubScroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateHubGrid)
+	task.defer(updateHubGrid)
 
 	local EmptyHubPlaceholder = Instance.new("Frame")
 	EmptyHubPlaceholder.Name = "PlaceholderCard"
@@ -940,10 +951,22 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 	EmotesScroll.Parent = EmotesHubPage
 	createPadding(EmotesScroll, 2, 12, 2, 8)
 
-	local EmotesListLayout = Instance.new("UIListLayout")
-	EmotesListLayout.Padding = UDim.new(0, 8)
-	EmotesListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	EmotesListLayout.Parent = EmotesScroll
+	local EmotesGridLayout = Instance.new("UIGridLayout")
+	EmotesGridLayout.CellSize = UDim2.new(0, 145, 0, 52)
+	EmotesGridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
+	EmotesGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	EmotesGridLayout.Parent = EmotesScroll
+
+	local function updateEmotesGrid()
+		local availableW = EmotesScroll.AbsoluteSize.X - 16
+		if availableW > 80 then
+			local gap = 8
+			local cardW = math.max(120, math.floor((availableW - (gap * 2)) / 3))
+			EmotesGridLayout.CellSize = UDim2.new(0, cardW, 0, 52)
+		end
+	end
+	EmotesScroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateEmotesGrid)
+	task.defer(updateEmotesGrid)
 
 	local EmptyEmotesPlaceholder = Instance.new("Frame")
 	EmptyEmotesPlaceholder.Name = "EmptyEmotesPlaceholder"
@@ -981,10 +1004,10 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 			tween(item.SwitchBg, TWEEN_FAST, { BackgroundColor3 = Color3.fromRGB(60, 220, 130) })
 			tween(item.SwitchStroke, TWEEN_FAST, { Color = Color3.fromRGB(60, 220, 130), Transparency = 0 })
 			tween(item.Knob, TWEEN_FAST, {
-				Position = UDim2.new(1, -17, 0.5, 0),
+				Position = UDim2.new(1, -14, 0.5, 0),
 				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 			})
-			item.SubLabel.Text = "▶ Aktiv (Taste [V] zum Stoppen)"
+			item.SubLabel.Text = "▶ Aktiv"
 			item.SubLabel.TextColor3 = Color3.fromRGB(80, 235, 145)
 		else
 			tween(item.Card, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground })
@@ -992,10 +1015,10 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 			tween(item.SwitchBg, TWEEN_FAST, { BackgroundColor3 = THEME.Stroke })
 			tween(item.SwitchStroke, TWEEN_FAST, { Color = THEME.StrokeActive, Transparency = 0.15 })
 			tween(item.Knob, TWEEN_FAST, {
-				Position = UDim2.new(0, 3, 0.5, 0),
+				Position = UDim2.new(0, 2, 0.5, 0),
 				BackgroundColor3 = THEME.TextTabInactive,
 			})
-			item.SubLabel.Text = "ID: " .. tostring(item.Id) .. " • Klicken zum Abspielen"
+			item.SubLabel.Text = "Play"
 			item.SubLabel.TextColor3 = THEME.TextSecondary
 		end
 	end
@@ -1075,7 +1098,7 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 	for index, emote in ipairs(EMOTES_DATA) do
 		local card = Instance.new("Frame")
 		card.Name = "EmoteCard_" .. tostring(emote.id)
-		card.Size = UDim2.new(1, 0, 0, 46)
+		card.Size = UDim2.new(0, 145, 0, 52)
 		card.BackgroundColor3 = THEME.CardBackground
 		card.BorderSizePixel = 0
 		card.ClipsDescendants = true
@@ -1085,8 +1108,8 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 		local cardStroke = createStroke(card, THEME.Stroke, 1, 0.2)
 
 		local iconHolder = Instance.new("Frame")
-		iconHolder.Size = UDim2.new(0, 30, 0, 30)
-		iconHolder.Position = UDim2.new(0, 10, 0.5, 0)
+		iconHolder.Size = UDim2.new(0, 28, 0, 28)
+		iconHolder.Position = UDim2.new(0, 6, 0.5, 0)
 		iconHolder.AnchorPoint = Vector2.new(0, 0.5)
 		iconHolder.BackgroundColor3 = THEME.CardInner
 		iconHolder.BorderSizePixel = 0
@@ -1095,7 +1118,7 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 		createStroke(iconHolder, THEME.Stroke, 1, 0.2)
 
 		local iconImg = Instance.new("ImageLabel")
-		iconImg.Size = UDim2.new(0, 16, 0, 16)
+		iconImg.Size = UDim2.new(0, 15, 0, 15)
 		iconImg.Position = UDim2.new(0.5, 0, 0.5, 0)
 		iconImg.AnchorPoint = Vector2.new(0.5, 0.5)
 		iconImg.BackgroundTransparency = 1
@@ -1104,47 +1127,47 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 		iconImg.Parent = iconHolder
 
 		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(1, -120, 0, 16)
-		nameLabel.Position = UDim2.new(0, 48, 0, 8)
+		nameLabel.Size = UDim2.new(1, -74, 0, 15)
+		nameLabel.Position = UDim2.new(0, 38, 0, 8)
 		nameLabel.BackgroundTransparency = 1
 		nameLabel.Font = Enum.Font.GothamBold
 		nameLabel.Text = emote.name
 		nameLabel.TextColor3 = THEME.TextPrimary
-		nameLabel.TextSize = 13
+		nameLabel.TextSize = 11
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		nameLabel.Parent = card
 
 		local subLabel = Instance.new("TextLabel")
-		subLabel.Size = UDim2.new(1, -120, 0, 14)
-		subLabel.Position = UDim2.new(0, 48, 0, 24)
+		subLabel.Size = UDim2.new(1, -74, 0, 14)
+		subLabel.Position = UDim2.new(0, 38, 0, 26)
 		subLabel.BackgroundTransparency = 1
 		subLabel.Font = Enum.Font.GothamMedium
-		subLabel.Text = "ID: " .. tostring(emote.id) .. " • Klicken zum Abspielen"
+		subLabel.Text = "Play"
 		subLabel.TextColor3 = THEME.TextSecondary
-		subLabel.TextSize = 11
+		subLabel.TextSize = 9
 		subLabel.TextXAlignment = Enum.TextXAlignment.Left
 		subLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		subLabel.Parent = card
 
 		local switchBg = Instance.new("Frame")
-		switchBg.Size = UDim2.new(0, 40, 0, 20)
-		switchBg.Position = UDim2.new(1, -14, 0.5, 0)
+		switchBg.Size = UDim2.new(0, 28, 0, 16)
+		switchBg.Position = UDim2.new(1, -6, 0.5, 0)
 		switchBg.AnchorPoint = Vector2.new(1, 0.5)
 		switchBg.BackgroundColor3 = THEME.Stroke
 		switchBg.BorderSizePixel = 0
 		switchBg.Parent = card
-		createCorner(switchBg, 10)
+		createCorner(switchBg, 8)
 		local switchStroke = createStroke(switchBg, THEME.StrokeActive, 1, 0.15)
 
 		local knob = Instance.new("Frame")
-		knob.Size = UDim2.new(0, 14, 0, 14)
-		knob.Position = UDim2.new(0, 3, 0.5, 0)
+		knob.Size = UDim2.new(0, 12, 0, 12)
+		knob.Position = UDim2.new(0, 2, 0.5, 0)
 		knob.AnchorPoint = Vector2.new(0, 0.5)
 		knob.BackgroundColor3 = THEME.TextTabInactive
 		knob.BorderSizePixel = 0
 		knob.Parent = switchBg
-		createCorner(knob, 7)
+		createCorner(knob, 6)
 
 		local clickZone = Instance.new("TextButton")
 		clickZone.Size = UDim2.new(1, 0, 1, 0)
@@ -5513,10 +5536,10 @@ function NightSystem:CreateWindow(config: {
 		createCorner(card, 10)
 		local cardStroke = createStroke(card, THEME.Stroke, 1, 0.2)
 
-		-- Top Thumbnail Image Container
+		-- Top Thumbnail Image Container (Optimized for 3-Column Grid)
 		local imgContainer = Instance.new("Frame")
 		imgContainer.Name = "ImageContainer"
-		imgContainer.Size = UDim2.new(1, 0, 0, 110)
+		imgContainer.Size = UDim2.new(1, 0, 0, 85)
 		imgContainer.Position = UDim2.new(0, 0, 0, 0)
 		imgContainer.BackgroundColor3 = Color3.fromHex("#141619")
 		imgContainer.BorderSizePixel = 0
@@ -5612,23 +5635,23 @@ function NightSystem:CreateWindow(config: {
 		numLbl.TextSize = 10
 		numLbl.Parent = numBadge
 
-		-- Script / Game Name
+		-- Script / Game Name (Optimized for 3-Column Grid)
 		local titleLbl = Instance.new("TextLabel")
 		titleLbl.Size = UDim2.new(1, -16, 0, 16)
-		titleLbl.Position = UDim2.new(0, 8, 0, 116)
+		titleLbl.Position = UDim2.new(0, 8, 0, 90)
 		titleLbl.BackgroundTransparency = 1
 		titleLbl.Font = Enum.Font.GothamBold
 		titleLbl.Text = sName
 		titleLbl.TextColor3 = THEME.TextPrimary
-		titleLbl.TextSize = 12
+		titleLbl.TextSize = 11
 		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
 		titleLbl.TextTruncate = Enum.TextTruncate.AtEnd
 		titleLbl.Parent = card
 
 		-- Loadstring Preview Code Box (Directly in front of the user)
 		local codeBoxHolder = Instance.new("Frame")
-		codeBoxHolder.Size = UDim2.new(1, -16, 0, 36)
-		codeBoxHolder.Position = UDim2.new(0, 8, 0, 136)
+		codeBoxHolder.Size = UDim2.new(1, -16, 0, 32)
+		codeBoxHolder.Position = UDim2.new(0, 8, 0, 110)
 		codeBoxHolder.BackgroundColor3 = Color3.fromHex("#0F1113")
 		codeBoxHolder.BorderSizePixel = 0
 		codeBoxHolder.Parent = card
@@ -5636,13 +5659,13 @@ function NightSystem:CreateWindow(config: {
 		local codeBoxStroke = createStroke(codeBoxHolder, Color3.fromHex("#22252A"), 1, 0.2)
 
 		local codeBox = Instance.new("TextBox")
-		codeBox.Size = UDim2.new(1, -12, 1, 0)
-		codeBox.Position = UDim2.new(0, 6, 0, 0)
+		codeBox.Size = UDim2.new(1, -10, 1, 0)
+		codeBox.Position = UDim2.new(0, 5, 0, 0)
 		codeBox.BackgroundTransparency = 1
 		codeBox.Font = Enum.Font.Code
 		codeBox.Text = rawLoadstring
 		codeBox.TextColor3 = Color3.fromHex("#9EABB8")
-		codeBox.TextSize = 9
+		codeBox.TextSize = 8
 		codeBox.TextWrapped = true
 		codeBox.TextXAlignment = Enum.TextXAlignment.Left
 		codeBox.TextYAlignment = Enum.TextYAlignment.Center
@@ -5652,7 +5675,7 @@ function NightSystem:CreateWindow(config: {
 		-- Buttons Bar at the bottom
 		local btnBar = Instance.new("Frame")
 		btnBar.Size = UDim2.new(1, -16, 0, 28)
-		btnBar.Position = UDim2.new(0, 8, 0, 180)
+		btnBar.Position = UDim2.new(0, 8, 0, 150)
 		btnBar.BackgroundTransparency = 1
 		btnBar.Parent = card
 
