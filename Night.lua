@@ -3,10 +3,13 @@ local isWritableG = pcall(function()
 	(_G :: any)._test = 1
 end)
 local gEnv = (type(getgenv) == "function" and getgenv()) or (isWritableG and _G) or {}
+local NIGHT_BUILD_ID = "2026.11.10-b3"
 
--- Schutz vor mehrfacher Ausfuehrung (Single-Instance Guard)
+-- Schutz vor mehrfacher Ausfuehrung (Single-Instance Guard mit automatischem Update-Replace)
 if gEnv and (gEnv._NightLoaded or gEnv._NightSystem or gEnv._NightActiveWindow) then
-	local existingWin = gEnv._NightActiveWindow or (gEnv._NightSystem and gEnv._NightSystem._ActiveWindow)
+	local existingSys = gEnv._NightSystem
+	local existingWin = gEnv._NightActiveWindow or (existingSys and existingSys._ActiveWindow)
+	local existingBuild = gEnv._NightBuildId
 	local isAlive = false
 	if existingWin and existingWin._ScreenGui then
 		local p = existingWin._ScreenGui.Parent
@@ -15,21 +18,23 @@ if gEnv and (gEnv._NightLoaded or gEnv._NightSystem or gEnv._NightActiveWindow) 
 		end
 	end
 
+	local Players = game:GetService("Players")
+	local lp = Players.LocalPlayer
+	local hui = type(gethui) == "function" and pcall(gethui) and gethui() or nil
+	local coreGui = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or nil
+	local pg = lp and lp:FindFirstChild("PlayerGui")
+
 	if not isAlive then
-		local Players = game:GetService("Players")
-		local lp = Players.LocalPlayer
-		local coreGui = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui")
-		local pg = lp and lp:FindFirstChild("PlayerGui")
-		for _, parentObj in ipairs({ coreGui, pg }) do
-			if parentObj and parentObj:FindFirstChild("NightSystem_UI") then
-			isAlive = true
-			break
-		end
+		for _, parentObj in ipairs({ hui, coreGui, pg }) do
+			if parentObj and (parentObj:FindFirstChild("NightSystem_UI") or parentObj:FindFirstChild("NightSystem_BadgeGui")) then
+				isAlive = true
+				break
+			end
 		end
 	end
 
-	if isAlive then
-		print("[NightSystem] Bereits ausgefuehrt! Night UI ist schon geladen und aktiv.")
+	if isAlive and existingBuild == NIGHT_BUILD_ID then
+		print("[NightSystem] Bereits ausgefuehrt! Night UI (" .. NIGHT_BUILD_ID .. ") ist schon geladen und aktiv.")
 		if existingWin then
 			pcall(function()
 				if existingWin.Open then
@@ -45,9 +50,37 @@ if gEnv and (gEnv._NightLoaded or gEnv._NightSystem or gEnv._NightActiveWindow) 
 					})
 				end
 			end)
-			return gEnv._NightSystem or existingWin
+			return existingSys or existingWin
 		end
-		return gEnv._NightSystem or {}
+		return existingSys or {}
+	elseif isAlive or gEnv._NightLoaded or existingSys or existingWin then
+		print("[NightSystem] Veraltete UI-Instanz (" .. tostring(existingBuild or "legacy") .. ") gefunden -> Upgrade auf Build " .. NIGHT_BUILD_ID)
+		if existingWin and existingWin.Destroy then
+			pcall(function() existingWin:Destroy() end)
+		end
+		if type(existingSys) == "table" and type(existingSys._Connections) == "table" then
+			for _, conn in ipairs(existingSys._Connections) do
+				pcall(function()
+					if conn and conn.Connected then conn:Disconnect() end
+				end)
+			end
+			pcall(function() table.clear(existingSys._Connections) end)
+		end
+		for _, parentObj in ipairs({ hui, coreGui, pg }) do
+			if parentObj then
+				for _, guiName in ipairs({ "NightSystem_UI", "NightSystem_BadgeGui" }) do
+					for _, child in ipairs(parentObj:GetChildren()) do
+						if child.Name == guiName then
+							pcall(function() child:Destroy() end)
+						end
+					end
+				end
+			end
+		end
+		gEnv._NightLoaded = nil
+		gEnv._NightActiveWindow = nil
+		gEnv._NightSystem = nil
+		gEnv._NightBuildId = nil
 	end
 end
 
@@ -168,6 +201,8 @@ local ASSETS = {
 	ChevronDown = "rbxassetid://10709790948",
 	ChevronRight = "rbxassetid://10709791437",
 	Search = "rbxassetid://10734943674",
+	VoiceChat = "rbxasset://textures/ui/VoiceChat/MicLight/Unmuted0.png",
+	VoiceChatMuted = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png",
 }
 
 -- // Helper Functions
@@ -467,137 +502,109 @@ local EMOTES_DATA = {
 
 local DEFAULT_HUB_SCRIPTS = {
 {
-Name = "Build A Boat For Treasure",
-Slug = "Build-A-Boat-For-Treasure",
-PlaceId = 537413528,
-Description = "Auto Farm, Build Tools & Treasure Teleport",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Build-A-Boat-For-Treasure",
-},
-{
-Name = "Fling Things and People",
-Slug = "Fling-Things-and-People",
-PlaceId = 6961824067,
-Description = "Super Fling, Anti-Grab & Reach",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Fling-Things-and-People",
-},
-{
-Name = "Work at a Pizza Place",
-Slug = "Work-at-a-Pizza-Place",
-PlaceId = 192800,
-Description = "Auto Job, Instant Delivery & Cash Farm",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Work-at-a-Pizza-Place",
-},
-{
 Name = "Murderers VS Sheriffs",
 Slug = "MurderVSsheriff",
 PlaceId = 12355337193,
 Description = "Silent Aim, Hitbox Expander & ESP",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MurderVSsheriff",
-},
-{
-Name = "Sniper VS Runner",
-Slug = "SniperVSrunner",
-PlaceId = 16568042538,
-Description = "Auto Win, Aimbot & Speed",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/SniperVSrunner",
-},
-{
-Name = "Dexter Escape",
-Slug = "Dexter-Escape",
-PlaceId = 92122513197996,
-Description = "Auto Escape, ESP & Teleports",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Dexter-Escape",
-},
-{
-Name = "Water Escape",
-Slug = "waterescape",
-PlaceId = 0,
-Description = "Instant Escape, Oxygen & Speed",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/waterescape",
-},
-{
-Name = "German Voice",
-Slug = "GermanVoice",
-PlaceId = 6884319169,
-Description = "Voice Chat Utilities, Troll & Movement",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/GermanVoice",
-},
-{
-Name = "Beach Escape",
-Slug = "BeachEscape",
-PlaceId = 0,
-Description = "Auto Complete, Checkpoints & Fly",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/BeachEscape",
-},
-{
-Name = "Lucky Blocks Battlegrounds",
-Slug = "Luckblock",
-PlaceId = 662417684,
-Description = "Instant Lucky Blocks, All Items & Combat",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Luckblock",
-},
-{
-Name = "Streamer Life",
-Slug = "streamer",
-PlaceId = 16483433878,
-Description = "Infinite Money, Auto Stream & Upgrades",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/streamer",
-},
-{
-Name = "Bundes RP",
-Slug = "bundesRp",
-PlaceId = 13830755469,
-Description = "Roleplay Utilities, Vehicle Mods & ESP",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/bundesRp",
-},
-{
-Name = "Flick FPS",
-Slug = "FlickFPS",
-PlaceId = 17625359962,
-Description = "Aimbot, Silent Aim & Wallhack ESP",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/FlickFPS",
-},
-{
-Name = "Arsenal",
-Slug = "Arselnal",
-PlaceId = 286090429,
-Description = "Silent Aim, Kill All, ESP & Gun Mods",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/Arselnal",
-},
-{
-Name = "99 Nights",
-Slug = "99Nights",
-PlaceId = 126884695634066,
-Description = "Survival ESP, Fullbright & Auto Evade",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/99Nights",
-},
-{
-Name = "Emergency Hamburg (Notruf Hamburg)",
-Slug = "MainEH",
-PlaceId = 7711635737,
-Description = "Main Script, Car Fly, ESP & Police Bypass",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MainEH",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/MurderVSsheriff",
 },
 {
 Name = "Murder Mystery 2 (MM2)",
 Slug = "mm2",
 PlaceId = 142823291,
 Description = "Role ESP, Auto Grab Gun, Coin Farm & Fly",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/mm2",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/mm2",
+},
+{
+Name = "Sniper VS Runner",
+Slug = "SniperVSrunner",
+PlaceId = 16568042538,
+Description = "Auto Win, Aimbot & Speed",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/SNIPERvsRUNNER",
+},
+{
+Name = "German Voice",
+Slug = "GermanVoice",
+PlaceId = 6884319169,
+Description = "Voice Chat Utilities, Troll & Movement",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/GermanVC",
+},
+{
+Name = "Lucky Blocks Battlegrounds",
+Slug = "Luckblock",
+PlaceId = 662417684,
+Description = "Instant Lucky Blocks, All Items & Combat",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/LuckyBlock",
+},
+{
+Name = "Streamer Life",
+Slug = "streamer",
+PlaceId = 16483433878,
+Description = "Infinite Money, Auto Stream & Upgrades",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/Streamer",
+},
+{
+Name = "Bundes RP",
+Slug = "bundesRp",
+PlaceId = 13830755469,
+Description = "Roleplay Utilities, Vehicle Mods & ESP",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/BundesRP",
+},
+{
+Name = "Flick FPS",
+Slug = "FlickFPS",
+PlaceId = 17625359962,
+Description = "Aimbot, Silent Aim & Wallhack ESP",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/FlickFPS",
+},
+{
+Name = "Fling Things and People",
+Slug = "Fling-Things-and-People",
+PlaceId = 6961824067,
+Description = "Super Fling, Anti-Grab & Reach",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/FlingThingsPeople",
+},
+{
+Name = "Work at a Pizza Place",
+Slug = "Work-at-a-Pizza-Place",
+PlaceId = 192800,
+Description = "Auto Job, Instant Delivery & Cash Farm",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/PizzaPlace",
+},
+{
+Name = "99 Nights",
+Slug = "99Nights",
+PlaceId = 126884695634066,
+Description = "Survival ESP, Fullbright & Auto Evade",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/99Nights",
+},
+{
+Name = "Arsenal",
+Slug = "Arselnal",
+PlaceId = 286090429,
+Description = "Silent Aim, Kill All, ESP & Gun Mods",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/Arsenal",
+},
+{
+Name = "Emergency Hamburg (Notruf Hamburg)",
+Slug = "MainEH",
+PlaceId = 7711635737,
+Description = "Main Script, Car Fly, ESP & Police Bypass",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/EmergencyHamurg",
 },
 {
 Name = "Emergency Hamburg (Auto Rob)",
 Slug = "AutoRob",
 PlaceId = 7711635737,
 Description = "Auto Rob, ATM Robbery, Store Rob & Teleport",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/AutoRob",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/EHAutoRob",
 },
 {
 Name = "Military Tycoon",
 Slug = "MillitaryTycoon",
 PlaceId = 7180042682,
 Description = "Auto Farm, Base Upgrades, Gun Mods & Vehicle Speed",
-Url = "https://api.getvortex.vip/api/t/RH5KTH/s/MillitaryTycoon",
+Url = "https://nightsystem-dashboard-2ysp.onrender.com/api/t/ns_789663/s/MillitaryTycoon",
 },
 }
 
@@ -623,11 +630,12 @@ local function setupScriptsHub(ContentFrame: Frame, HomePage: Frame, getActiveTa
 	HubHeaderTitle.Parent = ScriptsHubPage
 
 	local HubHeaderSub = Instance.new("TextLabel")
-	HubHeaderSub.Size = UDim2.new(1, -140, 0, 16)
+	HubHeaderSub.Size = UDim2.new(1, -134, 0, 16)
 	HubHeaderSub.Position = UDim2.new(0, 0, 0, 22)
 	HubHeaderSub.BackgroundTransparency = 1
 	HubHeaderSub.Font = Enum.Font.GothamMedium
-	HubHeaderSub.Text = "19 Official Scripts • Click Execute to run or Copy for clipboard"
+	HubHeaderSub.TextTruncate = Enum.TextTruncate.AtEnd
+	HubHeaderSub.Text = tostring(#DEFAULT_HUB_SCRIPTS) .. " Official Scripts • Execute or Copy"
 	HubHeaderSub.TextColor3 = THEME.TextHeaderSub
 	HubHeaderSub.TextSize = 13
 	HubHeaderSub.TextXAlignment = Enum.TextXAlignment.Left
@@ -679,11 +687,13 @@ local function setupScriptsHub(ContentFrame: Frame, HomePage: Frame, getActiveTa
 
 	local HubSearchBox = Instance.new("TextBox")
 	HubSearchBox.Name = "HubSearchBox"
-	HubSearchBox.Size = UDim2.new(1, -40, 1, 0)
+	HubSearchBar.ClipsDescendants = true
+	HubSearchBox.Size = UDim2.new(1, -42, 1, 0)
 	HubSearchBox.Position = UDim2.new(0, 32, 0, 0)
 	HubSearchBox.BackgroundTransparency = 1
+	HubSearchBox.ClipsDescendants = true
 	HubSearchBox.Font = Enum.Font.GothamMedium
-	HubSearchBox.PlaceholderText = "Search 19 Night System scripts (e.g. Military Tycoon, Auto Rob, MM2, Arsenal)..."
+	HubSearchBox.PlaceholderText = "Search " .. tostring(#DEFAULT_HUB_SCRIPTS) .. " scripts (e.g. Auto Rob, MM2, Arsenal)..."
 	HubSearchBox.PlaceholderColor3 = THEME.TextSecondary
 	HubSearchBox.Text = ""
 	HubSearchBox.TextColor3 = THEME.TextPrimary
@@ -721,10 +731,14 @@ local function setupScriptsHub(ContentFrame: Frame, HomePage: Frame, getActiveTa
 	HubGridLayout.Parent = HubScroll
 
 	local function updateHubGrid()
-		local availableW = HubScroll.AbsoluteSize.X - 16
+		local mf = ContentFrame and ContentFrame.Parent
+		local scObj = mf and mf:FindFirstChild("WindowScale")
+		local sc = if scObj and scObj:IsA("UIScale") and scObj.Scale > 0 then scObj.Scale else 1
+		local availableW = (HubScroll.AbsoluteSize.X / sc) - 16
 		if availableW > 80 then
 			local gap = 10
-			local cardW = math.max(120, math.floor((availableW - (gap * 2)) / 3))
+			local cols = if availableW >= 620 then 4 else 3
+			local cardW = math.max(120, math.floor((availableW - (gap * (cols - 1))) / cols))
 			HubGridLayout.CellSize = UDim2.new(0, cardW, 0, 195)
 		end
 	end
@@ -958,10 +972,14 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 	EmotesGridLayout.Parent = EmotesScroll
 
 	local function updateEmotesGrid()
-		local availableW = EmotesScroll.AbsoluteSize.X - 16
+		local mf = ContentFrame and ContentFrame.Parent
+		local scObj = mf and mf:FindFirstChild("WindowScale")
+		local sc = if scObj and scObj:IsA("UIScale") and scObj.Scale > 0 then scObj.Scale else 1
+		local availableW = (EmotesScroll.AbsoluteSize.X / sc) - 16
 		if availableW > 80 then
 			local gap = 8
-			local cardW = math.max(120, math.floor((availableW - (gap * 2)) / 3))
+			local cols = if availableW >= 620 then 4 else 3
+			local cardW = math.max(120, math.floor((availableW - (gap * (cols - 1))) / cols))
 			EmotesGridLayout.CellSize = UDim2.new(0, cardW, 0, 52)
 		end
 	end
@@ -1243,6 +1261,1707 @@ local function setupEmotesHub(ContentFrame: Frame, HomePage: Frame, getActiveTab
 	return EmotesHubPage, stopAllEmotes
 end
 
+local function createVoiceChatBackend(trackConn: (RBXScriptConnection) -> RBXScriptConnection, notifyFn: (string, string, number?) -> ())
+	local clonerefFn = (typeof(cloneref) == "function" and cloneref) or function(obj) return obj end
+	local vc = {
+		version = 1,
+		executed = false,
+		running = false,
+		mode = _G._nvVcbMode,
+		muted = false,
+		boosterEnabled = (_G._nvVcEnabled == true),
+		gain = math.clamp(tonumber(_G._nvVcGain) or 3, 0.1, 3),
+		selected = _G._nvVcSel or {},
+		boosted = _G._nvVcBoost or {},
+		listenConn = nil :: RBXScriptConnection?,
+		playConn = nil :: RBXScriptConnection?,
+		listeners = {} :: { () -> () },
+		commands = {} :: { [string]: any },
+	}
+	_G._nvVcSel = vc.selected
+	_G._nvVcBoost = vc.boosted
+	_G._nvVcGain = vc.gain
+	_G._nvVcEnabled = vc.boosterEnabled
+
+	local function emitState()
+		for _, fn in ipairs(vc.listeners) do
+			pcall(fn)
+		end
+	end
+
+	function vc.onStateChanged(fn: () -> ())
+		table.insert(vc.listeners, fn)
+	end
+
+	local function nvRef(obj: any)
+		if obj == nil then return nil end
+		local ok, res = pcall(clonerefFn, obj)
+		return if ok and res ~= nil then res else obj
+	end
+
+	function vc.findPlayers(q: string): { Player }
+		if not q or q == "" then return {} end
+		if q == "me" or q == "." then return { LocalPlayer } end
+		if q == "all" then return Players:GetPlayers() end
+		if q == "others" then
+			local o = {}
+			for _, p in ipairs(Players:GetPlayers()) do
+				if p ~= LocalPlayer then table.insert(o, p) end
+			end
+			return o
+		end
+		local lower = string.lower(q)
+		for _, p in ipairs(Players:GetPlayers()) do
+			if string.lower(p.Name) == lower or string.lower(p.DisplayName) == lower then
+				return { p }
+			end
+		end
+		local out = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if string.sub(string.lower(p.Name), 1, #lower) == lower or string.sub(string.lower(p.DisplayName), 1, #lower) == lower then
+				table.insert(out, p)
+			end
+		end
+		if #out == 0 then
+			for _, p in ipairs(Players:GetPlayers()) do
+				if string.find(string.lower(p.Name), lower, 1, true) or string.find(string.lower(p.DisplayName), lower, 1, true) then
+					table.insert(out, p)
+				end
+			end
+		end
+		return out
+	end
+
+	local function syncMicHudVisual()
+		pcall(function()
+			local cg = nvRef(game:GetService("CoreGui"))
+			local sg = cg and cg:FindFirstChild("NV_MicToggleGUI")
+			local sf = sg and sg:FindFirstChild("StatusFrame")
+			local ico = sf and sf:FindFirstChildOfClass("ImageLabel")
+			if ico then
+				ico.Image = vc.muted and ASSETS.VoiceChatMuted or ASSETS.VoiceChat
+				ico.ImageColor3 = vc.muted and Color3.fromRGB(255, 96, 96) or Color3.new(1, 1, 1)
+			end
+		end)
+	end
+
+	local function publishMute()
+		pcall(function()
+			nvRef(game:GetService("VoiceChatInternal")):PublishPause(vc.muted)
+		end)
+	end
+
+	function vc.setMicMuted(muted: boolean)
+		vc.muted = muted == true
+		if vc.mode == "v2" and type(_G._nvVcb2SetMuted) == "function" then
+			pcall(_G._nvVcb2SetMuted, vc.muted)
+		else
+			syncMicHudVisual()
+			publishMute()
+		end
+		emitState()
+	end
+
+	_G._nvVcbSyncMuted = function(muted: boolean)
+		vc.muted = muted == true
+		syncMicHudVisual()
+		emitState()
+	end
+
+	local function ensureMicHudV1()
+		local cg = nvRef(game:GetService("CoreGui"))
+		if not cg or cg:FindFirstChild("NV_MicToggleGUI") then return end
+		local topOrder = 49
+		pcall(function()
+			local tba = cg:FindFirstChild("TopBarApp")
+			if tba and tba:IsA("ScreenGui") then topOrder = tba.DisplayOrder end
+		end)
+		local micSG = Instance.new("ScreenGui")
+		micSG.Name = "NV_MicToggleGUI"
+		micSG.ResetOnSpawn = false
+		micSG.DisplayOrder = topOrder + 1
+		micSG.Parent = cg
+
+		local micFrame = Instance.new("Frame")
+		micFrame.Name = "StatusFrame"
+		micFrame.Position = UDim2.new(0, 165, 0, -45)
+		micFrame.Size = UDim2.new(0, 40, 0, 40)
+		micFrame.BackgroundColor3 = THEME.MainBackground
+		micFrame.BackgroundTransparency = 0.08
+		micFrame.BorderSizePixel = 0
+		micFrame.Active = true
+		micFrame.Parent = micSG
+		createCorner(micFrame, 20)
+		createStroke(micFrame, THEME.Stroke, 1, 0.15)
+
+		local micIcon = Instance.new("ImageLabel")
+		micIcon.BackgroundTransparency = 1
+		micIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		micIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+		micIcon.Size = UDim2.new(0, 20, 0, 20)
+		micIcon.Image = vc.muted and ASSETS.VoiceChatMuted or ASSETS.VoiceChat
+		micIcon.ImageColor3 = vc.muted and Color3.fromRGB(255, 96, 96) or Color3.new(1, 1, 1)
+		micIcon.ScaleType = Enum.ScaleType.Fit
+		micIcon.Parent = micFrame
+
+		local micBtn = Instance.new("TextButton")
+		micBtn.BackgroundTransparency = 1
+		micBtn.Size = UDim2.new(1, 0, 1, 0)
+		micBtn.Text = ""
+		micBtn.ZIndex = 2
+		micBtn.Parent = micFrame
+
+		micBtn.MouseButton1Click:Connect(function()
+			vc.setMicMuted(not vc.muted)
+		end)
+	end
+
+	local function waitMicUnmuted()
+		local m = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
+		local tba = game:GetService("CoreGui"):WaitForChild("TopBarApp", 5)
+		tba = tba and tba:WaitForChild("TopBarApp", 5)
+		local lf = tba and tba:WaitForChild("UnibarLeftFrame", 5)
+		local um = lf and lf:WaitForChild("UnibarMenu", 5)
+		local n2 = um and um:WaitForChild("2", 5)
+		local n3 = n2 and n2:WaitForChild("3", 5)
+		local tmi = n3 and n3:FindFirstChild("toggle_mic_mute", true)
+		if not tmi then return end
+		local function getIcon(b)
+			return b:WaitForChild("IntegrationIconFrame", 5):WaitForChild("IntegrationIcon", 5)["1"]
+		end
+		repeat task.wait(1) until getIcon(tmi).Image ~= m
+	end
+
+	function vc.setVersion(ver: number)
+		if vc.mode or _G._nvVcbMode then
+			notifyFn("VC Bypasser", "Bypass bereits aktiv. Rejoin zum Wechseln der Version.", 3)
+			return false
+		end
+		vc.version = if ver == 2 then 2 else 1
+		emitState()
+		return true
+	end
+
+	function vc.runBypassV1()
+		if vc.mode or _G._nvVcbMode then
+			notifyFn("VC Bypasser", if vc.executed then "Bypass ist bereits aktiv." else "Bypass läuft bereits.", 3)
+			return
+		end
+		vc.version = 1
+		vc.mode = "v1"
+		_G._nvVcbMode = "v1"
+		vc.running = true
+		emitState()
+		task.spawn(function()
+			local ok, err = pcall(function()
+				local v = nvRef(game:GetService("VoiceChatService"))
+				local vi = nvRef(game:GetService("VoiceChatInternal"))
+				local gc = getconnections
+				notifyFn("VC Bypasser V1", "Mikrofon entmuten, um Bypass fortzusetzen...", 5)
+				pcall(waitMicUnmuted)
+				v:leaveVoice()
+				task.wait(3)
+				if type(gc) == "function" then
+					local h = gc(vi.StateChanged)
+					for y = 7, #h do
+						if h[y] then h[y]:Disable() end
+					end
+				end
+				task.wait(3)
+				v:joinVoice()
+				vi:PublishPause(vc.muted)
+			end)
+			vc.running = false
+			if ok then
+				vc.executed = true
+				pcall(ensureMicHudV1)
+				pcall(syncMicHudVisual)
+				notifyFn("VC Bypasser V1", "Bypass aktiv! Nutze den Mic-Button zum Muten/Entmuten.", 5)
+			else
+				vc.mode = nil
+				_G._nvVcbMode = nil
+				notifyFn("VC Bypasser V1", "Bypass fehlgeschlagen: " .. tostring(err), 5)
+			end
+			emitState()
+		end)
+	end
+
+	function vc.runBypassV2()
+		if vc.mode or _G._nvVcbMode then
+			notifyFn("VC Bypasser", if vc.executed then "Bypass ist bereits aktiv." else "Bypass läuft bereits.", 3)
+			return
+		end
+		vc.version = 2
+		vc.mode = "v2"
+		_G._nvVcbMode = "v2"
+		vc.running = true
+		emitState()
+		task.spawn(function()
+			local ok, err = pcall(function()
+				local a, b, c = 14, 13, 35
+				local g = nvRef(game:GetService("VoiceChatService"))
+				local h = nvRef(game:GetService("VoiceChatInternal"))
+				local j = nvRef(game:GetService("CoreGui"))
+				local l = LocalPlayer:WaitForChild("PlayerGui")
+				local m = if type(getconnections) == "function" then getconnections else nil
+				local o = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
+				local p = "rbxasset://textures/ui/VoiceChat/MicLight/Talking0.png"
+				local q, r, s, t = nil, nil, nil, nil
+				local function u()
+					for _, v in ipairs(j:GetDescendants()) do
+						if v.Name == "toggle_mic_mute" then
+							q = v
+						elseif v.Name == "RedVoiceDot" and v:IsA("GuiObject") then
+							t = v
+						end
+					end
+					if q then
+						r = q:FindFirstChild("IntegrationIconFrame", true)
+						if r then s = r:FindFirstChild("IntegrationIcon", true) end
+					end
+				end
+				u()
+				if not q then
+					task.spawn(function() g:joinVoice() end)
+					task.wait(1.5)
+					u()
+				end
+				notifyFn("VC Bypasser V2", "Mikrofon entmuten, um fortzufahren.", 5)
+				local function readImg()
+					if s and s:FindFirstChild("1") then return s["1"].Image end
+					return nil
+				end
+				local w = false
+				while not w do
+					local x = readImg()
+					if x and x ~= o and x ~= "" then
+						p = x
+						w = true
+					end
+					if not w then task.wait(0.5) end
+				end
+				task.wait(1)
+				task.spawn(function() g:leaveVoice() end)
+				task.wait(2)
+				if m then
+					task.spawn(function()
+						local y = m(h.StateChanged)
+						for z, aa in ipairs(y) do
+							if z >= 7 and aa then aa:Disable() end
+						end
+					end)
+				end
+				task.wait(2)
+				task.spawn(function() g:joinVoice() end)
+				task.wait(1)
+				u()
+				if q then
+					task.spawn(function()
+						for _, ab in ipairs(q:GetDescendants()) do
+							if ab:IsA("ImageLabel") or ab:IsA("ImageButton") then
+								ab.ImageTransparency = 1
+							elseif ab:IsA("TextLabel") or ab:IsA("TextButton") then
+								ab.TextTransparency = 1
+							end
+						end
+					end)
+				end
+				local ac = getGuiParent() or j or l
+				local ad = ac:FindFirstChild("CustomVoiceController")
+				if ad then ad:Destroy() end
+				local ae = Instance.new("ScreenGui")
+				ae.Name = "CustomVoiceController"
+				ae.ResetOnSpawn = false
+				ae.IgnoreGuiInset = true
+				ae.DisplayOrder = 999999
+				ae.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+				ae.Parent = ac
+				local af = Instance.new("TextButton")
+				af.Name = "MicHitArea"
+				af.Size = UDim2.new(0, c, 0, c)
+				af.Position = UDim2.new(0, 150 + a, 0, 4 + b)
+				af.BackgroundTransparency = 1
+				af.Text = ""
+				af.Active = true
+				af.ZIndex = 10000
+				af.Parent = ae
+				local ag = Instance.new("ImageLabel")
+				ag.Name = "MicIcon"
+				ag.Size = UDim2.new(1, 0, 1, 0)
+				ag.BackgroundTransparency = 1
+				ag.Image = o
+				ag.ScaleType = Enum.ScaleType.Fit
+				ag.ZIndex = 10001
+				ag.Parent = af
+				local ah = false
+				pcall(function() ah = h:IsPublishPaused() end)
+				local function ai(aj: boolean)
+					ag.Image = if aj then o else p
+					if t and t.Parent then t.Visible = not aj end
+					task.spawn(function() h:PublishPause(aj) end)
+				end
+				af.MouseButton1Click:Connect(function()
+					ah = not ah
+					ai(ah)
+					vc.muted = ah
+					emitState()
+				end)
+				_G._nvVcb2SetMuted = function(muted: boolean)
+					ah = muted == true
+					ai(ah)
+				end
+				ai(true)
+				ah = true
+				vc.muted = true
+				local function ak()
+					if not s or not s.Parent then u() end
+					if s and s.AbsolutePosition.X > 50 then
+						return s.AbsolutePosition, s.AbsoluteSize
+					elseif q and q.AbsolutePosition.X > 50 then
+						return q.AbsolutePosition, q.AbsoluteSize
+					end
+					return nil, nil
+				end
+				local al = ak()
+				if al and al.X > 0 and al.Y >= 0 then
+					af.Position = UDim2.new(0, al.X + a, 0, al.Y + b)
+				end
+				if t and t:IsA("GuiObject") then t.Visible = not ah end
+				trackConn(h.StateChanged:Connect(function()
+					pcall(function() ah = h:IsPublishPaused() end)
+					if t and t.Parent then t.Visible = not ah end
+					vc.muted = ah
+					emitState()
+				end))
+			end)
+			vc.running = false
+			if ok then
+				vc.executed = true
+				vc.muted = true
+				notifyFn("VC Bypasser V2", "Bypass aktiv! CustomVoiceController bereit.", 5)
+			else
+				vc.mode = nil
+				_G._nvVcbMode = nil
+				notifyFn("VC Bypasser V2", "Bypass fehlgeschlagen: " .. tostring(err), 5)
+			end
+			emitState()
+		end)
+	end
+
+	_G._nvRunVcb2 = vc.runBypassV2
+
+	function vc.executeBypass()
+		if vc.version == 2 then
+			vc.runBypassV2()
+		else
+			vc.runBypassV1()
+		end
+	end
+
+	function vc.muteAll(paused: boolean)
+		local count = 0
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer then
+				local ok = pcall(function()
+					game:GetService("VoiceChatInternal"):SubscribePause(p.UserId, paused)
+				end)
+				if ok then count += 1 end
+			end
+		end
+		notifyFn("Voice Chat", if paused then ("Alle Spieler stummgeschaltet (" .. tostring(count) .. ")") else ("Stummschaltung für alle aufgehoben (" .. tostring(count) .. ")"), 3)
+	end
+
+	function vc.muteTarget(query: string, paused: boolean)
+		local targets = vc.findPlayers(query)
+		if #targets == 0 then
+			notifyFn("Voice Chat", "Spieler nicht gefunden.", 3)
+			return
+		end
+		local names = {}
+		for _, p in ipairs(targets) do
+			if p ~= LocalPlayer then
+				local ok = pcall(function()
+					game:GetService("VoiceChatInternal"):SubscribePause(p.UserId, paused)
+				end)
+				if ok then table.insert(names, p.Name) end
+			end
+		end
+		if #names == 0 then
+			notifyFn("Voice Chat", "Kein gültiger Zielspieler gefunden.", 3)
+			return
+		end
+		local prefix = if paused then "Stummgeschaltet: " else "Entmutet: "
+		notifyFn("Voice Chat", prefix .. (if #names == 1 then names[1] else (tostring(#names) .. " Spieler")), 3)
+	end
+
+	local function getBestListenPart(char: Model?): BasePart?
+		if not char then return nil end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum and hum.RootPart then return hum.RootPart end
+		if char.PrimaryPart then return char.PrimaryPart end
+		for _, name in ipairs({ "HumanoidRootPart", "UpperTorso", "Torso", "Head" }) do
+			local p = char:FindFirstChild(name)
+			if p and p:IsA("BasePart") then return p end
+		end
+		for _, d in ipairs(char:GetDescendants()) do
+			if d:IsA("BasePart") then return d end
+		end
+		return nil
+	end
+
+	function vc.listenTo(query: string)
+		if vc.listenConn then
+			pcall(function() vc.listenConn:Disconnect() end)
+			vc.listenConn = nil
+		end
+		local targets = vc.findPlayers(query)
+		if #targets == 0 then
+			notifyFn("Listen", "Spieler nicht gefunden.", 3)
+			return
+		end
+		local plr = targets[1]
+		local ss = game:GetService("SoundService")
+		vc.listenConn = trackConn(RunService.Heartbeat:Connect(function()
+			pcall(function()
+				local part = getBestListenPart(plr.Character)
+				if part then ss:SetListener(Enum.ListenerType.ObjectPosition, part) end
+			end)
+		end))
+		notifyFn("Listen", "Höre jetzt auf: " .. plr.DisplayName, 3)
+	end
+
+	function vc.unlisten()
+		if vc.listenConn then
+			pcall(function() vc.listenConn:Disconnect() end)
+			vc.listenConn = nil
+		end
+		pcall(function()
+			game:GetService("SoundService"):SetListener(Enum.ListenerType.Camera)
+		end)
+		notifyFn("Listen", "Listener auf Kamera zurückgesetzt.", 3)
+	end
+
+	local function findInput(plr: Player?): any
+		if not plr then return nil end
+		local function scan(root: Instance?): any
+			if not root then return nil end
+			local inp = nil
+			pcall(function() inp = root:FindFirstChildWhichIsA("AudioDeviceInput", true) end)
+			return if inp then nvRef(inp) else nil
+		end
+		return scan(plr) or scan(plr.Character)
+	end
+
+	local function useAudioApi(): boolean?
+		local result: boolean? = nil
+		pcall(function()
+			local vcs = nvRef(game:GetService("VoiceChatService"))
+			if vcs then
+				local use = vcs.UseAudioApi
+				local roll = Enum.AudioApiRollout
+				if use == roll.Disabled then result = false
+				elseif use == roll.Enabled then result = true end
+			end
+		end)
+		return result
+	end
+
+	local function anyInput(): boolean
+		local found = false
+		pcall(function()
+			for _, p in ipairs(Players:GetPlayers()) do
+				if findInput(p) then found = true; return end
+			end
+		end)
+		return found
+	end
+
+	local function playbackWorks(): boolean
+		local ok = false
+		pcall(function()
+			local p = LocalPlayer or Players:GetPlayers()[1]
+			if not p then return end
+			local cur = (p :: any).VoiceChatVolume
+			;(p :: any).VoiceChatVolume = cur
+			ok = true
+		end)
+		return ok
+	end
+
+	local toldNoApi = false
+	function vc.warnIfUnsupported(): boolean
+		if useAudioApi() == true or anyInput() or playbackWorks() then
+			return false
+		end
+		if not toldNoApi then
+			toldNoApi = true
+			notifyFn("VC Booster", "Dieses Spiel nutzt nur internen Voice-Chat ohne Audio-API.", 4)
+		end
+		return true
+	end
+
+	local function syncPlayLoop()
+		local need = false
+		for _, e in pairs(vc.boosted) do
+			if e.mode == "playback" then need = true; break end
+		end
+		if need then
+			if not vc.playConn then
+				vc.playConn = trackConn(RunService.Heartbeat:Connect(function()
+					local playVol = math.clamp(vc.gain * 10, 1, 30)
+					for _, e in pairs(vc.boosted) do
+						if e.mode == "playback" and e.plr then
+							pcall(function() e.plr.VoiceChatVolume = playVol end)
+						end
+					end
+				end))
+			end
+		elseif vc.playConn then
+			pcall(function() vc.playConn:Disconnect() end)
+			vc.playConn = nil
+		end
+	end
+
+	function vc.clearBoost(uid: number)
+		local e = vc.boosted[uid]
+		if not e then return end
+		pcall(function() if e.input and e.origVol ~= nil then e.input.Volume = e.origVol end end)
+		pcall(function() if e.plr and e.origPlayback ~= nil then e.plr.VoiceChatVolume = e.origPlayback end end)
+		pcall(function() if e.folder then e.folder:Destroy() end end)
+		pcall(function() if e.leaveConn then e.leaveConn:Disconnect() end end)
+		vc.boosted[uid] = nil
+	end
+
+	function vc.boostPlayer(plr: Player)
+		if not plr or plr == LocalPlayer then return false, "self" end
+		vc.clearBoost(plr.UserId)
+		pcall(function() game:GetService("VoiceChatInternal"):SubscribePause(plr.UserId, false) end)
+		local input = findInput(plr)
+		local leaveConn = nil
+		pcall(function()
+			leaveConn = Players.PlayerRemoving:Connect(function(leaving)
+				if leaving == plr then
+					vc.clearBoost(plr.UserId)
+					vc.selected[plr.UserId] = nil
+					syncPlayLoop()
+					emitState()
+				end
+			end)
+		end)
+		if not input then
+			local origPlayback = nil
+			pcall(function() origPlayback = (plr :: any).VoiceChatVolume end)
+			local okWrite = pcall(function() (plr :: any).VoiceChatVolume = math.clamp(vc.gain * 10, 1, 30) end)
+			if not okWrite then
+				if leaveConn then pcall(function() leaveConn:Disconnect() end) end
+				return false, "noapi"
+			end
+			vc.boosted[plr.UserId] = { plr = plr, mode = "playback", origPlayback = origPlayback, leaveConn = leaveConn }
+			syncPlayLoop()
+			return true
+		end
+		local origVol = 1
+		pcall(function() origVol = input.Volume end)
+		pcall(function() input.Volume = vc.gain end)
+		pcall(function() input.Muted = false end)
+		local host = LocalPlayer:FindFirstChildOfClass("PlayerGui") or workspace
+		local folder = Instance.new("Folder")
+		folder.Name = "NVVCBoost_" .. tostring(plr.UserId)
+		folder.Parent = host
+		local fader = Instance.new("AudioFader")
+		fader.Name = "Fader"
+		fader.Volume = vc.gain
+		fader.Parent = folder
+		local output = Instance.new("AudioDeviceOutput")
+		output.Name = "Out"
+		pcall(function() output.Player = LocalPlayer end)
+		output.Parent = folder
+		local w1 = Instance.new("Wire")
+		w1.SourceInstance = input
+		w1.SourceName = "Output"
+		w1.TargetInstance = fader
+		w1.TargetName = "Input"
+		w1.Parent = folder
+		local w2 = Instance.new("Wire")
+		w2.SourceInstance = fader
+		w2.SourceName = "Output"
+		w2.TargetInstance = output
+		w2.TargetName = "Input"
+		w2.Parent = folder
+		vc.boosted[plr.UserId] = { input = input, origVol = origVol, folder = folder, fader = fader, leaveConn = leaveConn }
+		syncPlayLoop()
+		return true
+	end
+
+	function vc.setGain(newGain: number)
+		vc.gain = math.clamp(tonumber(newGain) or 3, 0.1, 3)
+		_G._nvVcGain = vc.gain
+		local playVol = math.clamp(vc.gain * 10, 1, 30)
+		for _, e in pairs(vc.boosted) do
+			pcall(function()
+				if e.fader then e.fader.Volume = vc.gain end
+				if e.input then e.input.Volume = vc.gain end
+				if e.mode == "playback" and e.plr then e.plr.VoiceChatVolume = playVol end
+			end)
+		end
+		emitState()
+	end
+
+	function vc.setBoosterEnabled(on: boolean)
+		vc.boosterEnabled = on == true
+		_G._nvVcEnabled = vc.boosterEnabled
+		if vc.boosterEnabled then
+			vc.warnIfUnsupported()
+			for uid in pairs(vc.selected) do
+				local plr = Players:GetPlayerByUserId(uid)
+				if plr then vc.boostPlayer(plr) end
+			end
+		else
+			local uids = {}
+			for uid in pairs(vc.boosted) do table.insert(uids, uid) end
+			for _, uid in ipairs(uids) do vc.clearBoost(uid) end
+			syncPlayLoop()
+		end
+		emitState()
+	end
+
+	function vc.setBoostTarget(plr: Player, on: boolean)
+		if not plr or plr == LocalPlayer then return end
+		if on then
+			vc.selected[plr.UserId] = true
+			if vc.boosterEnabled then vc.boostPlayer(plr) end
+		else
+			vc.selected[plr.UserId] = nil
+			vc.clearBoost(plr.UserId)
+			syncPlayLoop()
+		end
+		emitState()
+	end
+
+	function vc.stopAll()
+		if vc.listenConn then pcall(function() vc.listenConn:Disconnect() end); vc.listenConn = nil end
+		if vc.playConn then pcall(function() vc.playConn:Disconnect() end); vc.playConn = nil end
+		local uids = {}
+		for uid in pairs(vc.boosted) do table.insert(uids, uid) end
+		for _, uid in ipairs(uids) do vc.clearBoost(uid) end
+		vc.boosterEnabled = false
+		_G._nvVcEnabled = false
+	end
+
+	return vc
+end
+
+local function setupExternalVCOverlay(
+	BadgeGui: ScreenGui,
+	vc: any,
+	makeDraggableFn: (GuiObject, GuiObject, Frame?, (() -> ())?) -> (),
+	openMainAndVCHub: () -> (),
+	trackConn: (RBXScriptConnection) -> RBXScriptConnection,
+	extraTrigger: { Host: GuiObject?, Button: GuiObject?, Icon: ImageLabel?, Dot: Frame? }?
+)
+	local TriggerBtn = Instance.new("TextButton")
+	TriggerBtn.Name = "VCQuickTrigger"
+	TriggerBtn.Size = UDim2.new(0, 146, 0, 38)
+	TriggerBtn.Position = UDim2.new(0, 22, 1, -24)
+	TriggerBtn.AnchorPoint = Vector2.new(0, 1)
+	TriggerBtn.BackgroundColor3 = THEME.MainBackground
+	TriggerBtn.BorderSizePixel = 0
+	TriggerBtn.AutoButtonColor = false
+	TriggerBtn.Text = ""
+	TriggerBtn.Active = true
+	TriggerBtn.ZIndex = 85
+	TriggerBtn.Visible = true
+	TriggerBtn.Parent = BadgeGui
+	createCorner(TriggerBtn, 10)
+	local trigStroke = createStroke(TriggerBtn, THEME.Stroke, 1, 0.15)
+
+	local TrigBadge = Instance.new("Frame")
+	TrigBadge.Size = UDim2.new(0, 24, 0, 24)
+	TrigBadge.Position = UDim2.new(0, 8, 0.5, 0)
+	TrigBadge.AnchorPoint = Vector2.new(0, 0.5)
+	TrigBadge.BackgroundColor3 = Color3.fromHex("#1E1E22")
+	TrigBadge.BorderSizePixel = 0
+	TrigBadge.Active = false
+	TrigBadge.ZIndex = 86
+	TrigBadge.Parent = TriggerBtn
+	createCorner(TrigBadge, 6)
+
+	local TrigIcon = Instance.new("ImageLabel")
+	TrigIcon.Size = UDim2.new(0, 14, 0, 14)
+	TrigIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+	TrigIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+	TrigIcon.BackgroundTransparency = 1
+	TrigIcon.Image = ASSETS.VoiceChat
+	TrigIcon.ImageColor3 = THEME.TextPrimary
+	TrigIcon.ScaleType = Enum.ScaleType.Fit
+	TrigIcon.Active = false
+	TrigIcon.ZIndex = 87
+	TrigIcon.Parent = TrigBadge
+
+	local TrigDot = Instance.new("Frame")
+	TrigDot.Size = UDim2.new(0, 6, 0, 6)
+	TrigDot.Position = UDim2.new(1, -2, 0, 2)
+	TrigDot.AnchorPoint = Vector2.new(0.5, 0.5)
+	TrigDot.BackgroundColor3 = THEME.TextSecondary
+	TrigDot.BorderSizePixel = 0
+	TrigDot.Active = false
+	TrigDot.ZIndex = 88
+	TrigDot.Parent = TrigBadge
+	createCorner(TrigDot, 4)
+
+	local TrigLabel = Instance.new("TextLabel")
+	TrigLabel.Size = UDim2.new(1, -44, 1, 0)
+	TrigLabel.Position = UDim2.new(0, 38, 0, 0)
+	TrigLabel.BackgroundTransparency = 1
+	TrigLabel.Font = Enum.Font.GothamBold
+	TrigLabel.Text = "Voice Chat"
+	TrigLabel.TextColor3 = THEME.TextPrimary
+	TrigLabel.TextSize = 13
+	TrigLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TrigLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	TrigLabel.Active = false
+	TrigLabel.ZIndex = 86
+	TrigLabel.Parent = TriggerBtn
+
+	TriggerBtn.MouseEnter:Connect(function()
+		tween(TriggerBtn, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+		tween(trigStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+	end)
+	TriggerBtn.MouseLeave:Connect(function()
+		tween(TriggerBtn, TWEEN_FAST, { BackgroundColor3 = THEME.MainBackground })
+		tween(trigStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.15 })
+	end)
+
+	-- Compact Standalone Extra VC Panel (Outside Main NightUI Window)
+	local ExtraPanel = Instance.new("Frame")
+	ExtraPanel.Name = "VCExtraOverlay"
+	ExtraPanel.Size = UDim2.new(0, 326, 0, 286)
+	ExtraPanel.Position = UDim2.new(0, 22, 1, -70)
+	ExtraPanel.AnchorPoint = Vector2.new(0, 1)
+	ExtraPanel.BackgroundColor3 = THEME.MainBackground
+	ExtraPanel.BorderSizePixel = 0
+	ExtraPanel.ClipsDescendants = true
+	ExtraPanel.Visible = false
+	ExtraPanel.Active = true
+	ExtraPanel.ZIndex = 90
+	ExtraPanel.Parent = BadgeGui
+	createCorner(ExtraPanel, 12)
+	createStroke(ExtraPanel, THEME.Stroke, 1, 0.2)
+
+	local ExtraTopBar = Instance.new("Frame")
+	ExtraTopBar.Size = UDim2.new(1, 0, 0, 38)
+	ExtraTopBar.BackgroundTransparency = 1
+	ExtraTopBar.Active = true
+	ExtraTopBar.ZIndex = 91
+	ExtraTopBar.Parent = ExtraPanel
+
+	local ExtraTitle = Instance.new("TextLabel")
+	ExtraTitle.Size = UDim2.new(0, 96, 1, 0)
+	ExtraTitle.Position = UDim2.new(0, 14, 0, 0)
+	ExtraTitle.BackgroundTransparency = 1
+	ExtraTitle.Font = Enum.Font.GothamBold
+	ExtraTitle.Text = "Night VC"
+	ExtraTitle.TextColor3 = THEME.TextPrimary
+	ExtraTitle.TextSize = 14
+	ExtraTitle.TextXAlignment = Enum.TextXAlignment.Left
+	ExtraTitle.ZIndex = 92
+	ExtraTitle.Parent = ExtraTopBar
+
+	local ExtraStatus = Instance.new("TextLabel")
+	ExtraStatus.Size = UDim2.new(0, 96, 0, 20)
+	ExtraStatus.Position = UDim2.new(0, 90, 0.5, 0)
+	ExtraStatus.AnchorPoint = Vector2.new(0, 0.5)
+	ExtraStatus.BackgroundColor3 = THEME.CardBackground
+	ExtraStatus.Font = Enum.Font.GothamBold
+	ExtraStatus.Text = "Idle"
+	ExtraStatus.TextColor3 = THEME.TextSecondary
+	ExtraStatus.TextSize = 11
+	ExtraStatus.ZIndex = 92
+	ExtraStatus.Parent = ExtraTopBar
+	createCorner(ExtraStatus, 6)
+	createStroke(ExtraStatus, THEME.Stroke, 1, 0.25)
+
+	local ExtraClose = Instance.new("TextButton")
+	ExtraClose.Size = UDim2.new(0, 24, 0, 24)
+	ExtraClose.Position = UDim2.new(1, -10, 0.5, 0)
+	ExtraClose.AnchorPoint = Vector2.new(1, 0.5)
+	ExtraClose.BackgroundColor3 = Color3.fromHex("#181A1D")
+	ExtraClose.BorderSizePixel = 0
+	ExtraClose.AutoButtonColor = false
+	ExtraClose.Font = Enum.Font.GothamBold
+	ExtraClose.Text = "×"
+	ExtraClose.TextColor3 = THEME.TextSecondary
+	ExtraClose.TextSize = 14
+	ExtraClose.ZIndex = 92
+	ExtraClose.Parent = ExtraTopBar
+	createCorner(ExtraClose, 7)
+	createStroke(ExtraClose, Color3.fromHex("#282B30"), 1, 0.15)
+
+	local ExtraInner = Instance.new("Frame")
+	ExtraInner.Size = UDim2.new(1, -16, 1, -46)
+	ExtraInner.Position = UDim2.new(0, 8, 0, 38)
+	ExtraInner.BackgroundColor3 = THEME.ContentBase
+	ExtraInner.BorderSizePixel = 0
+	ExtraInner.ZIndex = 91
+	ExtraInner.Parent = ExtraPanel
+	createCorner(ExtraInner, 10)
+	createStroke(ExtraInner, THEME.Stroke, 1, 0.2)
+
+	local ExtraGrad = Instance.new("UIGradient")
+	ExtraGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, THEME.ContentGradBottomLeft),
+		ColorSequenceKeypoint.new(0.5, THEME.ContentBase),
+		ColorSequenceKeypoint.new(1, THEME.ContentGradTopRight),
+	})
+	ExtraGrad.Rotation = -45
+	ExtraGrad.Parent = ExtraInner
+
+	local ExtraPad = Instance.new("Frame")
+	ExtraPad.Size = UDim2.new(1, -20, 1, -20)
+	ExtraPad.Position = UDim2.new(0, 10, 0, 10)
+	ExtraPad.BackgroundTransparency = 1
+	ExtraPad.ZIndex = 92
+	ExtraPad.Parent = ExtraInner
+
+	local function makeMiniBtn(parent: Instance, size: UDim2, pos: UDim2, text: string)
+		local b = Instance.new("TextButton")
+		b.Size = size
+		b.Position = pos
+		b.BackgroundColor3 = THEME.CardBackground
+		b.BorderSizePixel = 0
+		b.AutoButtonColor = false
+		b.Font = Enum.Font.GothamBold
+		b.Text = text
+		b.TextColor3 = THEME.TextPrimary
+		b.TextSize = 11
+		b.ZIndex = 93
+		b.Parent = parent
+		createCorner(b, 7)
+		local st = createStroke(b, THEME.Stroke, 1, 0.2)
+		b.MouseEnter:Connect(function() tween(b, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover }) end)
+		b.MouseLeave:Connect(function() tween(b, TWEEN_FAST, { BackgroundColor3 = THEME.CardBackground }) end)
+		return b, st
+	end
+
+	-- Row 1: V1 / V2
+	local V1Btn, V1Stroke = makeMiniBtn(ExtraPad, UDim2.new(0.5, -3, 0, 30), UDim2.new(0, 0, 0, 0), "Bypass V1")
+	local V2Btn, V2Stroke = makeMiniBtn(ExtraPad, UDim2.new(0.5, -3, 0, 30), UDim2.new(0.5, 3, 0, 0), "Bypass V2")
+
+	-- Row 2: Execute Bypass + Mic Toggle
+	local ExecBtn, ExecStroke = makeMiniBtn(ExtraPad, UDim2.new(0.62, -3, 0, 32), UDim2.new(0, 0, 0, 38), "Execute Bypass")
+	local MicBtn, MicStroke = makeMiniBtn(ExtraPad, UDim2.new(0.38, -3, 0, 32), UDim2.new(0.62, 3, 0, 38), "Mic: Live")
+
+	-- Row 3: Mute All + Unmute All + Booster Toggle
+	local MuteAllBtn = makeMiniBtn(ExtraPad, UDim2.new(0.333, -4, 0, 30), UDim2.new(0, 0, 0, 78), "Mute All")
+	local UnmuteAllBtn = makeMiniBtn(ExtraPad, UDim2.new(0.333, -4, 0, 30), UDim2.new(0.333, 2, 0, 78), "Unmute All")
+	local BoostBtn, BoostStroke = makeMiniBtn(ExtraPad, UDim2.new(0.334, -2, 0, 30), UDim2.new(0.666, 4, 0, 78), "Booster: OFF")
+
+	-- Row 4: Gain Slider Card
+	local GainCard = Instance.new("Frame")
+	GainCard.Size = UDim2.new(1, 0, 0, 56)
+	GainCard.Position = UDim2.new(0, 0, 0, 116)
+	GainCard.BackgroundColor3 = THEME.CardBackground
+	GainCard.BorderSizePixel = 0
+	GainCard.ZIndex = 93
+	GainCard.Parent = ExtraPad
+	createCorner(GainCard, 8)
+	createStroke(GainCard, THEME.Stroke, 1, 0.2)
+
+	local GainTitle = Instance.new("TextLabel")
+	GainTitle.Size = UDim2.new(1, -76, 0, 18)
+	GainTitle.Position = UDim2.new(0, 10, 0, 8)
+	GainTitle.BackgroundTransparency = 1
+	GainTitle.Font = Enum.Font.GothamBold
+	GainTitle.Text = "VC Booster Gain"
+	GainTitle.TextColor3 = THEME.TextPrimary
+	GainTitle.TextSize = 11
+	GainTitle.TextXAlignment = Enum.TextXAlignment.Left
+	GainTitle.ZIndex = 94
+	GainTitle.Parent = GainCard
+
+	local GainVal = Instance.new("TextLabel")
+	GainVal.Size = UDim2.new(0, 52, 0, 20)
+	GainVal.Position = UDim2.new(1, -10, 0, 7)
+	GainVal.AnchorPoint = Vector2.new(1, 0)
+	GainVal.BackgroundColor3 = THEME.CardInner
+	GainVal.Font = Enum.Font.GothamBold
+	GainVal.Text = string.format("%.1fx", vc.gain)
+	GainVal.TextColor3 = THEME.TextPrimary
+	GainVal.TextSize = 11
+	GainVal.ZIndex = 94
+	GainVal.Parent = GainCard
+	createCorner(GainVal, 5)
+
+	local GainTrack = Instance.new("TextButton")
+	GainTrack.Size = UDim2.new(1, -20, 0, 6)
+	GainTrack.Position = UDim2.new(0, 10, 1, -12)
+	GainTrack.AnchorPoint = Vector2.new(0, 1)
+	GainTrack.BackgroundColor3 = THEME.CardInner
+	GainTrack.BorderSizePixel = 0
+	GainTrack.AutoButtonColor = false
+	GainTrack.Text = ""
+	GainTrack.ZIndex = 94
+	GainTrack.Parent = GainCard
+	createCorner(GainTrack, 3)
+
+	local GainFill = Instance.new("Frame")
+	GainFill.Size = UDim2.new((vc.gain - 0.1) / 2.9, 0, 1, 0)
+	GainFill.BackgroundColor3 = THEME.Accent
+	GainFill.BorderSizePixel = 0
+	GainFill.ZIndex = 95
+	GainFill.Parent = GainTrack
+	createCorner(GainFill, 3)
+
+	local GainKnob = Instance.new("Frame")
+	GainKnob.Size = UDim2.new(0, 12, 0, 12)
+	GainKnob.Position = UDim2.new((vc.gain - 0.1) / 2.9, 0, 0.5, 0)
+	GainKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+	GainKnob.BackgroundColor3 = THEME.Accent
+	GainKnob.BorderSizePixel = 0
+	GainKnob.ZIndex = 96
+	GainKnob.Parent = GainTrack
+	createCorner(GainKnob, 6)
+
+	do
+		local sliding = false
+		local function applyX(px: number)
+			local w = math.max(1, GainTrack.AbsoluteSize.X)
+			local pct = math.clamp((px - GainTrack.AbsolutePosition.X) / w, 0, 1)
+			vc.setGain(math.clamp(math.round((0.1 + pct * 2.9) * 10) / 10, 0.1, 3))
+		end
+		GainTrack.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				sliding = true
+				applyX(inp.Position.X)
+			end
+		end)
+		trackConn(UserInputService.InputChanged:Connect(function(inp)
+			if sliding and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+				applyX(inp.Position.X)
+			end
+		end))
+		trackConn(UserInputService.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				sliding = false
+			end
+		end))
+	end
+
+	-- Row 5: Open Full Player List / Hub
+	local FullHubBtn = makeMiniBtn(ExtraPad, UDim2.new(1, 0, 0, 32), UDim2.new(0, 0, 0, 182), "Open Full VC & Player Booster List  ›")
+
+	local extraOpen = false
+	local currentAnchor: GuiObject? = nil
+	local function setExtraOpen(want: boolean, anchorGui: GuiObject?, preferBelow: boolean?)
+		extraOpen = want == true
+		ExtraPanel.Visible = extraOpen
+		if extraOpen then
+			local targetAnchor = anchorGui or TriggerBtn
+			currentAnchor = targetAnchor
+			local cam = workspace.CurrentCamera
+			local vp = (cam and cam.ViewportSize) or Vector2.new(1280, 720)
+			if vp.X < 100 or vp.Y < 100 then
+				vp = Vector2.new(1280, 720)
+			end
+			local aPos = targetAnchor.AbsolutePosition
+			local aSize = targetAnchor.AbsoluteSize
+			local pw, ph = 326, 286
+			local px = math.clamp(aPos.X, 12, math.max(12, vp.X - pw - 12))
+			local py
+			if preferBelow then
+				py = aPos.Y + aSize.Y + 8
+				if py + ph > vp.Y - 12 then
+					py = math.max(12, aPos.Y - ph - 8)
+				end
+			else
+				py = aPos.Y - ph - 8
+				if py < 12 then
+					py = math.min(math.max(12, vp.Y - ph - 12), aPos.Y + aSize.Y + 8)
+				end
+			end
+			ExtraPanel.AnchorPoint = Vector2.new(0, 0)
+			ExtraPanel.Position = UDim2.new(0, math.round(px), 0, math.round(py))
+		else
+			currentAnchor = nil
+		end
+	end
+
+	local function toggleExtraFrom(anchorGui: GuiObject, preferBelow: boolean)
+		if extraOpen and currentAnchor == anchorGui then
+			setExtraOpen(false, nil, nil)
+		else
+			setExtraOpen(true, anchorGui, preferBelow)
+		end
+	end
+
+	makeDraggableFn(TriggerBtn, TriggerBtn, nil, function()
+		toggleExtraFrom(TriggerBtn, false)
+	end)
+	if extraTrigger and extraTrigger.Button and extraTrigger.Host then
+		makeDraggableFn(extraTrigger.Button, extraTrigger.Host, nil, function()
+			toggleExtraFrom(extraTrigger.Host, true)
+		end)
+	end
+	makeDraggableFn(ExtraTopBar, ExtraPanel, nil, nil)
+	ExtraClose.MouseButton1Click:Connect(function()
+		setExtraOpen(false, nil, nil)
+	end)
+
+	V1Btn.MouseButton1Click:Connect(function() vc.setVersion(1) end)
+	V2Btn.MouseButton1Click:Connect(function() vc.setVersion(2) end)
+	ExecBtn.MouseButton1Click:Connect(function() vc.executeBypass() end)
+	MicBtn.MouseButton1Click:Connect(function()
+		if not vc.executed then
+			NightSystem:Notify({ Title = "VC Bypasser", Content = "Bitte zuerst Execute Bypass ausführen.", Duration = 3 })
+			return
+		end
+		vc.setMicMuted(not vc.muted)
+	end)
+	MuteAllBtn.MouseButton1Click:Connect(function() vc.muteAll(true) end)
+	UnmuteAllBtn.MouseButton1Click:Connect(function() vc.muteAll(false) end)
+	BoostBtn.MouseButton1Click:Connect(function() vc.setBoosterEnabled(not vc.boosterEnabled) end)
+	FullHubBtn.MouseButton1Click:Connect(function()
+		setExtraOpen(false, nil, nil)
+		openMainAndVCHub()
+	end)
+
+	local function refreshOverlay()
+		local v1 = vc.version == 1
+		V1Btn.TextColor3 = if v1 then THEME.Accent else THEME.TextSecondary
+		V1Stroke.Color = if v1 then THEME.Accent else THEME.Stroke
+		V2Btn.TextColor3 = if not v1 then THEME.Accent else THEME.TextSecondary
+		V2Stroke.Color = if not v1 then THEME.Accent else THEME.Stroke
+
+		if vc.running then
+			ExtraStatus.Text = "Bypassing..."
+			ExtraStatus.TextColor3 = Color3.fromRGB(255, 190, 60)
+			ExecBtn.Text = "Bypassing..."
+			TrigDot.BackgroundColor3 = Color3.fromRGB(255, 190, 60)
+		elseif vc.executed then
+			ExtraStatus.Text = "Bypassed " .. string.upper(tostring(vc.mode or "v1"))
+			ExtraStatus.TextColor3 = Color3.fromRGB(60, 220, 130)
+			ExecBtn.Text = "Bypassed"
+			ExecStroke.Color = Color3.fromRGB(60, 220, 130)
+			TrigDot.BackgroundColor3 = if vc.muted then Color3.fromRGB(255, 96, 96) else Color3.fromRGB(60, 220, 130)
+		else
+			ExtraStatus.Text = "Idle"
+			ExtraStatus.TextColor3 = THEME.TextSecondary
+			ExecBtn.Text = "Execute Bypass"
+			ExecStroke.Color = THEME.Stroke
+			TrigDot.BackgroundColor3 = THEME.TextSecondary
+		end
+
+		TrigIcon.Image = if vc.muted then ASSETS.VoiceChatMuted else ASSETS.VoiceChat
+		if extraTrigger then
+			if extraTrigger.Icon then
+				extraTrigger.Icon.Image = if vc.muted then ASSETS.VoiceChatMuted else ASSETS.VoiceChat
+				extraTrigger.Icon.ImageColor3 = if vc.muted then Color3.fromRGB(255, 96, 96) elseif vc.executed then Color3.fromRGB(60, 220, 130) else THEME.TextPrimary
+			end
+			if extraTrigger.Dot then
+				extraTrigger.Dot.BackgroundColor3 = TrigDot.BackgroundColor3
+			end
+		end
+		MicBtn.Text = if vc.muted then "Mic: Muted" else "Mic: Live"
+		MicBtn.TextColor3 = if vc.muted then Color3.fromRGB(255, 96, 96) else THEME.TextPrimary
+		MicStroke.Color = if vc.muted then Color3.fromRGB(255, 96, 96) else THEME.Stroke
+
+		BoostBtn.Text = if vc.boosterEnabled then "Booster: ON" else "Booster: OFF"
+		BoostBtn.TextColor3 = if vc.boosterEnabled then Color3.fromRGB(60, 220, 130) else THEME.TextPrimary
+		BoostStroke.Color = if vc.boosterEnabled then Color3.fromRGB(60, 220, 130) else THEME.Stroke
+
+		local pct = math.clamp((vc.gain - 0.1) / 2.9, 0, 1)
+		GainFill.Size = UDim2.new(pct, 0, 1, 0)
+		GainKnob.Position = UDim2.new(pct, 0, 0.5, 0)
+		GainVal.Text = string.format("%.1fx", vc.gain)
+	end
+
+	vc.onStateChanged(refreshOverlay)
+	refreshOverlay()
+	return TriggerBtn, ExtraPanel
+end
+
+local function setupVoiceChatHub(ContentFrame: Frame, HomePage: Frame, vc: any, getActiveTabIndicatorUpdater: () -> ((boolean?) -> ()), trackConn: (RBXScriptConnection) -> RBXScriptConnection)
+	local VCHubPage = Instance.new("Frame")
+	VCHubPage.Name = "VCHub_Page"
+	VCHubPage.Size = UDim2.new(1, 0, 1, 0)
+	VCHubPage.BackgroundTransparency = 1
+	VCHubPage.Visible = false
+	VCHubPage.Parent = ContentFrame
+	createPadding(VCHubPage, 24, 24, 24, 24)
+
+	local HeaderTitle = Instance.new("TextLabel")
+	HeaderTitle.Size = UDim2.new(1, -140, 0, 20)
+	HeaderTitle.BackgroundTransparency = 1
+	HeaderTitle.Font = Enum.Font.GothamBold
+	HeaderTitle.Text = "Voice Chat"
+	HeaderTitle.TextColor3 = THEME.TextHeaderTitle
+	HeaderTitle.TextSize = 18
+	HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+	HeaderTitle.Parent = VCHubPage
+
+	local HeaderSub = Instance.new("TextLabel")
+	HeaderSub.Size = UDim2.new(1, -140, 0, 16)
+	HeaderSub.Position = UDim2.new(0, 0, 0, 22)
+	HeaderSub.BackgroundTransparency = 1
+	HeaderSub.Font = Enum.Font.GothamMedium
+	HeaderSub.Text = "VC Bypasser V1/V2 • Mic Controls • Mute/Listen • VC Booster"
+	HeaderSub.TextColor3 = THEME.TextHeaderSub
+	HeaderSub.TextSize = 13
+	HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+	HeaderSub.Parent = VCHubPage
+
+	local BackBtn = Instance.new("TextButton")
+	BackBtn.Name = "VCBackToHomeButton"
+	BackBtn.Size = UDim2.new(0, 118, 0, 32)
+	BackBtn.Position = UDim2.new(1, 0, 0, 2)
+	BackBtn.AnchorPoint = Vector2.new(1, 0)
+	BackBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
+	BackBtn.BorderSizePixel = 0
+	BackBtn.AutoButtonColor = false
+	BackBtn.Font = Enum.Font.GothamBold
+	BackBtn.Text = "‹  Back to Home"
+	BackBtn.TextColor3 = THEME.TextPrimary
+	BackBtn.TextSize = 12
+	BackBtn.Parent = VCHubPage
+	createCorner(BackBtn, 8)
+	local backStroke = createStroke(BackBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
+	BackBtn.MouseEnter:Connect(function()
+		tween(BackBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#22262B") })
+		tween(backStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+	end)
+	BackBtn.MouseLeave:Connect(function()
+		tween(BackBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
+		tween(backStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+	end)
+	BackBtn.MouseButton1Click:Connect(function()
+		VCHubPage.Visible = false
+		HomePage.Visible = true
+		HomePage.Position = UDim2.new(0, 0, 0, 8)
+		tween(HomePage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+		local updateInd = getActiveTabIndicatorUpdater()
+		if updateInd then updateInd(true) end
+	end)
+
+	local VCScroll = Instance.new("ScrollingFrame")
+	VCScroll.Name = "VCScroll"
+	VCScroll.Size = UDim2.new(1, 0, 1, -48)
+	VCScroll.Position = UDim2.new(0, 0, 0, 48)
+	VCScroll.BackgroundTransparency = 1
+	VCScroll.BorderSizePixel = 0
+	VCScroll.ScrollingDirection = Enum.ScrollingDirection.Y
+	VCScroll.ScrollBarThickness = 3
+	VCScroll.ScrollBarImageColor3 = THEME.Accent
+	VCScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	VCScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	VCScroll.Parent = VCHubPage
+
+	local VCInner = Instance.new("Frame")
+	VCInner.Name = "VCInner"
+	VCInner.Size = UDim2.new(1, -10, 0, 0)
+	VCInner.Position = UDim2.new(0, 0, 0, 0)
+	VCInner.AutomaticSize = Enum.AutomaticSize.Y
+	VCInner.BackgroundTransparency = 1
+	VCInner.Parent = VCScroll
+	createPadding(VCInner, 2, 12, 2, 2)
+
+	local VCList = Instance.new("UIListLayout")
+	VCList.SortOrder = Enum.SortOrder.LayoutOrder
+	VCList.Padding = UDim.new(0, 8)
+	VCList.Parent = VCInner
+
+	local nextOrder = 0
+	local function ord(): number
+		nextOrder += 1
+		return nextOrder
+	end
+
+	local function addSectionHeader(title: string)
+		local sec = Instance.new("Frame")
+		sec.Size = UDim2.new(1, 0, 0, 22)
+		sec.BackgroundTransparency = 1
+		sec.LayoutOrder = ord()
+		sec.Parent = VCInner
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(1, 0, 1, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.Font = Enum.Font.GothamBold
+		lbl.Text = string.upper(title)
+		lbl.TextColor3 = THEME.TextSecondary
+		lbl.TextSize = 11
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.Parent = sec
+	end
+
+	local function makeBtn(parent: Instance, size: UDim2, pos: UDim2, text: string)
+		local b = Instance.new("TextButton")
+		b.Size = size
+		b.Position = pos
+		b.BackgroundColor3 = THEME.CardInner
+		b.BorderSizePixel = 0
+		b.AutoButtonColor = false
+		b.Font = Enum.Font.GothamBold
+		b.Text = text
+		b.TextColor3 = THEME.TextPrimary
+		b.TextSize = 12
+		b.Parent = parent
+		createCorner(b, 6)
+		local st = createStroke(b, THEME.Stroke, 1, 0.2)
+		b.MouseEnter:Connect(function() tween(b, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover }) end)
+		b.MouseLeave:Connect(function() tween(b, TWEEN_FAST, { BackgroundColor3 = THEME.CardInner }) end)
+		return b, st
+	end
+
+	-- 1. BYPASSER SECTION
+	addSectionHeader("Voice Chat Bypasser")
+
+	local BypassCard = Instance.new("Frame")
+	BypassCard.Size = UDim2.new(1, 0, 0, 114)
+	BypassCard.BackgroundColor3 = THEME.CardBackground
+	BypassCard.BorderSizePixel = 0
+	BypassCard.LayoutOrder = ord()
+	BypassCard.Parent = VCInner
+	createCorner(BypassCard, 8)
+	createStroke(BypassCard, THEME.Stroke, 1, 0.2)
+
+	local VerRow = Instance.new("Frame")
+	VerRow.Size = UDim2.new(1, -24, 0, 32)
+	VerRow.Position = UDim2.new(0, 12, 0, 12)
+	VerRow.BackgroundTransparency = 1
+	VerRow.Parent = BypassCard
+
+	local V1Btn, V1Stroke = makeBtn(VerRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0, 0, 0, 0), "Bypass V1 (Standard)")
+	local V2Btn, V2Stroke = makeBtn(VerRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0.5, 4, 0, 0), "Bypass V2 (Overlay)")
+
+	local ActionRow = Instance.new("Frame")
+	ActionRow.Size = UDim2.new(1, -24, 0, 34)
+	ActionRow.Position = UDim2.new(0, 12, 0, 52)
+	ActionRow.BackgroundTransparency = 1
+	ActionRow.Parent = BypassCard
+
+	local ExecBtn, ExecStroke = makeBtn(ActionRow, UDim2.new(0.65, -4, 1, 0), UDim2.new(0, 0, 0, 0), "Execute Bypass")
+	local MicBtn, MicStroke = makeBtn(ActionRow, UDim2.new(0.35, -4, 1, 0), UDim2.new(0.65, 4, 0, 0), "Mic: Live")
+
+	local NoteLbl = Instance.new("TextLabel")
+	NoteLbl.Size = UDim2.new(1, -24, 0, 16)
+	NoteLbl.Position = UDim2.new(0, 12, 0, 92)
+	NoteLbl.BackgroundTransparency = 1
+	NoteLbl.Font = Enum.Font.GothamMedium
+	NoteLbl.Text = "V1: Not supported on Xeno/Solara  |  Status: Idle"
+	NoteLbl.TextColor3 = THEME.TextSecondary
+	NoteLbl.TextSize = 11
+	NoteLbl.TextXAlignment = Enum.TextXAlignment.Left
+	NoteLbl.Parent = BypassCard
+
+	V1Btn.MouseButton1Click:Connect(function() vc.setVersion(1) end)
+	V2Btn.MouseButton1Click:Connect(function() vc.setVersion(2) end)
+	ExecBtn.MouseButton1Click:Connect(function() vc.executeBypass() end)
+	MicBtn.MouseButton1Click:Connect(function()
+		if not vc.executed then
+			NightSystem:Notify({ Title = "VC Bypasser", Content = "Bitte zuerst Execute Bypass ausführen.", Duration = 3 })
+			return
+		end
+		vc.setMicMuted(not vc.muted)
+	end)
+
+	-- 2. VOICE CONTROLS & LISTENER
+	addSectionHeader("Mute & Listen Controls")
+
+	local CtrlCard = Instance.new("Frame")
+	CtrlCard.Size = UDim2.new(1, 0, 0, 118)
+	CtrlCard.BackgroundColor3 = THEME.CardBackground
+	CtrlCard.BorderSizePixel = 0
+	CtrlCard.LayoutOrder = ord()
+	CtrlCard.Parent = VCInner
+	createCorner(CtrlCard, 8)
+	createStroke(CtrlCard, THEME.Stroke, 1, 0.2)
+
+	local GlobalRow = Instance.new("Frame")
+	GlobalRow.Size = UDim2.new(1, -24, 0, 32)
+	GlobalRow.Position = UDim2.new(0, 12, 0, 10)
+	GlobalRow.BackgroundTransparency = 1
+	GlobalRow.Parent = CtrlCard
+
+	local MuteAllBtn = makeBtn(GlobalRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0, 0, 0, 0), "Mute All VC")
+	local UnmuteAllBtn = makeBtn(GlobalRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0.5, 4, 0, 0), "Unmute All VC")
+	MuteAllBtn.MouseButton1Click:Connect(function() vc.muteAll(true) end)
+	UnmuteAllBtn.MouseButton1Click:Connect(function() vc.muteAll(false) end)
+
+	local TargetInput = Instance.new("TextBox")
+	TargetInput.Size = UDim2.new(1, -24, 0, 30)
+	TargetInput.Position = UDim2.new(0, 12, 0, 48)
+	TargetInput.BackgroundColor3 = THEME.CardInner
+	TargetInput.BorderSizePixel = 0
+	TargetInput.Font = Enum.Font.GothamMedium
+	TargetInput.PlaceholderText = "Zielspieler eingeben (Name, all, others)..."
+	TargetInput.PlaceholderColor3 = THEME.TextSecondary
+	TargetInput.Text = ""
+	TargetInput.TextColor3 = THEME.TextPrimary
+	TargetInput.TextSize = 12
+	TargetInput.TextXAlignment = Enum.TextXAlignment.Left
+	TargetInput.ClearTextOnFocus = false
+	TargetInput.Parent = CtrlCard
+	createCorner(TargetInput, 6)
+	createPadding(TargetInput, 0, 0, 10, 10)
+	createStroke(TargetInput, THEME.Stroke, 1, 0.2)
+
+	local TargetRow = Instance.new("Frame")
+	TargetRow.Size = UDim2.new(1, -24, 0, 28)
+	TargetRow.Position = UDim2.new(0, 12, 0, 84)
+	TargetRow.BackgroundTransparency = 1
+	TargetRow.Parent = CtrlCard
+
+	local MutePlrBtn = makeBtn(TargetRow, UDim2.new(0.25, -4, 1, 0), UDim2.new(0, 0, 0, 0), "Mute")
+	local UnmutePlrBtn = makeBtn(TargetRow, UDim2.new(0.25, -4, 1, 0), UDim2.new(0.25, 2, 0, 0), "Unmute")
+	local ListenBtn = makeBtn(TargetRow, UDim2.new(0.25, -4, 1, 0), UDim2.new(0.50, 4, 0, 0), "Listen")
+	local UnlistenBtn = makeBtn(TargetRow, UDim2.new(0.25, -2, 1, 0), UDim2.new(0.75, 6, 0, 0), "Unlisten")
+
+	MutePlrBtn.MouseButton1Click:Connect(function() vc.muteTarget(TargetInput.Text, true) end)
+	UnmutePlrBtn.MouseButton1Click:Connect(function() vc.muteTarget(TargetInput.Text, false) end)
+	ListenBtn.MouseButton1Click:Connect(function() vc.listenTo(TargetInput.Text) end)
+	UnlistenBtn.MouseButton1Click:Connect(function() vc.unlisten() end)
+
+	-- 3. VC BOOSTER SECTION
+	addSectionHeader("VC Booster (Audio API / Volume)")
+
+	local BoostToggleCard = Instance.new("Frame")
+	BoostToggleCard.Size = UDim2.new(1, 0, 0, 44)
+	BoostToggleCard.BackgroundColor3 = THEME.CardBackground
+	BoostToggleCard.BorderSizePixel = 0
+	BoostToggleCard.LayoutOrder = ord()
+	BoostToggleCard.Parent = VCInner
+	createCorner(BoostToggleCard, 8)
+	createStroke(BoostToggleCard, THEME.Stroke, 1, 0.2)
+
+	local BoostTitle = Instance.new("TextLabel")
+	BoostTitle.Size = UDim2.new(1, -76, 1, 0)
+	BoostTitle.Position = UDim2.new(0, 14, 0, 0)
+	BoostTitle.BackgroundTransparency = 1
+	BoostTitle.Font = Enum.Font.GothamBold
+	BoostTitle.Text = "Enable VC Booster"
+	BoostTitle.TextColor3 = THEME.TextPrimary
+	BoostTitle.TextSize = 13
+	BoostTitle.TextXAlignment = Enum.TextXAlignment.Left
+	BoostTitle.Parent = BoostToggleCard
+
+	local SwitchBg = Instance.new("Frame")
+	SwitchBg.Size = UDim2.new(0, 40, 0, 20)
+	SwitchBg.Position = UDim2.new(1, -14, 0.5, 0)
+	SwitchBg.AnchorPoint = Vector2.new(1, 0.5)
+	SwitchBg.BackgroundColor3 = THEME.Stroke
+	SwitchBg.BorderSizePixel = 0
+	SwitchBg.Parent = BoostToggleCard
+	createCorner(SwitchBg, 10)
+	local SwitchStroke = createStroke(SwitchBg, THEME.StrokeActive, 1, 0.15)
+
+	local SwitchKnob = Instance.new("Frame")
+	SwitchKnob.Size = UDim2.new(0, 14, 0, 14)
+	SwitchKnob.Position = UDim2.new(0, 3, 0.5, 0)
+	SwitchKnob.AnchorPoint = Vector2.new(0, 0.5)
+	SwitchKnob.BackgroundColor3 = THEME.TextTabInactive
+	SwitchKnob.BorderSizePixel = 0
+	SwitchKnob.Parent = SwitchBg
+	createCorner(SwitchKnob, 7)
+
+	local BoostHit = Instance.new("TextButton")
+	BoostHit.Size = UDim2.new(1, 0, 1, 0)
+	BoostHit.BackgroundTransparency = 1
+	BoostHit.Text = ""
+	BoostHit.Parent = BoostToggleCard
+	BoostHit.MouseButton1Click:Connect(function()
+		vc.setBoosterEnabled(not vc.boosterEnabled)
+	end)
+
+	-- Gain Slider Card
+	local SliderCard = Instance.new("Frame")
+	SliderCard.Size = UDim2.new(1, 0, 0, 60)
+	SliderCard.BackgroundColor3 = THEME.CardBackground
+	SliderCard.BorderSizePixel = 0
+	SliderCard.LayoutOrder = ord()
+	SliderCard.Parent = VCInner
+	createCorner(SliderCard, 8)
+	createStroke(SliderCard, THEME.Stroke, 1, 0.2)
+
+	local GainLbl = Instance.new("TextLabel")
+	GainLbl.Size = UDim2.new(1, -90, 0, 18)
+	GainLbl.Position = UDim2.new(0, 14, 0, 10)
+	GainLbl.BackgroundTransparency = 1
+	GainLbl.Font = Enum.Font.GothamBold
+	GainLbl.Text = "Boost Volume Gain"
+	GainLbl.TextColor3 = THEME.TextPrimary
+	GainLbl.TextSize = 13
+	GainLbl.TextXAlignment = Enum.TextXAlignment.Left
+	GainLbl.Parent = SliderCard
+
+	local GainValLbl = Instance.new("TextLabel")
+	GainValLbl.Size = UDim2.new(0, 64, 0, 22)
+	GainValLbl.Position = UDim2.new(1, -14, 0, 8)
+	GainValLbl.AnchorPoint = Vector2.new(1, 0)
+	GainValLbl.BackgroundColor3 = THEME.CardInner
+	GainValLbl.Font = Enum.Font.GothamBold
+	GainValLbl.Text = string.format("%.1fx", vc.gain)
+	GainValLbl.TextColor3 = THEME.TextPrimary
+	GainValLbl.TextSize = 11
+	GainValLbl.Parent = SliderCard
+	createCorner(GainValLbl, 5)
+	createStroke(GainValLbl, THEME.Stroke, 1, 0.2)
+
+	local TrackBtn = Instance.new("TextButton")
+	TrackBtn.Size = UDim2.new(1, -28, 0, 6)
+	TrackBtn.Position = UDim2.new(0, 14, 1, -14)
+	TrackBtn.AnchorPoint = Vector2.new(0, 1)
+	TrackBtn.BackgroundColor3 = THEME.CardInner
+	TrackBtn.BorderSizePixel = 0
+	TrackBtn.AutoButtonColor = false
+	TrackBtn.Text = ""
+	TrackBtn.Parent = SliderCard
+	createCorner(TrackBtn, 3)
+	createStroke(TrackBtn, THEME.Stroke, 1, 0.3)
+
+	local FillBar = Instance.new("Frame")
+	FillBar.Size = UDim2.new((vc.gain - 0.1) / 2.9, 0, 1, 0)
+	FillBar.BackgroundColor3 = THEME.Accent
+	FillBar.BorderSizePixel = 0
+	FillBar.Parent = TrackBtn
+	createCorner(FillBar, 3)
+
+	local SliderKnob = Instance.new("Frame")
+	SliderKnob.Size = UDim2.new(0, 12, 0, 12)
+	SliderKnob.Position = UDim2.new((vc.gain - 0.1) / 2.9, 0, 0.5, 0)
+	SliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+	SliderKnob.BackgroundColor3 = THEME.Accent
+	SliderKnob.BorderSizePixel = 0
+	SliderKnob.Parent = TrackBtn
+	createCorner(SliderKnob, 6)
+	createStroke(SliderKnob, THEME.MainBackground, 2, 0)
+
+	do
+		local sliding = false
+		local function applyX(px: number)
+			local w = math.max(1, TrackBtn.AbsoluteSize.X)
+			local pct = math.clamp((px - TrackBtn.AbsolutePosition.X) / w, 0, 1)
+			local g = math.clamp(math.round((0.1 + pct * 2.9) * 10) / 10, 0.1, 3)
+			vc.setGain(g)
+		end
+		TrackBtn.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				sliding = true
+				applyX(inp.Position.X)
+			end
+		end)
+		trackConn(UserInputService.InputChanged:Connect(function(inp)
+			if sliding and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+				applyX(inp.Position.X)
+			end
+		end))
+		trackConn(UserInputService.InputEnded:Connect(function(inp)
+			if sliding and (inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch) then
+				sliding = false
+			end
+		end))
+	end
+
+	-- Search & Player Roster
+	local SearchBar = Instance.new("Frame")
+	SearchBar.Size = UDim2.new(1, 0, 0, 34)
+	SearchBar.BackgroundColor3 = THEME.CardBackground
+	SearchBar.BorderSizePixel = 0
+	SearchBar.LayoutOrder = ord()
+	SearchBar.Parent = VCInner
+	createCorner(SearchBar, 8)
+	createStroke(SearchBar, THEME.Stroke, 1, 0.2)
+
+	local SearchIcon = Instance.new("ImageLabel")
+	SearchIcon.Size = UDim2.new(0, 15, 0, 15)
+	SearchIcon.Position = UDim2.new(0, 10, 0.5, 0)
+	SearchIcon.AnchorPoint = Vector2.new(0, 0.5)
+	SearchIcon.BackgroundTransparency = 1
+	SearchIcon.Image = ASSETS.Search
+	SearchIcon.ImageColor3 = THEME.TextSecondary
+	SearchIcon.Parent = SearchBar
+
+	local SearchBox = Instance.new("TextBox")
+	SearchBox.Size = UDim2.new(1, -38, 1, 0)
+	SearchBox.Position = UDim2.new(0, 32, 0, 0)
+	SearchBox.BackgroundTransparency = 1
+	SearchBox.Font = Enum.Font.GothamMedium
+	SearchBox.PlaceholderText = "Spieler für VC Booster suchen..."
+	SearchBox.PlaceholderColor3 = THEME.TextSecondary
+	SearchBox.Text = ""
+	SearchBox.TextColor3 = THEME.TextPrimary
+	SearchBox.TextSize = 12
+	SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+	SearchBox.ClearTextOnFocus = false
+	SearchBox.Parent = SearchBar
+
+	local RosterHolder = Instance.new("Frame")
+	RosterHolder.Size = UDim2.new(1, 0, 0, 0)
+	RosterHolder.AutomaticSize = Enum.AutomaticSize.Y
+	RosterHolder.BackgroundTransparency = 1
+	RosterHolder.LayoutOrder = ord()
+	RosterHolder.Parent = VCInner
+
+	local RosterLayout = Instance.new("UIListLayout")
+	RosterLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	RosterLayout.Padding = UDim.new(0, 6)
+	RosterLayout.Parent = RosterHolder
+
+	local playerRows = {} :: { { Frame: Frame, Query: string, Refresh: () -> () } }
+
+	local function filterRoster()
+		local q = string.lower(string.gsub(SearchBox.Text or "", "^%s*(.-)%s*$", "%1"))
+		for _, r in ipairs(playerRows) do
+			r.Frame.Visible = (q == "") or (string.find(r.Query, q, 1, true) ~= nil)
+		end
+	end
+
+	local function rebuildRoster()
+		for _, r in ipairs(playerRows) do
+			if r.Frame and r.Frame.Parent then r.Frame:Destroy() end
+		end
+		table.clear(playerRows)
+
+		local list = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer then table.insert(list, p) end
+		end
+		table.sort(list, function(a, b)
+			return string.lower(a.DisplayName or a.Name) < string.lower(b.DisplayName or b.Name)
+		end)
+
+		for idx, plr in ipairs(list) do
+			local row = Instance.new("Frame")
+			row.Size = UDim2.new(1, 0, 0, 46)
+			row.BackgroundColor3 = THEME.CardBackground
+			row.BorderSizePixel = 0
+			row.LayoutOrder = idx
+			row.Parent = RosterHolder
+			createCorner(row, 8)
+			local rStroke = createStroke(row, THEME.Stroke, 1, 0.2)
+
+			local av = Instance.new("ImageLabel")
+			av.Size = UDim2.new(0, 30, 0, 30)
+			av.Position = UDim2.new(0, 10, 0.5, 0)
+			av.AnchorPoint = Vector2.new(0, 0.5)
+			av.BackgroundColor3 = THEME.CardInner
+			av.BorderSizePixel = 0
+			av.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(plr.UserId) .. "&w=48&h=48"
+			av.Parent = row
+			createCorner(av, 15)
+
+			local dLbl = Instance.new("TextLabel")
+			dLbl.Size = UDim2.new(1, -134, 0, 16)
+			dLbl.Position = UDim2.new(0, 48, 0, 7)
+			dLbl.BackgroundTransparency = 1
+			dLbl.Font = Enum.Font.GothamBold
+			dLbl.Text = plr.DisplayName or plr.Name
+			dLbl.TextColor3 = THEME.TextPrimary
+			dLbl.TextSize = 12
+			dLbl.TextXAlignment = Enum.TextXAlignment.Left
+			dLbl.TextTruncate = Enum.TextTruncate.AtEnd
+			dLbl.Parent = row
+
+			local uLbl = Instance.new("TextLabel")
+			uLbl.Size = UDim2.new(1, -134, 0, 14)
+			uLbl.Position = UDim2.new(0, 48, 0, 24)
+			uLbl.BackgroundTransparency = 1
+			uLbl.Font = Enum.Font.GothamMedium
+			uLbl.Text = "@" .. plr.Name
+			uLbl.TextColor3 = THEME.TextSecondary
+			uLbl.TextSize = 11
+			uLbl.TextXAlignment = Enum.TextXAlignment.Left
+			uLbl.TextTruncate = Enum.TextTruncate.AtEnd
+			uLbl.Parent = row
+
+			local badge = Instance.new("TextLabel")
+			badge.Size = UDim2.new(0, 70, 0, 24)
+			badge.Position = UDim2.new(1, -12, 0.5, 0)
+			badge.AnchorPoint = Vector2.new(1, 0.5)
+			badge.BackgroundColor3 = THEME.CardInner
+			badge.Font = Enum.Font.GothamBold
+			badge.TextSize = 11
+			badge.Parent = row
+			createCorner(badge, 6)
+
+			local hit = Instance.new("TextButton")
+			hit.Size = UDim2.new(1, 0, 1, 0)
+			hit.BackgroundTransparency = 1
+			hit.Text = ""
+			hit.Parent = row
+
+			local function refreshRow()
+				local sel = vc.selected[plr.UserId] == true
+				badge.Text = if sel then "Boosted" else "Boost"
+				badge.TextColor3 = if sel then Color3.fromRGB(60, 220, 130) else THEME.TextSecondary
+				badge.BackgroundColor3 = if sel then Color3.fromHex("#171D1B") else THEME.CardInner
+				rStroke.Color = if sel then Color3.fromRGB(60, 220, 130) else THEME.Stroke
+			end
+
+			hit.MouseButton1Click:Connect(function()
+				vc.setBoostTarget(plr, not (vc.selected[plr.UserId] == true))
+			end)
+			refreshRow()
+			table.insert(playerRows, {
+				Frame = row,
+				Query = string.lower((plr.DisplayName or "") .. " " .. (plr.Name or "")),
+				Refresh = refreshRow,
+			})
+		end
+		filterRoster()
+	end
+
+	SearchBox:GetPropertyChangedSignal("Text"):Connect(filterRoster)
+	trackConn(Players.PlayerAdded:Connect(function() task.defer(rebuildRoster) end))
+	trackConn(Players.PlayerRemoving:Connect(function() task.defer(rebuildRoster) end))
+	rebuildRoster()
+
+	local function refreshVCPage()
+		local v1 = vc.version == 1
+		V1Btn.TextColor3 = if v1 then THEME.Accent else THEME.TextSecondary
+		V1Stroke.Color = if v1 then THEME.Accent else THEME.Stroke
+		V2Btn.TextColor3 = if not v1 then THEME.Accent else THEME.TextSecondary
+		V2Stroke.Color = if not v1 then THEME.Accent else THEME.Stroke
+
+		if vc.running then
+			ExecBtn.Text = "BYPASSING..."
+			NoteLbl.Text = "Bypass wird ausgeführt..."
+		elseif vc.executed then
+			ExecBtn.Text = "BYPASSED"
+			ExecStroke.Color = Color3.fromRGB(60, 220, 130)
+			NoteLbl.Text = "Status: Aktiv (" .. string.upper(tostring(vc.mode or "v1")) .. ")"
+		else
+			ExecBtn.Text = "Execute Bypass"
+			ExecStroke.Color = THEME.Stroke
+			NoteLbl.Text = if v1 then "V1: Standard Bypass (Xeno/Solara unsupported)" else "V2: CustomVoiceController Overlay"
+		end
+
+		MicBtn.Text = if vc.muted then "Mic: Muted" else "Mic: Live"
+		MicBtn.TextColor3 = if vc.muted then Color3.fromRGB(255, 96, 96) else THEME.TextPrimary
+		MicStroke.Color = if vc.muted then Color3.fromRGB(255, 96, 96) else THEME.Stroke
+
+		tween(SwitchBg, TWEEN_FAST, { BackgroundColor3 = if vc.boosterEnabled then Color3.fromRGB(60, 220, 130) else THEME.Stroke })
+		tween(SwitchStroke, TWEEN_FAST, { Color = if vc.boosterEnabled then Color3.fromRGB(60, 220, 130) else THEME.StrokeActive })
+		tween(SwitchKnob, TWEEN_FAST, {
+			Position = if vc.boosterEnabled then UDim2.new(1, -17, 0.5, 0) else UDim2.new(0, 3, 0.5, 0),
+			BackgroundColor3 = if vc.boosterEnabled then THEME.MainBackground else THEME.TextTabInactive,
+		})
+
+		local pct = math.clamp((vc.gain - 0.1) / 2.9, 0, 1)
+		FillBar.Size = UDim2.new(pct, 0, 1, 0)
+		SliderKnob.Position = UDim2.new(pct, 0, 0.5, 0)
+		GainValLbl.Text = string.format("%.1fx", vc.gain)
+
+		for _, r in ipairs(playerRows) do
+			r.Refresh()
+		end
+	end
+
+	vc.onStateChanged(refreshVCPage)
+	refreshVCPage()
+
+	return VCHubPage
+end
+
+
 local function setupProfileAndStats(HomePage: Frame, selectedPlatform: string)
 	local ProfileSection = Instance.new("Frame")
 	ProfileSection.Name = "ProfileSection"
@@ -1295,7 +3014,7 @@ local function setupProfileAndStats(HomePage: Frame, selectedPlatform: string)
 	local InfoTextLabel = Instance.new("TextLabel")
 	InfoTextLabel.Name = "InfoTextLabel"
 	InfoTextLabel.Size = UDim2.new(1, 0, 0, 18)
-	InfoTextLabel.Position = UDim2.new(0, 0, 0, 132)
+	InfoTextLabel.Position = UDim2.new(0, 0, 0, 128)
 	InfoTextLabel.BackgroundTransparency = 1
 	InfoTextLabel.Font = Enum.Font.GothamMedium
 	InfoTextLabel.Text = "Night System Scripts in all free"
@@ -1306,70 +3025,67 @@ local function setupProfileAndStats(HomePage: Frame, selectedPlatform: string)
 
 	local StatsContainer = Instance.new("Frame")
 	StatsContainer.Name = "StatsContainer"
-	StatsContainer.Size = UDim2.new(1, 0, 0, 220)
-	StatsContainer.Position = UDim2.new(0, 0, 0, 160)
+	StatsContainer.Size = UDim2.new(0.86, 0, 1, -188)
+	StatsContainer.Position = UDim2.new(0, 0, 0, 152)
 	StatsContainer.BackgroundColor3 = THEME.CardBackground
 	StatsContainer.BorderSizePixel = 0
+	StatsContainer.ClipsDescendants = true
 	StatsContainer.Parent = HomePage
 	createCorner(StatsContainer, 8)
 	createStroke(StatsContainer, THEME.Stroke, 1, 0.2)
 
-	local TopStatsDivider = Instance.new("Frame")
-	TopStatsDivider.Size = UDim2.new(1, 0, 0, 1)
-	TopStatsDivider.Position = UDim2.new(0, 0, 0, 0)
-	TopStatsDivider.BackgroundColor3 = THEME.Stroke
-	TopStatsDivider.BorderSizePixel = 0
-	TopStatsDivider.Parent = StatsContainer
+	local statsSizeLimit = Instance.new("UISizeConstraint")
+	statsSizeLimit.MinSize = Vector2.new(260, 174)
+	statsSizeLimit.MaxSize = Vector2.new(860, 460)
+	statsSizeLimit.Parent = StatsContainer
 
-	local PlatformRow = Instance.new("Frame")
-	PlatformRow.Size = UDim2.new(1, -24, 0, 40)
-	PlatformRow.Position = UDim2.new(0, 12, 0, 2)
-	PlatformRow.BackgroundTransparency = 1
-	PlatformRow.Parent = StatsContainer
+	local statRowCount = 0
+	local function addStatRow(labelText: string, initValue: string, labelW: number?): (Frame, TextLabel)
+		local idx = statRowCount
+		if idx > 0 then
+			local div = Instance.new("Frame")
+			div.Size = UDim2.new(1, -20, 0, 1)
+			div.Position = UDim2.new(0, 10, idx / 6, 0)
+			div.BackgroundColor3 = THEME.Stroke
+			div.BackgroundTransparency = 0.25
+			div.BorderSizePixel = 0
+			div.Parent = StatsContainer
+		end
+		statRowCount += 1
 
-	local PlatformLabel = Instance.new("TextLabel")
-	PlatformLabel.Size = UDim2.new(0, 120, 1, 0)
-	PlatformLabel.BackgroundTransparency = 1
-	PlatformLabel.Font = Enum.Font.GothamMedium
-	PlatformLabel.Text = "Platform"
-	PlatformLabel.TextColor3 = THEME.TextSecondary
-	PlatformLabel.TextSize = 13
-	PlatformLabel.TextXAlignment = Enum.TextXAlignment.Left
-	PlatformLabel.Parent = PlatformRow
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, -20, 1 / 6, -4)
+		row.Position = UDim2.new(0, 10, idx / 6, 2)
+		row.BackgroundTransparency = 1
+		row.Parent = StatsContainer
 
-	local PlatformValue = Instance.new("TextLabel")
-	PlatformValue.Size = UDim2.new(1, -120, 1, 0)
-	PlatformValue.Position = UDim2.new(0, 120, 0, 0)
-	PlatformValue.BackgroundTransparency = 1
-	PlatformValue.Font = Enum.Font.GothamBold
-	PlatformValue.Text = selectedPlatform
-	PlatformValue.TextColor3 = THEME.TextPrimary
-	PlatformValue.TextSize = 13
-	PlatformValue.TextXAlignment = Enum.TextXAlignment.Right
-	PlatformValue.Parent = PlatformRow
+		local lw = labelW or 98
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(0, lw, 1, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.Font = Enum.Font.GothamMedium
+		lbl.Text = labelText
+		lbl.TextColor3 = THEME.TextSecondary
+		lbl.TextSize = 12
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.Parent = row
 
-	local Divider1 = Instance.new("Frame")
-	Divider1.Size = UDim2.new(1, -24, 0, 1)
-	Divider1.Position = UDim2.new(0, 12, 0, 44)
-	Divider1.BackgroundColor3 = THEME.Stroke
-	Divider1.BorderSizePixel = 0
-	Divider1.Parent = StatsContainer
+		local val = Instance.new("TextLabel")
+		val.Size = UDim2.new(1, -(lw + 8), 1, 0)
+		val.Position = UDim2.new(0, lw + 8, 0, 0)
+		val.BackgroundTransparency = 1
+		val.Font = Enum.Font.GothamBold
+		val.Text = initValue
+		val.TextColor3 = THEME.TextPrimary
+		val.TextSize = 12
+		val.TextXAlignment = Enum.TextXAlignment.Right
+		val.TextTruncate = Enum.TextTruncate.AtEnd
+		val.Parent = row
 
-	local ExecutorRow = Instance.new("Frame")
-	ExecutorRow.Size = UDim2.new(1, -24, 0, 40)
-	ExecutorRow.Position = UDim2.new(0, 12, 0, 46)
-	ExecutorRow.BackgroundTransparency = 1
-	ExecutorRow.Parent = StatsContainer
+		return row, val
+	end
 
-	local ExecutorLabel = Instance.new("TextLabel")
-	ExecutorLabel.Size = UDim2.new(0, 120, 1, 0)
-	ExecutorLabel.BackgroundTransparency = 1
-	ExecutorLabel.Font = Enum.Font.GothamMedium
-	ExecutorLabel.Text = "Executor"
-	ExecutorLabel.TextColor3 = THEME.TextSecondary
-	ExecutorLabel.TextSize = 13
-	ExecutorLabel.TextXAlignment = Enum.TextXAlignment.Left
-	ExecutorLabel.Parent = ExecutorRow
+	local _, PlatformValue = addStatRow("Platform", selectedPlatform)
 
 	local function getExecutorName(): string
 		local ok, name = pcall(function()
@@ -1383,87 +3099,102 @@ local function setupProfileAndStats(HomePage: Frame, selectedPlatform: string)
 		end)
 		return if ok and name and name ~= "" then name else "Unknown"
 	end
+	addStatRow("Executor", getExecutorName())
 
-	local ExecutorValue = Instance.new("TextLabel")
-	ExecutorValue.Size = UDim2.new(1, -120, 1, 0)
-	ExecutorValue.Position = UDim2.new(0, 120, 0, 0)
-	ExecutorValue.BackgroundTransparency = 1
-	ExecutorValue.Font = Enum.Font.GothamBold
-	ExecutorValue.Text = getExecutorName()
-	ExecutorValue.TextColor3 = THEME.TextPrimary
-	ExecutorValue.TextSize = 13
-	ExecutorValue.TextXAlignment = Enum.TextXAlignment.Right
-	ExecutorValue.Parent = ExecutorRow
+	local _, PlaceIdValue = addStatRow("PlaceId", tostring(game.PlaceId))
 
-	local Divider2 = Instance.new("Frame")
-	Divider2.Size = UDim2.new(1, -24, 0, 1)
-	Divider2.Position = UDim2.new(0, 12, 0, 88)
-	Divider2.BackgroundColor3 = THEME.Stroke
-	Divider2.BorderSizePixel = 0
-	Divider2.Parent = StatsContainer
+	local localRobloxVersion = "Latest"
+	pcall(function()
+		if type(version) == "function" then
+			localRobloxVersion = tostring(version())
+		elseif type(Version) == "function" then
+			localRobloxVersion = tostring(Version())
+		end
+	end)
+	local _, RobloxVersionValue = addStatRow("Roblox Version", localRobloxVersion)
 
-	local PlaceIdRow = Instance.new("Frame")
-	PlaceIdRow.Size = UDim2.new(1, -24, 0, 40)
-	PlaceIdRow.Position = UDim2.new(0, 12, 0, 90)
-	PlaceIdRow.BackgroundTransparency = 1
-	PlaceIdRow.Parent = StatsContainer
+	task.spawn(function()
+		local function formatRelativeTime(unixTs: number): string
+			local diff = math.max(0, os.time() - unixTs)
+			local dateStr = os.date("%d.%m.%Y", unixTs)
+			if diff < 3600 then
+				local mins = math.max(1, math.floor(diff / 60))
+				return string.format("seit %s (vor %d Min.)", dateStr, mins)
+			elseif diff < 86400 then
+				local hours = math.floor(diff / 3600)
+				return string.format("seit %s (vor %d Std.)", dateStr, hours)
+			else
+				local days = math.floor(diff / 86400)
+				return string.format("seit %s (vor %d Tag%s)", dateStr, days, if days == 1 then "" else "en")
+			end
+		end
 
-	local PlaceIdLabel = Instance.new("TextLabel")
-	PlaceIdLabel.Size = UDim2.new(0, 120, 1, 0)
-	PlaceIdLabel.BackgroundTransparency = 1
-	PlaceIdLabel.Font = Enum.Font.GothamMedium
-	PlaceIdLabel.Text = "PlaceId"
-	PlaceIdLabel.TextColor3 = THEME.TextSecondary
-	PlaceIdLabel.TextSize = 13
-	PlaceIdLabel.TextXAlignment = Enum.TextXAlignment.Left
-	PlaceIdLabel.Parent = PlaceIdRow
+		local fenv = getfenv() :: any
+		local genv = (type(getgenv) == "function" and getgenv()) or _G or fenv
+		local reqFn = (type(genv) == "table" and (genv.request or genv.http_request or (type(genv.syn) == "table" and genv.syn.request) or (type(genv.http) == "table" and genv.http.request)))
+			or fenv.request
+			or fenv.http_request
 
-	local PlaceIdValue = Instance.new("TextLabel")
-	PlaceIdValue.Size = UDim2.new(1, -120, 1, 0)
-	PlaceIdValue.Position = UDim2.new(0, 120, 0, 0)
-	PlaceIdValue.BackgroundTransparency = 1
-	PlaceIdValue.Font = Enum.Font.GothamBold
-	PlaceIdValue.Text = tostring(game.PlaceId)
-	PlaceIdValue.TextColor3 = THEME.TextPrimary
-	PlaceIdValue.TextSize = 13
-	PlaceIdValue.TextXAlignment = Enum.TextXAlignment.Right
-	PlaceIdValue.Parent = PlaceIdRow
+		local fetchedWithDate = false
+		if type(reqFn) == "function" then
+			local ok, resp = pcall(function()
+				return reqFn({
+					Url = "https://weao.xyz/api/versions/current",
+					Method = "GET",
+					Headers = { ["User-Agent"] = "WEAO-3PService" },
+				})
+			end)
+			if ok and type(resp) == "table" and type(resp.Body) == "string" then
+				local decOk, data = pcall(function()
+					return HttpService:JSONDecode(resp.Body)
+				end)
+				if decOk and type(data) == "table" and type(data.WindowsResponse) == "table" then
+					local verStr = tostring(data.WindowsResponse.version or localRobloxVersion)
+					local ts = tonumber(data.WindowsResponse.timestamp)
+					if ts and ts > 0 then
+						RobloxVersionValue.Text = string.format("%s • %s", verStr, formatRelativeTime(ts))
+						fetchedWithDate = true
+					elseif data.WindowsDate then
+						RobloxVersionValue.Text = string.format("%s • seit %s", verStr, tostring(data.WindowsDate))
+						fetchedWithDate = true
+					end
+				end
+			end
+		end
 
-	local Divider3 = Instance.new("Frame")
-	Divider3.Size = UDim2.new(1, -24, 0, 1)
-	Divider3.Position = UDim2.new(0, 12, 0, 132)
-	Divider3.BackgroundColor3 = THEME.Stroke
-	Divider3.BorderSizePixel = 0
-	Divider3.Parent = StatsContainer
+		if fetchedWithDate then
+			return
+		end
 
-	local VersionRow = Instance.new("Frame")
-	VersionRow.Size = UDim2.new(1, -24, 0, 40)
-	VersionRow.Position = UDim2.new(0, 12, 0, 134)
-	VersionRow.BackgroundTransparency = 1
-	VersionRow.Parent = StatsContainer
+		local latestVer = localRobloxVersion
+		pcall(function()
+			local rawJson = (game :: any):HttpGet("https://clientsettingscdn.roblox.com/v2/client-version/WindowsPlayer")
+			local data = HttpService:JSONDecode(rawJson)
+			if type(data) == "table" and data.version then
+				latestVer = tostring(data.version)
+			end
+		end)
 
-	local VersionLabel = Instance.new("TextLabel")
-	VersionLabel.Size = UDim2.new(0, 120, 1, 0)
-	VersionLabel.BackgroundTransparency = 1
-	VersionLabel.Font = Enum.Font.GothamMedium
-	VersionLabel.Text = "Version"
-	VersionLabel.TextColor3 = THEME.TextSecondary
-	VersionLabel.TextSize = 13
-	VersionLabel.TextXAlignment = Enum.TextXAlignment.Left
-	VersionLabel.Parent = VersionRow
+		local dateSuffix = ""
+		pcall(function()
+			local historyTxt = (game :: any):HttpGet("https://setup.rbxcdn.com/DeployHistory.txt")
+			if type(historyTxt) == "string" and #historyTxt > 0 then
+				local tail = string.sub(historyTxt, math.max(1, #historyTxt - 4000))
+				local lastMonth, lastDay, lastYear, lastTime = nil, nil, nil, nil
+				for m, d, y, t in string.gmatch(tail, "New WindowsPlayer [^\r\n]- at (%d+)/(%d+)/(%d+) ([%d:]+ [AP]M)") do
+					lastMonth, lastDay, lastYear, lastTime = m, d, y, t
+				end
+				if lastMonth and lastDay and lastYear then
+					dateSuffix = string.format(" • seit %02d.%02d.%s (%s)", tonumber(lastDay) or 1, tonumber(lastMonth) or 1, lastYear, tostring(lastTime or ""))
+				end
+			end
+		end)
+
+		RobloxVersionValue.Text = latestVer .. dateSuffix
+	end)
 
 	local localClientVersion = "1.0.0"
-
-	local VersionValue = Instance.new("TextLabel")
-	VersionValue.Size = UDim2.new(1, -120, 1, 0)
-	VersionValue.Position = UDim2.new(0, 120, 0, 0)
-	VersionValue.BackgroundTransparency = 1
-	VersionValue.Font = Enum.Font.GothamBold
-	VersionValue.Text = localClientVersion
-	VersionValue.TextColor3 = THEME.TextPrimary
-	VersionValue.TextSize = 13
-	VersionValue.TextXAlignment = Enum.TextXAlignment.Right
-	VersionValue.Parent = VersionRow
+	local _, VersionValue = addStatRow("Version", localClientVersion)
 
 	task.spawn(function()
 		local vUrl = "https://raw.githubusercontent.com/NightSyste/NightUI/main/Version.json"
@@ -1487,39 +3218,7 @@ local function setupProfileAndStats(HomePage: Frame, selectedPlatform: string)
 		end
 	end)
 
-	local Divider4 = Instance.new("Frame")
-	Divider4.Size = UDim2.new(1, -24, 0, 1)
-	Divider4.Position = UDim2.new(0, 12, 0, 176)
-	Divider4.BackgroundColor3 = THEME.Stroke
-	Divider4.BorderSizePixel = 0
-	Divider4.Parent = StatsContainer
-
-	local TeamRow = Instance.new("Frame")
-	TeamRow.Size = UDim2.new(1, -24, 0, 40)
-	TeamRow.Position = UDim2.new(0, 12, 0, 178)
-	TeamRow.BackgroundTransparency = 1
-	TeamRow.Parent = StatsContainer
-
-	local TeamLabel = Instance.new("TextLabel")
-	TeamLabel.Size = UDim2.new(0, 120, 1, 0)
-	TeamLabel.BackgroundTransparency = 1
-	TeamLabel.Font = Enum.Font.GothamMedium
-	TeamLabel.Text = "Team"
-	TeamLabel.TextColor3 = THEME.TextSecondary
-	TeamLabel.TextSize = 13
-	TeamLabel.TextXAlignment = Enum.TextXAlignment.Left
-	TeamLabel.Parent = TeamRow
-
-	local TeamValue = Instance.new("TextLabel")
-	TeamValue.Size = UDim2.new(1, -120, 1, 0)
-	TeamValue.Position = UDim2.new(0, 120, 0, 0)
-	TeamValue.BackgroundTransparency = 1
-	TeamValue.Font = Enum.Font.GothamBold
-	TeamValue.Text = if LocalPlayer.Team then LocalPlayer.Team.Name else "Citizen"
-	TeamValue.TextColor3 = THEME.TextPrimary
-	TeamValue.TextSize = 13
-	TeamValue.TextXAlignment = Enum.TextXAlignment.Right
-	TeamValue.Parent = TeamRow
+	local _, TeamValue = addStatRow("Team", if LocalPlayer.Team then LocalPlayer.Team.Name else "Citizen")
 
 	task.spawn(function()
 		local uid = if LocalPlayer.UserId > 0 then LocalPlayer.UserId else 1
@@ -1642,15 +3341,13 @@ function NightSystem:CreateWindow(config: {
 	NightSystem.Platform = selectedPlatform
 
 	-- Floating Minimized Badge (Top Bar Pill - Nur auf PC sichtbar, auf Handy ausgeblendet!)
-	local FloatingBadge = Instance.new("TextButton")
+	local FloatingBadge = Instance.new("Frame")
 	FloatingBadge.Name = "FloatingBadge"
-	FloatingBadge.Size = UDim2.new(0, 160, 0, 38)
+	FloatingBadge.Size = UDim2.new(0, 206, 0, 38)
 	FloatingBadge.Position = UDim2.new(0.5, 0, 0, 28)
 	FloatingBadge.AnchorPoint = Vector2.new(0.5, 0)
 	FloatingBadge.BackgroundColor3 = THEME.MainBackground
 	FloatingBadge.BorderSizePixel = 0
-	FloatingBadge.AutoButtonColor = false
-	FloatingBadge.Text = ""
 	FloatingBadge.Active = true
 	FloatingBadge.ZIndex = 80
 	FloatingBadge.Visible = (selectedPlatform ~= "Handy")
@@ -1671,52 +3368,131 @@ function NightSystem:CreateWindow(config: {
 		end
 	end))
 
+	local badgeVcUi: { Host: GuiObject?, MainButton: GuiObject?, Button: GuiObject?, Icon: ImageLabel?, Dot: Frame? } = {
+		Host = FloatingBadge,
+	}
+
 	local BadgeLogo = Instance.new("Frame")
-	BadgeLogo.Size = UDim2.new(0, 24, 0, 24)
-	BadgeLogo.Position = UDim2.new(0, 8, 0.5, 0)
-	BadgeLogo.AnchorPoint = Vector2.new(0, 0.5)
-	BadgeLogo.BackgroundColor3 = Color3.fromHex("#1E1E22")
-	BadgeLogo.BorderSizePixel = 0
-	BadgeLogo.Active = false
-	BadgeLogo.ZIndex = 81
-	BadgeLogo.Parent = FloatingBadge
-	createCorner(BadgeLogo, 6)
-
 	local BadgeLetter = Instance.new("TextLabel")
-	BadgeLetter.Size = UDim2.new(1, 0, 1, 0)
-	BadgeLetter.BackgroundTransparency = 1
-	BadgeLetter.Font = Enum.Font.GothamBold
-	BadgeLetter.Text = "N"
-	BadgeLetter.TextColor3 = THEME.TextPrimary
-	BadgeLetter.TextSize = 13
-	BadgeLetter.Active = false
-	BadgeLetter.ZIndex = 82
-	BadgeLetter.Parent = BadgeLogo
-
 	local BadgeRedDot = Instance.new("Frame")
-	BadgeRedDot.Size = UDim2.new(0, 5, 0, 5)
-	BadgeRedDot.Position = UDim2.new(1, -3, 0, 3)
-	BadgeRedDot.AnchorPoint = Vector2.new(0.5, 0.5)
-	BadgeRedDot.BackgroundColor3 = THEME.AccentRed
-	BadgeRedDot.BorderSizePixel = 0
-	BadgeRedDot.Active = false
-	BadgeRedDot.ZIndex = 83
-	BadgeRedDot.Parent = BadgeLogo
-	createCorner(BadgeRedDot, 4)
-
 	local BadgeLabel = Instance.new("TextLabel")
-	BadgeLabel.Size = UDim2.new(1, -44, 1, 0)
-	BadgeLabel.Position = UDim2.new(0, 38, 0, 0)
-	BadgeLabel.BackgroundTransparency = 1
-	BadgeLabel.Font = Enum.Font.GothamBold
-	BadgeLabel.Text = windowTitle
-	BadgeLabel.TextColor3 = THEME.TextPrimary
-	BadgeLabel.TextSize = 13
-	BadgeLabel.TextXAlignment = Enum.TextXAlignment.Left
-	BadgeLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	BadgeLabel.Active = false
-	BadgeLabel.ZIndex = 81
-	BadgeLabel.Parent = FloatingBadge
+
+	do
+		local BadgeMainBtn = Instance.new("TextButton")
+		BadgeMainBtn.Name = "FloatingBadgeMainButton"
+		BadgeMainBtn.Size = UDim2.new(1, -44, 1, 0)
+		BadgeMainBtn.Position = UDim2.new(0, 0, 0, 0)
+		BadgeMainBtn.BackgroundTransparency = 1
+		BadgeMainBtn.AutoButtonColor = false
+		BadgeMainBtn.Text = ""
+		BadgeMainBtn.Active = true
+		BadgeMainBtn.ZIndex = 81
+		BadgeMainBtn.Parent = FloatingBadge
+		badgeVcUi.MainButton = BadgeMainBtn
+
+		BadgeLogo.Size = UDim2.new(0, 24, 0, 24)
+		BadgeLogo.Position = UDim2.new(0, 8, 0.5, 0)
+		BadgeLogo.AnchorPoint = Vector2.new(0, 0.5)
+		BadgeLogo.BackgroundColor3 = Color3.fromHex("#1E1E22")
+		BadgeLogo.BorderSizePixel = 0
+		BadgeLogo.Active = false
+		BadgeLogo.ZIndex = 82
+		BadgeLogo.Parent = BadgeMainBtn
+		createCorner(BadgeLogo, 6)
+
+		BadgeLetter.Size = UDim2.new(1, 0, 1, 0)
+		BadgeLetter.BackgroundTransparency = 1
+		BadgeLetter.Font = Enum.Font.GothamBold
+		BadgeLetter.Text = "N"
+		BadgeLetter.TextColor3 = THEME.TextPrimary
+		BadgeLetter.TextSize = 13
+		BadgeLetter.Active = false
+		BadgeLetter.ZIndex = 83
+		BadgeLetter.Parent = BadgeLogo
+
+		BadgeRedDot.Size = UDim2.new(0, 5, 0, 5)
+		BadgeRedDot.Position = UDim2.new(1, -3, 0, 3)
+		BadgeRedDot.AnchorPoint = Vector2.new(0.5, 0.5)
+		BadgeRedDot.BackgroundColor3 = THEME.AccentRed
+		BadgeRedDot.BorderSizePixel = 0
+		BadgeRedDot.Active = false
+		BadgeRedDot.ZIndex = 84
+		BadgeRedDot.Parent = BadgeLogo
+		createCorner(BadgeRedDot, 4)
+
+		BadgeLabel.Size = UDim2.new(1, -44, 1, 0)
+		BadgeLabel.Position = UDim2.new(0, 38, 0, 0)
+		BadgeLabel.BackgroundTransparency = 1
+		BadgeLabel.Font = Enum.Font.GothamBold
+		BadgeLabel.Text = windowTitle
+		BadgeLabel.TextColor3 = THEME.TextPrimary
+		BadgeLabel.TextSize = 13
+		BadgeLabel.TextXAlignment = Enum.TextXAlignment.Left
+		BadgeLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		BadgeLabel.Active = false
+		BadgeLabel.ZIndex = 82
+		BadgeLabel.Parent = BadgeMainBtn
+
+		local BadgeDivider = Instance.new("Frame")
+		BadgeDivider.Size = UDim2.new(0, 1, 0, 20)
+		BadgeDivider.Position = UDim2.new(1, -43, 0.5, 0)
+		BadgeDivider.AnchorPoint = Vector2.new(0, 0.5)
+		BadgeDivider.BackgroundColor3 = THEME.Stroke
+		BadgeDivider.BorderSizePixel = 0
+		BadgeDivider.ZIndex = 82
+		BadgeDivider.Parent = FloatingBadge
+
+		local BadgeVCBtn = Instance.new("TextButton")
+		BadgeVCBtn.Name = "FloatingBadgeVCButton"
+		BadgeVCBtn.Size = UDim2.new(0, 32, 0, 28)
+		BadgeVCBtn.Position = UDim2.new(1, -5, 0.5, 0)
+		BadgeVCBtn.AnchorPoint = Vector2.new(1, 0.5)
+		BadgeVCBtn.BackgroundColor3 = Color3.fromHex("#181A1D")
+		BadgeVCBtn.BorderSizePixel = 0
+		BadgeVCBtn.AutoButtonColor = false
+		BadgeVCBtn.Text = ""
+		BadgeVCBtn.Active = true
+		BadgeVCBtn.ZIndex = 82
+		BadgeVCBtn.Parent = FloatingBadge
+		createCorner(BadgeVCBtn, 7)
+		local badgeVCStroke = createStroke(BadgeVCBtn, THEME.Stroke, 1, 0.25)
+
+		local BadgeVCIcon = Instance.new("ImageLabel")
+		BadgeVCIcon.Size = UDim2.new(0, 15, 0, 15)
+		BadgeVCIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+		BadgeVCIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		BadgeVCIcon.BackgroundTransparency = 1
+		BadgeVCIcon.Image = ASSETS.VoiceChat
+		BadgeVCIcon.ImageColor3 = THEME.TextPrimary
+		BadgeVCIcon.ScaleType = Enum.ScaleType.Fit
+		BadgeVCIcon.Active = false
+		BadgeVCIcon.ZIndex = 83
+		BadgeVCIcon.Parent = BadgeVCBtn
+
+		local BadgeVCDot = Instance.new("Frame")
+		BadgeVCDot.Size = UDim2.new(0, 6, 0, 6)
+		BadgeVCDot.Position = UDim2.new(1, -3, 0, 3)
+		BadgeVCDot.AnchorPoint = Vector2.new(0.5, 0.5)
+		BadgeVCDot.BackgroundColor3 = THEME.TextSecondary
+		BadgeVCDot.BorderSizePixel = 0
+		BadgeVCDot.Active = false
+		BadgeVCDot.ZIndex = 84
+		BadgeVCDot.Parent = BadgeVCBtn
+		createCorner(BadgeVCDot, 4)
+
+		BadgeVCBtn.MouseEnter:Connect(function()
+			tween(BadgeVCBtn, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+			tween(badgeVCStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+		end)
+		BadgeVCBtn.MouseLeave:Connect(function()
+			tween(BadgeVCBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181A1D") })
+			tween(badgeVCStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.25 })
+		end)
+
+		badgeVcUi.Button = BadgeVCBtn
+		badgeVcUi.Icon = BadgeVCIcon
+		badgeVcUi.Dot = BadgeVCDot
+	end
 
 	-- Mobile Floating Toggle Button (Sleek draggable circular button with 'N' logo and red dot - Pure Matte Black)
 	local MobileToggleBtn = Instance.new("TextButton")
@@ -1776,7 +3552,7 @@ function NightSystem:CreateWindow(config: {
 	MainFrame.Visible = false
 	MainFrame.Parent = ScreenGui
 	createCorner(MainFrame, 12)
-	createStroke(MainFrame, THEME.Stroke, 1, 0.2)
+	local mainFrameStroke = createStroke(MainFrame, THEME.Stroke, 1, 0.2)
 
 	-- Dynamic UI Scaling for Mobile & Responsive displays
 	local mainFrameScale = Instance.new("UIScale")
@@ -1785,25 +3561,42 @@ function NightSystem:CreateWindow(config: {
 	mainFrameScale.Parent = MainFrame
 
 	local PlatformValueLabel: TextLabel? = nil
+	local openCloseState = { Gen = 0, ScaleTw = nil :: Tween?, NormalW = 740, NormalH = 460 }
+
+	local function getMaxScreenDims(): (number, number)
+		local cam = workspace.CurrentCamera
+		local vp = (cam and cam.ViewportSize) or Vector2.new(1280, 720)
+		if vp.X < 200 or vp.Y < 200 then vp = Vector2.new(1280, 720) end
+		return math.clamp(math.round(vp.X - 60), 740, 1480), math.clamp(math.round(vp.Y - 80), 460, 920)
+	end
+
+	local function getScaledLayoutForScreen(reqW: number, reqH: number): (number, UDim2)
+		if selectedPlatform == "Handy" then
+			local cam = workspace.CurrentCamera
+			local vp = (cam and cam.ViewportSize) or Vector2.new(800, 600)
+			if vp.X <= 100 or vp.Y <= 100 then vp = Vector2.new(800, 600) end
+			local sFit = math.clamp(math.min(math.max(300, vp.X - 28) / 740, math.max(200, vp.Y - 28) / 460), 0.50, 0.95)
+			return sFit, UDim2.new(0, 740, 0, 460)
+		end
+		local w = math.max(460, reqW)
+		local h = math.max(300, reqH)
+		local s = math.clamp(math.min(w / 740, h / 460), 0.65, 2.50)
+		return s, UDim2.new(0, math.max(740, math.round(w / s)), 0, math.max(460, math.round(h / s)))
+	end
 
 	local function updateMobileScale()
-		if selectedPlatform ~= "Handy" then
-			if mainFrameScale then mainFrameScale.Scale = 1.0 end
+		if not isWindowOpen and MainFrame and MainFrame.Visible then
 			return
 		end
-		local cam = workspace.CurrentCamera
-		local vp = (cam and cam.ViewportSize) or Vector2.new(800, 600)
-		if vp.X <= 100 or vp.Y <= 100 then
-			vp = Vector2.new(800, 600)
+		local targetW, targetH
+		if isMaximized then
+			targetW, targetH = getMaxScreenDims()
+		else
+			targetW, targetH = openCloseState.NormalW, openCloseState.NormalH
 		end
-		local availW = math.max(300, vp.X - 28)
-		local availH = math.max(200, vp.Y - 28)
-		local scaleX = availW / 740
-		local scaleY = availH / 460
-		local calculatedScale = math.min(scaleX, scaleY)
-		if mainFrameScale then
-			mainFrameScale.Scale = math.clamp(calculatedScale, 0.50, 0.95)
-		end
+		local sc, sz = getScaledLayoutForScreen(targetW, targetH)
+		if mainFrameScale then mainFrameScale.Scale = sc end
+		if MainFrame then MainFrame.Size = sz end
 	end
 
 	trackConnection(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateMobileScale))
@@ -1817,18 +3610,15 @@ function NightSystem:CreateWindow(config: {
 			PlatformValueLabel.Text = selectedPlatform
 		end
 
+		updateMobileScale()
 		if selectedPlatform == "Handy" then
 			if FloatingBadge then
 				FloatingBadge.Visible = false
 			end
-			updateMobileScale()
 			if MobileToggleBtn then
 				MobileToggleBtn.Visible = true
 			end
 		else
-			if mainFrameScale then
-				mainFrameScale.Scale = 1.0
-			end
 			if FloatingBadge then
 				FloatingBadge.Visible = true
 			end
@@ -1990,47 +3780,64 @@ function NightSystem:CreateWindow(config: {
 
 	local function makeDraggable(handle: GuiObject, target: GuiObject, pill: Frame?, onClick: (() -> ())?)
 		local isDragging = false
-		local dragInput: InputObject? = nil
+		local dragTouchInput: InputObject? = nil
 		local dragStart = Vector2.zero
 		local startPos = target.Position
 		local totalMoved = 0
+		local endConn1: RBXScriptConnection? = nil
+		local endConn2: RBXScriptConnection? = nil
 
 		handle.InputBegan:Connect(function(input: InputObject)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				if endConn1 then endConn1:Disconnect(); endConn1 = nil end
+				if endConn2 then endConn2:Disconnect(); endConn2 = nil end
 				isDragging = true
+				dragTouchInput = if input.UserInputType == Enum.UserInputType.Touch then input else nil
 				totalMoved = 0
 				dragStart = Vector2.new(input.Position.X, input.Position.Y)
 				startPos = target.Position
 				if pill then
 					tween(pill, TWEEN_FAST, { BackgroundColor3 = THEME.TextPrimary })
 				end
-				local endConn: RBXScriptConnection? = nil
-				endConn = input.Changed:Connect(function()
+				local finished = false
+				local function finishDrag()
+					if finished then return end
+					finished = true
+					isDragging = false
+					dragTouchInput = nil
+					if endConn1 then endConn1:Disconnect(); endConn1 = nil end
+					if endConn2 then endConn2:Disconnect(); endConn2 = nil end
+					if pill then
+						tween(pill, TWEEN_FAST, { BackgroundColor3 = THEME.DragPill })
+					end
+					if totalMoved < 6 and onClick then
+						onClick()
+					end
+				end
+				endConn1 = input.Changed:Connect(function()
 					if input.UserInputState == Enum.UserInputState.End then
-						isDragging = false
-						if endConn then endConn:Disconnect() end
-						if pill then
-							tween(pill, TWEEN_FAST, { BackgroundColor3 = THEME.DragPill })
-						end
-						if totalMoved < 6 and onClick then
-							onClick()
-						end
+						finishDrag()
+					end
+				end)
+				endConn2 = UserInputService.InputEnded:Connect(function(endInp: InputObject)
+					if (dragTouchInput and endInp == dragTouchInput) or (not dragTouchInput and endInp.UserInputType == Enum.UserInputType.MouseButton1) then
+						finishDrag()
 					end
 				end)
 			end
 		end)
 
-		handle.InputChanged:Connect(function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-				dragInput = input
-			end
-		end)
-
 		trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
-			if input == dragInput and isDragging then
+			if not isDragging then return end
+			local matches = if dragTouchInput
+				then (input == dragTouchInput)
+				else (input.UserInputType == Enum.UserInputType.MouseMovement)
+			if matches then
 				local curPos = Vector2.new(input.Position.X, input.Position.Y)
 				local delta = curPos - dragStart
-				totalMoved = delta.Magnitude
+				if delta.Magnitude > totalMoved then
+					totalMoved = delta.Magnitude
+				end
 				target.Position = UDim2.new(
 					startPos.X.Scale,
 					startPos.X.Offset + delta.X,
@@ -2042,8 +3849,25 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local currentOpenCloseTween: Tween? = nil
+	local currentOpenCloseStrokeTween: Tween? = nil
+
+	local function cancelWindowTweens()
+		if currentOpenCloseTween then
+			pcall(function() currentOpenCloseTween:Cancel() end)
+			currentOpenCloseTween = nil
+		end
+		if currentOpenCloseStrokeTween then
+			pcall(function() currentOpenCloseStrokeTween:Cancel() end)
+			currentOpenCloseStrokeTween = nil
+		end
+		if openCloseState.ScaleTw then
+			pcall(function() openCloseState.ScaleTw:Cancel() end)
+			openCloseState.ScaleTw = nil
+		end
+	end
 
 	local function openWindow()
+		openCloseState.Gen += 1
 		isWindowOpen = true
 		isMinimized = false
 		isHidden = false
@@ -2060,26 +3884,34 @@ function NightSystem:CreateWindow(config: {
 			pcall(function() focused:ReleaseFocus() end)
 		end
 
-		if currentOpenCloseTween then
-			pcall(function() currentOpenCloseTween:Cancel() end)
-			currentOpenCloseTween = nil
-		end
+		cancelWindowTweens()
 
+		local tw, th
+		if isMaximized then
+			tw, th = getMaxScreenDims()
+		else
+			tw, th = openCloseState.NormalW, openCloseState.NormalH
+		end
+		local targetScale, targetSize = getScaledLayoutForScreen(tw, th)
+
+		if not MainFrame.Visible then
+			mainFrameScale.Scale = targetScale * 0.94
+		end
+		MainFrame.Size = targetSize
 		MainFrame.Visible = true
 		MainFrame.BackgroundTransparency = 0
-
-		local targetSize = if isMaximized then maximizedSize else normalSize
-		if MainFrame.Size.Y.Offset < 60 then
-			MainFrame.Size = UDim2.new(0, targetSize.X.Offset * 0.94, 0, targetSize.Y.Offset * 0.94)
+		if mainFrameStroke then
+			mainFrameStroke.Transparency = 0.2
 		end
 
-		currentOpenCloseTween = tween(MainFrame, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = targetSize,
-			BackgroundTransparency = 0,
+		openCloseState.ScaleTw = tween(mainFrameScale, TweenInfo.new(0.20, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			Scale = targetScale,
 		})
 	end
 
 	local function closeWindow()
+		openCloseState.Gen += 1
+		local myGen = openCloseState.Gen
 		isWindowOpen = false
 		isMinimized = false
 		isHidden = true
@@ -2095,19 +3927,36 @@ function NightSystem:CreateWindow(config: {
 			pcall(function() focused:ReleaseFocus() end)
 		end
 
-		if currentOpenCloseTween then
-			pcall(function() currentOpenCloseTween:Cancel() end)
-			currentOpenCloseTween = nil
-		end
+		cancelWindowTweens()
 
-		local targetW = if isMaximized then maximizedSize.X.Offset else normalSize.X.Offset
-		local tw = tween(MainFrame, TWEEN_FAST, {
-			Size = UDim2.new(0, targetW, 0, 0),
+		local cw, ch
+		if isMaximized then
+			cw, ch = getMaxScreenDims()
+		else
+			cw, ch = openCloseState.NormalW, openCloseState.NormalH
+		end
+		local targetScale, targetSize = getScaledLayoutForScreen(cw, ch)
+		MainFrame.Size = targetSize
+
+		local tw = tween(MainFrame, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			BackgroundTransparency = 1,
 		})
 		currentOpenCloseTween = tw
+		openCloseState.ScaleTw = tween(mainFrameScale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Scale = targetScale * 0.92,
+		})
+		if mainFrameStroke then
+			currentOpenCloseStrokeTween = tween(mainFrameStroke, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Transparency = 1,
+			})
+		end
 		tw.Completed:Connect(function(playbackState)
-			if not isWindowOpen and playbackState == Enum.PlaybackState.Completed then
+			if myGen == openCloseState.Gen and not isWindowOpen and playbackState == Enum.PlaybackState.Completed then
+				MainFrame.Visible = false
+			end
+		end)
+		task.delay(0.18, function()
+			if myGen == openCloseState.Gen and not isWindowOpen and MainFrame and MainFrame.Parent then
 				MainFrame.Visible = false
 			end
 		end)
@@ -2146,19 +3995,17 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	makeDraggable(TopBar, MainFrame, DragPill, nil)
-	makeDraggable(FloatingBadge, FloatingBadge, nil, function()
-		toggleWindowState()
-	end)
-	FloatingBadge.Activated:Connect(function()
-		toggleWindowState()
-	end)
-
-	FloatingBadge.MouseEnter:Connect(function()
-		tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
-	end)
-	FloatingBadge.MouseLeave:Connect(function()
-		tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.MainBackground })
-	end)
+	if badgeVcUi and badgeVcUi.MainButton then
+		makeDraggable(badgeVcUi.MainButton, FloatingBadge, nil, function()
+			toggleWindowState()
+		end)
+		badgeVcUi.MainButton.MouseEnter:Connect(function()
+			tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+		end)
+		badgeVcUi.MainButton.MouseLeave:Connect(function()
+			tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.MainBackground })
+		end)
+	end
 
 	CloseBtn.MouseButton1Click:Connect(function()
 		closeWindow()
@@ -2166,9 +4013,16 @@ function NightSystem:CreateWindow(config: {
 
 	MaximizeBtn.MouseButton1Click:Connect(function()
 		isMaximized = not isMaximized
-		tween(MainFrame, TWEEN_SMOOTH, {
-			Size = if isMaximized then maximizedSize else normalSize,
-		})
+		local mw, mh
+		if isMaximized then
+			mw, mh = getMaxScreenDims()
+		else
+			mw, mh = openCloseState.NormalW, openCloseState.NormalH
+		end
+		local sc, sz = getScaledLayoutForScreen(mw, mh)
+		cancelWindowTweens()
+		currentOpenCloseTween = tween(MainFrame, TWEEN_SMOOTH, { Size = sz })
+		openCloseState.ScaleTw = tween(mainFrameScale, TWEEN_SMOOTH, { Scale = sc })
 	end)
 
 	MinimizeBtn.MouseButton1Click:Connect(function()
@@ -2498,14 +4352,15 @@ function NightSystem:CreateWindow(config: {
 				+ (categoryCount * CAT_HEIGHT)
 				+ (math.max(0, totalItems - 1) * ITEM_GAP)
 
+			local s = if mainFrameScale and mainFrameScale.Scale > 0 then mainFrameScale.Scale else 1
 			-- Also take layout content size if higher
-			local layoutH = NavListLayout.AbsoluteContentSize.Y
+			local layoutH = NavListLayout.AbsoluteContentSize.Y / s
 			if layoutH > 0 then
 				totalCalculatedHeight = math.max(totalCalculatedHeight, layoutH + BOTTOM_PAD)
 			end
 
 			-- 3. Check visible navigation height based on current / standard UI size
-			local currentNavHeight = NavContainer.AbsoluteSize.Y
+			local currentNavHeight = NavContainer.AbsoluteSize.Y / s
 			if currentNavHeight <= 0 then
 				-- Standard UI height is 460px:
 				-- TopBar: 42px, DiscordCard area: 68px, Footer area: 56px => 460 - 42 - 68 - 56 = 294px
@@ -2537,6 +4392,7 @@ function NightSystem:CreateWindow(config: {
 	NavContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateNavCanvasAndScrollCheck)
 	Sidebar:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateNavCanvasAndScrollCheck)
 	MainFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateNavCanvasAndScrollCheck)
+	trackConnection(mainFrameScale:GetPropertyChangedSignal("Scale"):Connect(updateNavCanvasAndScrollCheck))
 	task.defer(updateNavCanvasAndScrollCheck)
 
 	local function bindMouseWheelToNav(element: GuiObject)
@@ -2544,7 +4400,8 @@ function NightSystem:CreateWindow(config: {
 			if input.UserInputType == Enum.UserInputType.MouseWheel then
 				local scrollDelta = input.Position.Z
 				local step = 38
-				local maxScroll = math.max(0, NavContainer.CanvasSize.Y.Offset - NavContainer.AbsoluteSize.Y)
+				local s = if mainFrameScale and mainFrameScale.Scale > 0 then mainFrameScale.Scale else 1
+				local maxScroll = math.max(0, NavContainer.CanvasSize.Y.Offset - (NavContainer.AbsoluteSize.Y / s))
 				if maxScroll > 0 then
 					local newY = math.clamp(NavContainer.CanvasPosition.Y - (scrollDelta * step), 0, maxScroll)
 					NavContainer.CanvasPosition = Vector2.new(0, newY)
@@ -2744,44 +4601,80 @@ function NightSystem:CreateWindow(config: {
 			end
 		end)
 
+		local resizeEndConn1: RBXScriptConnection? = nil
+		local resizeEndConn2: RBXScriptConnection? = nil
+		local function endResizeDrag()
+			if resizeEndConn1 then resizeEndConn1:Disconnect(); resizeEndConn1 = nil end
+			if resizeEndConn2 then resizeEndConn2:Disconnect(); resizeEndConn2 = nil end
+			resizeInput = nil
+			if isResizing then
+				isResizing = false
+				if selectedPlatform ~= "Handy" and MainFrame.AbsoluteSize.X >= minWindowSize.X and MainFrame.AbsoluteSize.Y >= minWindowSize.Y then
+					openCloseState.NormalW = math.round(MainFrame.AbsoluteSize.X)
+					openCloseState.NormalH = math.round(MainFrame.AbsoluteSize.Y)
+				end
+			end
+			tween(ResizeHandle, TWEEN_FAST, { BackgroundTransparency = 0.65 })
+			tween(ResizeStroke, TWEEN_FAST, { Color = THEME.TextSecondary, Transparency = 0.55 })
+			tween(GripBar1, TWEEN_FAST, { BackgroundTransparency = 0.45 })
+			tween(GripBar2, TWEEN_FAST, { BackgroundTransparency = 0.45 })
+		end
+
 		ResizeHandle.InputBegan:Connect(function(input: InputObject)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				if resizeEndConn1 then resizeEndConn1:Disconnect(); resizeEndConn1 = nil end
+				if resizeEndConn2 then resizeEndConn2:Disconnect(); resizeEndConn2 = nil end
+				cancelWindowTweens()
+				isMaximized = false
 				isResizing = true
+				resizeInput = if input.UserInputType == Enum.UserInputType.Touch then input else nil
 				resizeStartMouse = Vector2.new(input.Position.X, input.Position.Y)
 				startSize = Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
 				startPos = MainFrame.Position
 
-				input.Changed:Connect(function()
+				resizeEndConn1 = input.Changed:Connect(function()
 					if input.UserInputState == Enum.UserInputState.End then
-						isResizing = false
-						normalSize = MainFrame.Size
-						tween(ResizeHandle, TWEEN_FAST, { BackgroundTransparency = 0.65 })
-						tween(ResizeStroke, TWEEN_FAST, { Color = THEME.TextSecondary, Transparency = 0.55 })
-						tween(GripBar1, TWEEN_FAST, { BackgroundTransparency = 0.45 })
-						tween(GripBar2, TWEEN_FAST, { BackgroundTransparency = 0.45 })
+						endResizeDrag()
+					end
+				end)
+				resizeEndConn2 = UserInputService.InputEnded:Connect(function(endInp: InputObject)
+					if (resizeInput and endInp == resizeInput) or (not resizeInput and endInp.UserInputType == Enum.UserInputType.MouseButton1) then
+						endResizeDrag()
 					end
 				end)
 			end
 		end)
 
-		ResizeHandle.InputChanged:Connect(function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-				resizeInput = input
-			end
-		end)
-
 		trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
-			if input == resizeInput and isResizing then
+			if not isResizing then return end
+			if not ScreenGui or not ScreenGui.Parent or not MainFrame or not MainFrame.Parent then
+				endResizeDrag()
+				return
+			end
+			local matches = if resizeInput then (input == resizeInput) else (input.UserInputType == Enum.UserInputType.MouseMovement)
+			if matches then
+				local cam = workspace.CurrentCamera
+				local vp = (cam and cam.ViewportSize) or Vector2.new(1920, 1080)
+				local dynMaxW = math.max(maxWindowSize.X, vp.X - 24)
+				local dynMaxH = math.max(maxWindowSize.Y, vp.Y - 24)
+
 				local currentMouse = Vector2.new(input.Position.X, input.Position.Y)
 				local delta = currentMouse - resizeStartMouse
 
-				local newW = math.clamp(startSize.X + delta.X, minWindowSize.X, maxWindowSize.X)
-				local newH = math.clamp(startSize.Y + delta.Y, minWindowSize.Y, maxWindowSize.Y)
+				local newW = math.clamp(startSize.X + delta.X, minWindowSize.X, dynMaxW)
+				local newH = math.clamp(startSize.Y + delta.Y, minWindowSize.Y, dynMaxH)
 				local actualDeltaX = newW - startSize.X
 				local actualDeltaY = newH - startSize.Y
 
-				-- Keep top-left corner anchored while resizing from bottom-right
-				MainFrame.Size = UDim2.new(0, newW, 0, newH)
+				if selectedPlatform == "Handy" then
+					MainFrame.Size = UDim2.new(0, newW, 0, newH)
+				else
+					local newScale, newLayoutSize = getScaledLayoutForScreen(newW, newH)
+					mainFrameScale.Scale = newScale
+					MainFrame.Size = newLayoutSize
+					openCloseState.NormalW = math.round(newW)
+					openCloseState.NormalH = math.round(newH)
+				end
 				MainFrame.Position = UDim2.new(
 					startPos.X.Scale,
 					startPos.X.Offset + math.round(actualDeltaX * 0.5),
@@ -2813,7 +4706,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local function updateActiveIndicator(instant: boolean?)
-		if (ScriptsHubPage and ScriptsHubPage.Visible) or (EmotesHubPage and EmotesHubPage.Visible) or activeTabName == "" then
+		if (ScriptsHubPage and ScriptsHubPage.Visible) or (EmotesHubPage and EmotesHubPage.Visible) or (VCHubPage and VCHubPage.Visible) or activeTabName == "" then
 			ActiveIndicator.Visible = false
 			return
 		end
@@ -2827,14 +4720,15 @@ function NightSystem:CreateWindow(config: {
 			return
 		end
 
+		local s = if mainFrameScale and mainFrameScale.Scale > 0 then mainFrameScale.Scale else 1
 		local btnAbsY = target.Button.AbsolutePosition.Y
-		local btnH = target.Button.AbsoluteSize.Y
+		local btnH = target.Button.AbsoluteSize.Y / s
 		local navAbsY = NavContainer.AbsolutePosition.Y
-		local navH = NavContainer.AbsoluteSize.Y
+		local navH = NavContainer.AbsoluteSize.Y / s
 		local sideAbsY = Sidebar.AbsolutePosition.Y
 
-		local relY = (btnAbsY - sideAbsY) + (btnH - 16) / 2
-		local navTopRel = navAbsY - sideAbsY
+		local relY = ((btnAbsY - sideAbsY) / s) + (btnH - 16) / 2
+		local navTopRel = (navAbsY - sideAbsY) / s
 		local navBottomRel = navTopRel + navH
 
 		-- Check if target button is within visible bounds of NavContainer
@@ -2857,17 +4751,18 @@ function NightSystem:CreateWindow(config: {
 			if not btn or not btn.Parent then
 				return
 			end
+			local s = if mainFrameScale and mainFrameScale.Scale > 0 then mainFrameScale.Scale else 1
 			local btnAbsY = btn.AbsolutePosition.Y
 			local navAbsY = NavContainer.AbsolutePosition.Y
 			local navH = NavContainer.AbsoluteSize.Y
 			local btnH = btn.AbsoluteSize.Y
 
-			if btnAbsY < navAbsY + 4 then
-				local diff = (navAbsY + 4) - btnAbsY
+			if btnAbsY < navAbsY + (4 * s) then
+				local diff = ((navAbsY + (4 * s)) - btnAbsY) / s
 				local targetY = math.max(0, NavContainer.CanvasPosition.Y - diff)
 				tween(NavContainer, TWEEN_FAST, { CanvasPosition = Vector2.new(0, targetY) })
-			elseif (btnAbsY + btnH) > (navAbsY + navH - 4) then
-				local diff = (btnAbsY + btnH) - (navAbsY + navH - 4)
+			elseif (btnAbsY + btnH) > (navAbsY + navH - (4 * s)) then
+				local diff = ((btnAbsY + btnH) - (navAbsY + navH - (4 * s))) / s
 				local targetY = NavContainer.CanvasPosition.Y + diff
 				tween(NavContainer, TWEEN_FAST, { CanvasPosition = Vector2.new(0, targetY) })
 			end
@@ -2876,8 +4771,12 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	NavContainer:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-		updateActiveIndicator(true)
+		if updateActiveIndicator then updateActiveIndicator(true) end
 	end)
+	trackConnection(mainFrameScale:GetPropertyChangedSignal("Scale"):Connect(function()
+		if not ScreenGui or not ScreenGui.Parent then return end
+		if updateActiveIndicator then updateActiveIndicator(true) end
+	end))
 
 	local function createSidebarCategory(catTitle: string): (Frame, TextLabel)
 		local wrapper = Instance.new("Frame")
@@ -2907,6 +4806,7 @@ function NightSystem:CreateWindow(config: {
 
 	local ScriptsHubPage: Frame? = nil
 	local EmotesHubPage: Frame? = nil
+	local VCHubPage: Frame? = nil
 	local stopAllEmotes: (() -> ())? = nil
 	local HubScroll: ScrollingFrame? = nil
 	local EmptyHubPlaceholder: Frame? = nil
@@ -2924,6 +4824,14 @@ function NightSystem:CreateWindow(config: {
 		end
 		if EmotesHubPage and EmotesHubPage.Visible then
 			EmotesHubPage.Visible = false
+			if activeTabName == tabName and SidebarTabs[tabName] then
+				SidebarTabs[tabName].Page.Visible = true
+				updateActiveIndicator(instant)
+				return
+			end
+		end
+		if VCHubPage and VCHubPage.Visible then
+			VCHubPage.Visible = false
 			if activeTabName == tabName and SidebarTabs[tabName] then
 				SidebarTabs[tabName].Page.Visible = true
 				updateActiveIndicator(instant)
@@ -3225,9 +5133,94 @@ function NightSystem:CreateWindow(config: {
 	EmotesHubPage = _eHub
 	stopAllEmotes = _stopEmotes
 
+	local vcCtrl = createVoiceChatBackend(trackConnection, function(t, msg, dur)
+		NightSystem:Notify({ Title = t, Content = msg, Duration = dur or 4 })
+	end)
+	VCHubPage = setupVoiceChatHub(ContentFrame, HomePage, vcCtrl, function()
+		return updateActiveIndicator
+	end, trackConnection)
+
+	local function openVCHub()
+		HomePage.Visible = false
+		if ScriptsHubPage then ScriptsHubPage.Visible = false end
+		if EmotesHubPage then EmotesHubPage.Visible = false end
+		if VCHubPage then
+			VCHubPage.Visible = true
+			VCHubPage.Position = UDim2.new(0, 0, 0, 8)
+			tween(VCHubPage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
+			updateActiveIndicator(true)
+		end
+	end
+
+	setupExternalVCOverlay(BadgeGui, vcCtrl, makeDraggable, function()
+		if not isWindowOpen then
+			openWindow()
+		end
+		switchSidebarTab("Home", true)
+		openVCHub()
+	end, trackConnection, badgeVcUi)
+
+	do
+		local VoiceChatBtn = Instance.new("TextButton")
+		VoiceChatBtn.Name = "VoiceChatButton"
+		VoiceChatBtn.Size = UDim2.new(0, 128, 0, 34)
+		VoiceChatBtn.Position = UDim2.new(1, 0, 0, 82)
+		VoiceChatBtn.AnchorPoint = Vector2.new(1, 0)
+		VoiceChatBtn.BackgroundColor3 = Color3.fromHex("#181B1E")
+		VoiceChatBtn.BorderSizePixel = 0
+		VoiceChatBtn.AutoButtonColor = false
+		VoiceChatBtn.Text = ""
+		VoiceChatBtn.Parent = HomePage
+		createCorner(VoiceChatBtn, 8)
+		local vcBtnStroke = createStroke(VoiceChatBtn, Color3.fromHex("#2A2E33"), 1, 0.1)
+
+		local vcBtnIcon = Instance.new("ImageLabel")
+		vcBtnIcon.Size = UDim2.new(0, 14, 0, 14)
+		vcBtnIcon.Position = UDim2.new(0, 11, 0.5, 0)
+		vcBtnIcon.AnchorPoint = Vector2.new(0, 0.5)
+		vcBtnIcon.BackgroundTransparency = 1
+		vcBtnIcon.Image = ASSETS.VoiceChat
+		vcBtnIcon.ImageColor3 = THEME.Accent
+		vcBtnIcon.ScaleType = Enum.ScaleType.Fit
+		vcBtnIcon.Parent = VoiceChatBtn
+
+		local vcBtnLbl = Instance.new("TextLabel")
+		vcBtnLbl.Size = UDim2.new(1, -54, 1, 0)
+		vcBtnLbl.Position = UDim2.new(0, 30, 0, 0)
+		vcBtnLbl.BackgroundTransparency = 1
+		vcBtnLbl.Font = Enum.Font.GothamBold
+		vcBtnLbl.Text = "Voice Chat"
+		vcBtnLbl.TextColor3 = THEME.TextPrimary
+		vcBtnLbl.TextSize = 12
+		vcBtnLbl.TextXAlignment = Enum.TextXAlignment.Left
+		vcBtnLbl.Parent = VoiceChatBtn
+
+		local vcBtnArrow = Instance.new("ImageLabel")
+		vcBtnArrow.Size = UDim2.new(0, 14, 0, 14)
+		vcBtnArrow.Position = UDim2.new(1, -10, 0.5, 0)
+		vcBtnArrow.AnchorPoint = Vector2.new(1, 0.5)
+		vcBtnArrow.BackgroundTransparency = 1
+		vcBtnArrow.Image = ASSETS.ChevronRight
+		vcBtnArrow.ImageColor3 = THEME.TextSecondary
+		vcBtnArrow.Parent = VoiceChatBtn
+
+		VoiceChatBtn.MouseEnter:Connect(function()
+			tween(VoiceChatBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#22262B") })
+			tween(vcBtnStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+			tween(vcBtnArrow, TWEEN_FAST, { ImageColor3 = THEME.Accent, Position = UDim2.new(1, -8, 0.5, 0) })
+		end)
+		VoiceChatBtn.MouseLeave:Connect(function()
+			tween(VoiceChatBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181B1E") })
+			tween(vcBtnStroke, TWEEN_FAST, { Color = Color3.fromHex("#2A2E33"), Transparency = 0.1 })
+			tween(vcBtnArrow, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary, Position = UDim2.new(1, -10, 0.5, 0) })
+		end)
+		VoiceChatBtn.MouseButton1Click:Connect(openVCHub)
+	end
+
 	AllScriptsBtn.MouseButton1Click:Connect(function()
 		HomePage.Visible = false
 		if EmotesHubPage then EmotesHubPage.Visible = false end
+		if VCHubPage then VCHubPage.Visible = false end
 		ScriptsHubPage.Visible = true
 		ScriptsHubPage.Position = UDim2.new(0, 0, 0, 8)
 		tween(ScriptsHubPage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
@@ -3237,6 +5230,7 @@ function NightSystem:CreateWindow(config: {
 	FreeEmotesBtn.MouseButton1Click:Connect(function()
 		HomePage.Visible = false
 		if ScriptsHubPage then ScriptsHubPage.Visible = false end
+		if VCHubPage then VCHubPage.Visible = false end
 		EmotesHubPage.Visible = true
 		EmotesHubPage.Position = UDim2.new(0, 0, 0, 8)
 		tween(EmotesHubPage, TWEEN_MEDIUM, { Position = UDim2.new(0, 0, 0, 0) })
@@ -3270,6 +5264,7 @@ function NightSystem:CreateWindow(config: {
 		return selectedPlatform
 	end
 
+	local showPlatformSelectionModal: ((onSelect: (string) -> ()) -> ())
 	function Window:PromptPlatformSelection(callback: ((string) -> ())?)
 		showPlatformSelectionModal(function(chosenPlatform)
 			applyPlatform(chosenPlatform)
@@ -3797,7 +5792,8 @@ function NightSystem:CreateWindow(config: {
 			line.Parent = secFrame
 
 			local function updateLineWidth()
-				local textW = secLabel.AbsoluteSize.X
+				local s = if mainFrameScale and mainFrameScale.Scale > 0 then mainFrameScale.Scale else 1
+				local textW = secLabel.AbsoluteSize.X / s
 				line.Size = UDim2.new(1, -(textW + 14), 0, 1)
 			end
 			task.defer(updateLineWidth)
@@ -5654,6 +7650,7 @@ function NightSystem:CreateWindow(config: {
 		codeBoxHolder.Position = UDim2.new(0, 8, 0, 110)
 		codeBoxHolder.BackgroundColor3 = Color3.fromHex("#0F1113")
 		codeBoxHolder.BorderSizePixel = 0
+		codeBoxHolder.ClipsDescendants = true
 		codeBoxHolder.Parent = card
 		createCorner(codeBoxHolder, 6)
 		local codeBoxStroke = createStroke(codeBoxHolder, Color3.fromHex("#22252A"), 1, 0.2)
@@ -5662,6 +7659,7 @@ function NightSystem:CreateWindow(config: {
 		codeBox.Size = UDim2.new(1, -10, 1, 0)
 		codeBox.Position = UDim2.new(0, 5, 0, 0)
 		codeBox.BackgroundTransparency = 1
+		codeBox.ClipsDescendants = true
 		codeBox.Font = Enum.Font.Code
 		codeBox.Text = rawLoadstring
 		codeBox.TextColor3 = Color3.fromHex("#9EABB8")
@@ -5940,6 +7938,7 @@ function NightSystem:CreateWindow(config: {
 	function Window:OpenFreeEmotes()
 		HomePage.Visible = false
 		if ScriptsHubPage then ScriptsHubPage.Visible = false end
+		if VCHubPage then VCHubPage.Visible = false end
 		if EmotesHubPage then
 			EmotesHubPage.Visible = true
 			EmotesHubPage.Position = UDim2.new(0, 0, 0, 8)
@@ -5948,6 +7947,58 @@ function NightSystem:CreateWindow(config: {
 		end
 	end
 	Window.OpenEmotes = Window.OpenFreeEmotes
+
+	function Window:OpenVoiceChat()
+		openVCHub()
+	end
+	Window.OpenVC = Window.OpenVoiceChat
+
+	do
+		local function handleVcChat(raw: string)
+			if type(raw) ~= "string" then return end
+			local msg = raw:match("^%s*(.-)%s*$") or ""
+			local pfx = msg:sub(1, 1)
+			if pfx ~= ";" and pfx ~= "/" and pfx ~= "!" then return end
+			local parts = {}
+			for w in msg:sub(2):gmatch("%S+") do table.insert(parts, w) end
+			local cmd = parts[1] and string.lower(parts[1])
+			if cmd == "vcb" or cmd == "vcbypasser" then openVCHub()
+			elseif cmd == "vcb2" then vcCtrl.runBypassV2()
+			elseif cmd == "muteallvc" or cmd == "mavc" then vcCtrl.muteAll(true)
+			elseif cmd == "unmuteallvc" or cmd == "umavc" then vcCtrl.muteAll(false)
+			elseif cmd == "mutevc" or cmd == "mvc" then vcCtrl.muteTarget(parts[2] or "", true)
+			elseif cmd == "unmutevc" or cmd == "umvc" then vcCtrl.muteTarget(parts[2] or "", false)
+			elseif cmd == "listen" then vcCtrl.listenTo(parts[2] or "")
+			elseif cmd == "unlisten" then vcCtrl.unlisten()
+			elseif cmd == "vcbooster" or cmd == "vcboost" or cmd == "boostvc" then
+				local q = table.concat(parts, " ", 2)
+				if q ~= "" then
+					for _, plr in ipairs(vcCtrl.findPlayers(q)) do vcCtrl.setBoostTarget(plr, true) end
+					vcCtrl.setBoosterEnabled(true)
+				else
+					openVCHub()
+				end
+			elseif cmd == "unvcbooster" or cmd == "unvcboost" or cmd == "unboostvc" then
+				local q = table.concat(parts, " ", 2)
+				if q == "" then
+					vcCtrl.setBoosterEnabled(false)
+				else
+					for _, plr in ipairs(vcCtrl.findPlayers(q)) do vcCtrl.setBoostTarget(plr, false) end
+				end
+			end
+		end
+		pcall(function()
+			trackConnection(LocalPlayer.Chatted:Connect(handleVcChat))
+		end)
+		pcall(function()
+			local tcs = game:GetService("TextChatService")
+			if tcs then
+				trackConnection(tcs.SendingMessage:Connect(function(m)
+					if m and m.Text then handleVcChat(m.Text) end
+				end))
+			end
+		end)
+	end
 
 	function Window:StopEmotes()
 		if stopAllEmotes then
@@ -5967,12 +8018,16 @@ function NightSystem:CreateWindow(config: {
 		if stopAllEmotes then
 			pcall(stopAllEmotes)
 		end
+		if vcCtrl and vcCtrl.stopAll then
+			pcall(vcCtrl.stopAll)
+		end
 		disconnectAll()
 		NightSystem._ActiveWindow = nil
 		if gEnv then
 			gEnv._NightLoaded = nil
 			gEnv._NightActiveWindow = nil
 			gEnv._NightSystem = nil
+			gEnv._NightBuildId = nil
 		end
 		if ScreenGui and ScreenGui.Parent then
 			ScreenGui:Destroy()
@@ -5985,7 +8040,7 @@ function NightSystem:CreateWindow(config: {
 	-- ========================================================================
 	-- STARTUP SEQUENCE (Platform Selection Window & Animated Loader)
 	-- ========================================================================
-	local function showPlatformSelectionModal(onSelect: (string) -> ())
+	showPlatformSelectionModal = function(onSelect: (string) -> ())
 		local isTouchDevice = (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) or (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
 		local recommended = if isTouchDevice then "Handy" else "PC"
 
@@ -6524,10 +8579,10 @@ function NightSystem:CreateWindow(config: {
 		ringGrad.Parent = ringStroke
 
 		local isSpinning = true
-		local spinConn = RunService.RenderStepped:Connect(function(dt)
+		local spinConn = trackConnection(RunService.RenderStepped:Connect(function(dt)
 			if not isSpinning or not spinner or not spinner.Parent then return end
 			spinner.Rotation = (spinner.Rotation + dt * 380) % 360
-		end)
+		end))
 
 		-- Sanfter Einblend-Effekt fuer den Loader
 		LoaderFrame.Size = UDim2.new(0, 290, 0, 72)
@@ -6606,6 +8661,7 @@ function NightSystem:CreateWindow(config: {
 
 	if gEnv then
 		gEnv._NightLoaded = true
+		gEnv._NightBuildId = NIGHT_BUILD_ID
 		gEnv._NightActiveWindow = winInstance
 		gEnv._NightSystem = NightSystem
 		gEnv.NightSystem = NightSystem
@@ -6613,6 +8669,7 @@ function NightSystem:CreateWindow(config: {
 		gEnv.OrionLib = NightSystem
 		gEnv.Rayfield = NightSystem
 	end
+	print("[NightSystem] Active Build: " .. NIGHT_BUILD_ID)
 
 	return winInstance
 end
