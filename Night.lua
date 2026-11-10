@@ -1940,7 +1940,8 @@ local function setupExternalVCOverlay(
 	vc: any,
 	makeDraggableFn: (GuiObject, GuiObject, Frame?, (() -> ())?) -> (),
 	openMainAndVCHub: () -> (),
-	trackConn: (RBXScriptConnection) -> RBXScriptConnection
+	trackConn: (RBXScriptConnection) -> RBXScriptConnection,
+	extraTrigger: { Host: GuiObject?, Button: GuiObject?, Icon: ImageLabel?, Dot: Frame? }?
 )
 	local TriggerBtn = Instance.new("TextButton")
 	TriggerBtn.Name = "VCQuickTrigger"
@@ -2234,25 +2235,60 @@ local function setupExternalVCOverlay(
 	local FullHubBtn = makeMiniBtn(ExtraPad, UDim2.new(1, 0, 0, 32), UDim2.new(0, 0, 0, 182), "Open Full VC & Player Booster List  ›")
 
 	local extraOpen = false
-	local function setExtraOpen(want: boolean)
+	local currentAnchor: GuiObject? = nil
+	local function setExtraOpen(want: boolean, anchorGui: GuiObject?, preferBelow: boolean?)
 		extraOpen = want == true
 		ExtraPanel.Visible = extraOpen
 		if extraOpen then
-			ExtraPanel.Position = UDim2.new(
-				TriggerBtn.Position.X.Scale,
-				TriggerBtn.Position.X.Offset,
-				TriggerBtn.Position.Y.Scale,
-				TriggerBtn.Position.Y.Offset - 46
-			)
+			local targetAnchor = anchorGui or TriggerBtn
+			currentAnchor = targetAnchor
+			local cam = workspace.CurrentCamera
+			local vp = (cam and cam.ViewportSize) or Vector2.new(1280, 720)
+			if vp.X < 100 or vp.Y < 100 then
+				vp = Vector2.new(1280, 720)
+			end
+			local aPos = targetAnchor.AbsolutePosition
+			local aSize = targetAnchor.AbsoluteSize
+			local pw, ph = 326, 286
+			local px = math.clamp(aPos.X, 12, math.max(12, vp.X - pw - 12))
+			local py
+			if preferBelow then
+				py = aPos.Y + aSize.Y + 8
+				if py + ph > vp.Y - 12 then
+					py = math.max(12, aPos.Y - ph - 8)
+				end
+			else
+				py = aPos.Y - ph - 8
+				if py < 12 then
+					py = math.min(math.max(12, vp.Y - ph - 12), aPos.Y + aSize.Y + 8)
+				end
+			end
+			ExtraPanel.AnchorPoint = Vector2.new(0, 0)
+			ExtraPanel.Position = UDim2.new(0, math.round(px), 0, math.round(py))
+		else
+			currentAnchor = nil
+		end
+	end
+
+	local function toggleExtraFrom(anchorGui: GuiObject, preferBelow: boolean)
+		if extraOpen and currentAnchor == anchorGui then
+			setExtraOpen(false, nil, nil)
+		else
+			setExtraOpen(true, anchorGui, preferBelow)
 		end
 	end
 
 	makeDraggableFn(TriggerBtn, TriggerBtn, nil, function()
-		setExtraOpen(not extraOpen)
+		toggleExtraFrom(TriggerBtn, false)
 	end)
+	if extraTrigger and extraTrigger.Button and extraTrigger.Host then
+		makeDraggableFn(extraTrigger.Button, extraTrigger.Host, nil, function()
+			toggleExtraFrom(extraTrigger.Host, true)
+		end)
+	end
 	makeDraggableFn(ExtraTopBar, ExtraPanel, nil, nil)
 	ExtraClose.MouseButton1Click:Connect(function()
-		setExtraOpen(false)
+		setExtraOpen(false, nil, nil)
 	end)
 
 	V1Btn.MouseButton1Click:Connect(function() vc.setVersion(1) end)
@@ -2269,7 +2305,7 @@ local function setupExternalVCOverlay(
 	UnmuteAllBtn.MouseButton1Click:Connect(function() vc.muteAll(false) end)
 	BoostBtn.MouseButton1Click:Connect(function() vc.setBoosterEnabled(not vc.boosterEnabled) end)
 	FullHubBtn.MouseButton1Click:Connect(function()
-		setExtraOpen(false)
+		setExtraOpen(false, nil, nil)
 		openMainAndVCHub()
 	end)
 
@@ -2300,6 +2336,15 @@ local function setupExternalVCOverlay(
 		end
 
 		TrigIcon.Image = if vc.muted then ASSETS.VoiceChatMuted else ASSETS.VoiceChat
+		if extraTrigger then
+			if extraTrigger.Icon then
+				extraTrigger.Icon.Image = if vc.muted then ASSETS.VoiceChatMuted else ASSETS.VoiceChat
+				extraTrigger.Icon.ImageColor3 = if vc.muted then Color3.fromRGB(255, 96, 96) elseif vc.executed then Color3.fromRGB(60, 220, 130) else THEME.TextPrimary
+			end
+			if extraTrigger.Dot then
+				extraTrigger.Dot.BackgroundColor3 = TrigDot.BackgroundColor3
+			end
+		end
 		MicBtn.Text = if vc.muted then "Mic: Muted" else "Mic: Live"
 		MicBtn.TextColor3 = if vc.muted then Color3.fromRGB(255, 96, 96) else THEME.TextPrimary
 		MicStroke.Color = if vc.muted then Color3.fromRGB(255, 96, 96) else THEME.Stroke
@@ -3300,15 +3345,13 @@ function NightSystem:CreateWindow(config: {
 	NightSystem.Platform = selectedPlatform
 
 	-- Floating Minimized Badge (Top Bar Pill - Nur auf PC sichtbar, auf Handy ausgeblendet!)
-	local FloatingBadge = Instance.new("TextButton")
+	local FloatingBadge = Instance.new("Frame")
 	FloatingBadge.Name = "FloatingBadge"
-	FloatingBadge.Size = UDim2.new(0, 160, 0, 38)
+	FloatingBadge.Size = UDim2.new(0, 206, 0, 38)
 	FloatingBadge.Position = UDim2.new(0.5, 0, 0, 28)
 	FloatingBadge.AnchorPoint = Vector2.new(0.5, 0)
 	FloatingBadge.BackgroundColor3 = THEME.MainBackground
 	FloatingBadge.BorderSizePixel = 0
-	FloatingBadge.AutoButtonColor = false
-	FloatingBadge.Text = ""
 	FloatingBadge.Active = true
 	FloatingBadge.ZIndex = 80
 	FloatingBadge.Visible = (selectedPlatform ~= "Handy")
@@ -3329,52 +3372,131 @@ function NightSystem:CreateWindow(config: {
 		end
 	end))
 
+	local badgeVcUi: { Host: GuiObject?, MainButton: GuiObject?, Button: GuiObject?, Icon: ImageLabel?, Dot: Frame? } = {
+		Host = FloatingBadge,
+	}
+
 	local BadgeLogo = Instance.new("Frame")
-	BadgeLogo.Size = UDim2.new(0, 24, 0, 24)
-	BadgeLogo.Position = UDim2.new(0, 8, 0.5, 0)
-	BadgeLogo.AnchorPoint = Vector2.new(0, 0.5)
-	BadgeLogo.BackgroundColor3 = Color3.fromHex("#1E1E22")
-	BadgeLogo.BorderSizePixel = 0
-	BadgeLogo.Active = false
-	BadgeLogo.ZIndex = 81
-	BadgeLogo.Parent = FloatingBadge
-	createCorner(BadgeLogo, 6)
-
 	local BadgeLetter = Instance.new("TextLabel")
-	BadgeLetter.Size = UDim2.new(1, 0, 1, 0)
-	BadgeLetter.BackgroundTransparency = 1
-	BadgeLetter.Font = Enum.Font.GothamBold
-	BadgeLetter.Text = "N"
-	BadgeLetter.TextColor3 = THEME.TextPrimary
-	BadgeLetter.TextSize = 13
-	BadgeLetter.Active = false
-	BadgeLetter.ZIndex = 82
-	BadgeLetter.Parent = BadgeLogo
-
 	local BadgeRedDot = Instance.new("Frame")
-	BadgeRedDot.Size = UDim2.new(0, 5, 0, 5)
-	BadgeRedDot.Position = UDim2.new(1, -3, 0, 3)
-	BadgeRedDot.AnchorPoint = Vector2.new(0.5, 0.5)
-	BadgeRedDot.BackgroundColor3 = THEME.AccentRed
-	BadgeRedDot.BorderSizePixel = 0
-	BadgeRedDot.Active = false
-	BadgeRedDot.ZIndex = 83
-	BadgeRedDot.Parent = BadgeLogo
-	createCorner(BadgeRedDot, 4)
-
 	local BadgeLabel = Instance.new("TextLabel")
-	BadgeLabel.Size = UDim2.new(1, -44, 1, 0)
-	BadgeLabel.Position = UDim2.new(0, 38, 0, 0)
-	BadgeLabel.BackgroundTransparency = 1
-	BadgeLabel.Font = Enum.Font.GothamBold
-	BadgeLabel.Text = windowTitle
-	BadgeLabel.TextColor3 = THEME.TextPrimary
-	BadgeLabel.TextSize = 13
-	BadgeLabel.TextXAlignment = Enum.TextXAlignment.Left
-	BadgeLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	BadgeLabel.Active = false
-	BadgeLabel.ZIndex = 81
-	BadgeLabel.Parent = FloatingBadge
+
+	do
+		local BadgeMainBtn = Instance.new("TextButton")
+		BadgeMainBtn.Name = "FloatingBadgeMainButton"
+		BadgeMainBtn.Size = UDim2.new(1, -44, 1, 0)
+		BadgeMainBtn.Position = UDim2.new(0, 0, 0, 0)
+		BadgeMainBtn.BackgroundTransparency = 1
+		BadgeMainBtn.AutoButtonColor = false
+		BadgeMainBtn.Text = ""
+		BadgeMainBtn.Active = true
+		BadgeMainBtn.ZIndex = 81
+		BadgeMainBtn.Parent = FloatingBadge
+		badgeVcUi.MainButton = BadgeMainBtn
+
+		BadgeLogo.Size = UDim2.new(0, 24, 0, 24)
+		BadgeLogo.Position = UDim2.new(0, 8, 0.5, 0)
+		BadgeLogo.AnchorPoint = Vector2.new(0, 0.5)
+		BadgeLogo.BackgroundColor3 = Color3.fromHex("#1E1E22")
+		BadgeLogo.BorderSizePixel = 0
+		BadgeLogo.Active = false
+		BadgeLogo.ZIndex = 82
+		BadgeLogo.Parent = BadgeMainBtn
+		createCorner(BadgeLogo, 6)
+
+		BadgeLetter.Size = UDim2.new(1, 0, 1, 0)
+		BadgeLetter.BackgroundTransparency = 1
+		BadgeLetter.Font = Enum.Font.GothamBold
+		BadgeLetter.Text = "N"
+		BadgeLetter.TextColor3 = THEME.TextPrimary
+		BadgeLetter.TextSize = 13
+		BadgeLetter.Active = false
+		BadgeLetter.ZIndex = 83
+		BadgeLetter.Parent = BadgeLogo
+
+		BadgeRedDot.Size = UDim2.new(0, 5, 0, 5)
+		BadgeRedDot.Position = UDim2.new(1, -3, 0, 3)
+		BadgeRedDot.AnchorPoint = Vector2.new(0.5, 0.5)
+		BadgeRedDot.BackgroundColor3 = THEME.AccentRed
+		BadgeRedDot.BorderSizePixel = 0
+		BadgeRedDot.Active = false
+		BadgeRedDot.ZIndex = 84
+		BadgeRedDot.Parent = BadgeLogo
+		createCorner(BadgeRedDot, 4)
+
+		BadgeLabel.Size = UDim2.new(1, -44, 1, 0)
+		BadgeLabel.Position = UDim2.new(0, 38, 0, 0)
+		BadgeLabel.BackgroundTransparency = 1
+		BadgeLabel.Font = Enum.Font.GothamBold
+		BadgeLabel.Text = windowTitle
+		BadgeLabel.TextColor3 = THEME.TextPrimary
+		BadgeLabel.TextSize = 13
+		BadgeLabel.TextXAlignment = Enum.TextXAlignment.Left
+		BadgeLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		BadgeLabel.Active = false
+		BadgeLabel.ZIndex = 82
+		BadgeLabel.Parent = BadgeMainBtn
+
+		local BadgeDivider = Instance.new("Frame")
+		BadgeDivider.Size = UDim2.new(0, 1, 0, 20)
+		BadgeDivider.Position = UDim2.new(1, -43, 0.5, 0)
+		BadgeDivider.AnchorPoint = Vector2.new(0, 0.5)
+		BadgeDivider.BackgroundColor3 = THEME.Stroke
+		BadgeDivider.BorderSizePixel = 0
+		BadgeDivider.ZIndex = 82
+		BadgeDivider.Parent = FloatingBadge
+
+		local BadgeVCBtn = Instance.new("TextButton")
+		BadgeVCBtn.Name = "FloatingBadgeVCButton"
+		BadgeVCBtn.Size = UDim2.new(0, 32, 0, 28)
+		BadgeVCBtn.Position = UDim2.new(1, -5, 0.5, 0)
+		BadgeVCBtn.AnchorPoint = Vector2.new(1, 0.5)
+		BadgeVCBtn.BackgroundColor3 = Color3.fromHex("#181A1D")
+		BadgeVCBtn.BorderSizePixel = 0
+		BadgeVCBtn.AutoButtonColor = false
+		BadgeVCBtn.Text = ""
+		BadgeVCBtn.Active = true
+		BadgeVCBtn.ZIndex = 82
+		BadgeVCBtn.Parent = FloatingBadge
+		createCorner(BadgeVCBtn, 7)
+		local badgeVCStroke = createStroke(BadgeVCBtn, THEME.Stroke, 1, 0.25)
+
+		local BadgeVCIcon = Instance.new("ImageLabel")
+		BadgeVCIcon.Size = UDim2.new(0, 15, 0, 15)
+		BadgeVCIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+		BadgeVCIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		BadgeVCIcon.BackgroundTransparency = 1
+		BadgeVCIcon.Image = ASSETS.VoiceChat
+		BadgeVCIcon.ImageColor3 = THEME.TextPrimary
+		BadgeVCIcon.ScaleType = Enum.ScaleType.Fit
+		BadgeVCIcon.Active = false
+		BadgeVCIcon.ZIndex = 83
+		BadgeVCIcon.Parent = BadgeVCBtn
+
+		local BadgeVCDot = Instance.new("Frame")
+		BadgeVCDot.Size = UDim2.new(0, 6, 0, 6)
+		BadgeVCDot.Position = UDim2.new(1, -3, 0, 3)
+		BadgeVCDot.AnchorPoint = Vector2.new(0.5, 0.5)
+		BadgeVCDot.BackgroundColor3 = THEME.TextSecondary
+		BadgeVCDot.BorderSizePixel = 0
+		BadgeVCDot.Active = false
+		BadgeVCDot.ZIndex = 84
+		BadgeVCDot.Parent = BadgeVCBtn
+		createCorner(BadgeVCDot, 4)
+
+		BadgeVCBtn.MouseEnter:Connect(function()
+			tween(BadgeVCBtn, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+			tween(badgeVCStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0 })
+		end)
+		BadgeVCBtn.MouseLeave:Connect(function()
+			tween(BadgeVCBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#181A1D") })
+			tween(badgeVCStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.25 })
+		end)
+
+		badgeVcUi.Button = BadgeVCBtn
+		badgeVcUi.Icon = BadgeVCIcon
+		badgeVcUi.Dot = BadgeVCDot
+	end
 
 	-- Mobile Floating Toggle Button (Sleek draggable circular button with 'N' logo and red dot - Pure Matte Black)
 	local MobileToggleBtn = Instance.new("TextButton")
@@ -3434,7 +3556,7 @@ function NightSystem:CreateWindow(config: {
 	MainFrame.Visible = false
 	MainFrame.Parent = ScreenGui
 	createCorner(MainFrame, 12)
-	createStroke(MainFrame, THEME.Stroke, 1, 0.2)
+	local mainFrameStroke = createStroke(MainFrame, THEME.Stroke, 1, 0.2)
 
 	-- Dynamic UI Scaling for Mobile & Responsive displays
 	local mainFrameScale = Instance.new("UIScale")
@@ -3648,47 +3770,64 @@ function NightSystem:CreateWindow(config: {
 
 	local function makeDraggable(handle: GuiObject, target: GuiObject, pill: Frame?, onClick: (() -> ())?)
 		local isDragging = false
-		local dragInput: InputObject? = nil
+		local dragTouchInput: InputObject? = nil
 		local dragStart = Vector2.zero
 		local startPos = target.Position
 		local totalMoved = 0
+		local endConn1: RBXScriptConnection? = nil
+		local endConn2: RBXScriptConnection? = nil
 
 		handle.InputBegan:Connect(function(input: InputObject)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				if endConn1 then endConn1:Disconnect(); endConn1 = nil end
+				if endConn2 then endConn2:Disconnect(); endConn2 = nil end
 				isDragging = true
+				dragTouchInput = if input.UserInputType == Enum.UserInputType.Touch then input else nil
 				totalMoved = 0
 				dragStart = Vector2.new(input.Position.X, input.Position.Y)
 				startPos = target.Position
 				if pill then
 					tween(pill, TWEEN_FAST, { BackgroundColor3 = THEME.TextPrimary })
 				end
-				local endConn: RBXScriptConnection? = nil
-				endConn = input.Changed:Connect(function()
+				local finished = false
+				local function finishDrag()
+					if finished then return end
+					finished = true
+					isDragging = false
+					dragTouchInput = nil
+					if endConn1 then endConn1:Disconnect(); endConn1 = nil end
+					if endConn2 then endConn2:Disconnect(); endConn2 = nil end
+					if pill then
+						tween(pill, TWEEN_FAST, { BackgroundColor3 = THEME.DragPill })
+					end
+					if totalMoved < 6 and onClick then
+						onClick()
+					end
+				end
+				endConn1 = input.Changed:Connect(function()
 					if input.UserInputState == Enum.UserInputState.End then
-						isDragging = false
-						if endConn then endConn:Disconnect() end
-						if pill then
-							tween(pill, TWEEN_FAST, { BackgroundColor3 = THEME.DragPill })
-						end
-						if totalMoved < 6 and onClick then
-							onClick()
-						end
+						finishDrag()
+					end
+				end)
+				endConn2 = UserInputService.InputEnded:Connect(function(endInp: InputObject)
+					if (dragTouchInput and endInp == dragTouchInput) or (not dragTouchInput and endInp.UserInputType == Enum.UserInputType.MouseButton1) then
+						finishDrag()
 					end
 				end)
 			end
 		end)
 
-		handle.InputChanged:Connect(function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-				dragInput = input
-			end
-		end)
-
 		trackConnection(UserInputService.InputChanged:Connect(function(input: InputObject)
-			if input == dragInput and isDragging then
+			if not isDragging then return end
+			local matches = if dragTouchInput
+				then (input == dragTouchInput)
+				else (input.UserInputType == Enum.UserInputType.MouseMovement)
+			if matches then
 				local curPos = Vector2.new(input.Position.X, input.Position.Y)
 				local delta = curPos - dragStart
-				totalMoved = delta.Magnitude
+				if delta.Magnitude > totalMoved then
+					totalMoved = delta.Magnitude
+				end
 				target.Position = UDim2.new(
 					startPos.X.Scale,
 					startPos.X.Offset + delta.X,
@@ -3700,8 +3839,18 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local currentOpenCloseTween: Tween? = nil
+	local currentOpenCloseStrokeTween: Tween? = nil
+	local openCloseGen = 0
+
+	local function getValidWindowSize(sz: UDim2, fallback: UDim2): UDim2
+		if typeof(sz) == "UDim2" and sz.X.Offset >= 420 and sz.Y.Offset >= 300 then
+			return UDim2.new(0, sz.X.Offset, 0, sz.Y.Offset)
+		end
+		return fallback
+	end
 
 	local function openWindow()
+		openCloseGen += 1
 		isWindowOpen = true
 		isMinimized = false
 		isHidden = false
@@ -3722,22 +3871,34 @@ function NightSystem:CreateWindow(config: {
 			pcall(function() currentOpenCloseTween:Cancel() end)
 			currentOpenCloseTween = nil
 		end
+		if currentOpenCloseStrokeTween then
+			pcall(function() currentOpenCloseStrokeTween:Cancel() end)
+			currentOpenCloseStrokeTween = nil
+		end
+
+		normalSize = getValidWindowSize(normalSize, UDim2.new(0, 740, 0, 460))
+		maximizedSize = getValidWindowSize(maximizedSize, UDim2.new(0, 920, 0, 560))
+		local targetSize = if isMaximized then maximizedSize else normalSize
+
+		if (not MainFrame.Visible) or MainFrame.Size.X.Offset < targetSize.X.Offset * 0.8 or MainFrame.Size.Y.Offset < targetSize.Y.Offset * 0.8 then
+			MainFrame.Size = UDim2.new(0, math.round(targetSize.X.Offset * 0.94), 0, math.round(targetSize.Y.Offset * 0.94))
+		end
 
 		MainFrame.Visible = true
 		MainFrame.BackgroundTransparency = 0
-
-		local targetSize = if isMaximized then maximizedSize else normalSize
-		if MainFrame.Size.Y.Offset < 60 then
-			MainFrame.Size = UDim2.new(0, targetSize.X.Offset * 0.94, 0, targetSize.Y.Offset * 0.94)
+		if mainFrameStroke then
+			mainFrameStroke.Transparency = 0.2
 		end
 
-		currentOpenCloseTween = tween(MainFrame, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		currentOpenCloseTween = tween(MainFrame, TweenInfo.new(0.20, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 			Size = targetSize,
 			BackgroundTransparency = 0,
 		})
 	end
 
 	local function closeWindow()
+		openCloseGen += 1
+		local myGen = openCloseGen
 		isWindowOpen = false
 		isMinimized = false
 		isHidden = true
@@ -3757,15 +3918,29 @@ function NightSystem:CreateWindow(config: {
 			pcall(function() currentOpenCloseTween:Cancel() end)
 			currentOpenCloseTween = nil
 		end
+		if currentOpenCloseStrokeTween then
+			pcall(function() currentOpenCloseStrokeTween:Cancel() end)
+			currentOpenCloseStrokeTween = nil
+		end
 
-		local targetW = if isMaximized then maximizedSize.X.Offset else normalSize.X.Offset
-		local tw = tween(MainFrame, TWEEN_FAST, {
-			Size = UDim2.new(0, targetW, 0, 0),
+		local targetSize = getValidWindowSize(if isMaximized then maximizedSize else normalSize, UDim2.new(0, 740, 0, 460))
+		local tw = tween(MainFrame, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, math.round(targetSize.X.Offset * 0.92), 0, math.round(targetSize.Y.Offset * 0.92)),
 			BackgroundTransparency = 1,
 		})
 		currentOpenCloseTween = tw
+		if mainFrameStroke then
+			currentOpenCloseStrokeTween = tween(mainFrameStroke, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Transparency = 1,
+			})
+		end
 		tw.Completed:Connect(function(playbackState)
-			if not isWindowOpen and playbackState == Enum.PlaybackState.Completed then
+			if myGen == openCloseGen and not isWindowOpen and playbackState == Enum.PlaybackState.Completed then
+				MainFrame.Visible = false
+			end
+		end)
+		task.delay(0.18, function()
+			if myGen == openCloseGen and not isWindowOpen and MainFrame and MainFrame.Parent then
 				MainFrame.Visible = false
 			end
 		end)
@@ -3804,19 +3979,17 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	makeDraggable(TopBar, MainFrame, DragPill, nil)
-	makeDraggable(FloatingBadge, FloatingBadge, nil, function()
-		toggleWindowState()
-	end)
-	FloatingBadge.Activated:Connect(function()
-		toggleWindowState()
-	end)
-
-	FloatingBadge.MouseEnter:Connect(function()
-		tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
-	end)
-	FloatingBadge.MouseLeave:Connect(function()
-		tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.MainBackground })
-	end)
+	if badgeVcUi and badgeVcUi.MainButton then
+		makeDraggable(badgeVcUi.MainButton, FloatingBadge, nil, function()
+			toggleWindowState()
+		end)
+		badgeVcUi.MainButton.MouseEnter:Connect(function()
+			tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.CardHover })
+		end)
+		badgeVcUi.MainButton.MouseLeave:Connect(function()
+			tween(FloatingBadge, TWEEN_FAST, { BackgroundColor3 = THEME.MainBackground })
+		end)
+	end
 
 	CloseBtn.MouseButton1Click:Connect(function()
 		closeWindow()
@@ -4402,17 +4575,24 @@ function NightSystem:CreateWindow(config: {
 			end
 		end)
 
+		local resizeEndConn: RBXScriptConnection? = nil
 		ResizeHandle.InputBegan:Connect(function(input: InputObject)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				if resizeEndConn then resizeEndConn:Disconnect(); resizeEndConn = nil end
 				isResizing = true
 				resizeStartMouse = Vector2.new(input.Position.X, input.Position.Y)
 				startSize = Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
 				startPos = MainFrame.Position
 
-				input.Changed:Connect(function()
+				resizeEndConn = input.Changed:Connect(function()
 					if input.UserInputState == Enum.UserInputState.End then
-						isResizing = false
-						normalSize = MainFrame.Size
+						if resizeEndConn then resizeEndConn:Disconnect(); resizeEndConn = nil end
+						if isResizing then
+							isResizing = false
+							if MainFrame.Size.X.Offset >= 420 and MainFrame.Size.Y.Offset >= 300 then
+								normalSize = MainFrame.Size
+							end
+						end
 						tween(ResizeHandle, TWEEN_FAST, { BackgroundTransparency = 0.65 })
 						tween(ResizeStroke, TWEEN_FAST, { Color = THEME.TextSecondary, Transparency = 0.55 })
 						tween(GripBar1, TWEEN_FAST, { BackgroundTransparency = 0.45 })
@@ -4917,7 +5097,7 @@ function NightSystem:CreateWindow(config: {
 		end
 		switchSidebarTab("Home", true)
 		openVCHub()
-	end, trackConnection)
+	end, trackConnection, badgeVcUi)
 
 	do
 		local VoiceChatBtn = Instance.new("TextButton")
