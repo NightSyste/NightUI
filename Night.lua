@@ -3269,7 +3269,7 @@ function NightSystem:CreateWindow(config: {
 	end
 
 	local windowTitle = tostring(cfg.Title or "Night System")
-	local windowSubtitle = tostring(cfg.Subtitle or "discord.gg/4cZBCyDFmX")
+	local windowSubtitle = tostring(cfg.Subtitle or "discord.gg/gJbDBACh8Q")
 	local logoId = tostring(cfg.LogoId or ASSETS.DefaultLogo)
 	local introText = tostring(cfg.IntroText or "Night System Scripts in all free")
 	local mainTabName = tostring(cfg.MainTabName or "Main")
@@ -4217,8 +4217,8 @@ function NightSystem:CreateWindow(config: {
 		tween(ExtIcon, TWEEN_FAST, { ImageColor3 = THEME.TextSecondary })
 	end)
 	CopyDiscordBtn.MouseButton1Click:Connect(function()
-		local inviteUrl = "https://discord.gg/4cZBCyDFmX"
-		local inviteCode = "4cZBCyDFmX"
+		local inviteUrl = "https://discord.gg/gJbDBACh8Q"
+		local inviteCode = "gJbDBACh8Q"
 		local fenv = getfenv() :: any
 		local genv = (type(fenv.getgenv) == "function" and fenv.getgenv()) or _G or fenv
 
