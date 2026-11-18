@@ -658,7 +658,7 @@ local function setupScriptsHub(ContentFrame: Frame, HomePage: Frame, getActiveTa
 	HubHeaderSub.BackgroundTransparency = 1
 	HubHeaderSub.Font = Enum.Font.GothamMedium
 	HubHeaderSub.TextTruncate = Enum.TextTruncate.AtEnd
-	HubHeaderSub.Text = tostring(#DEFAULT_HUB_SCRIPTS) .. " Official Scripts • Execute or Copy"
+	HubHeaderSub.Text = tostring(#DEFAULT_HUB_SCRIPTS) .. " Official Scripts • Click to Execute"
 	HubHeaderSub.TextColor3 = THEME.TextHeaderSub
 	HubHeaderSub.TextSize = 13
 	HubHeaderSub.TextXAlignment = Enum.TextXAlignment.Left
@@ -748,7 +748,7 @@ local function setupScriptsHub(ContentFrame: Frame, HomePage: Frame, getActiveTa
 	createPadding(HubScroll, 2, 12, 2, 8)
 
 	local HubGridLayout = Instance.new("UIGridLayout")
-	HubGridLayout.CellSize = UDim2.new(0, 145, 0, 195)
+	HubGridLayout.CellSize = UDim2.new(0, 145, 0, 180)
 	HubGridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
 	HubGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	HubGridLayout.Parent = HubScroll
@@ -762,7 +762,7 @@ local function setupScriptsHub(ContentFrame: Frame, HomePage: Frame, getActiveTa
 			local gap = 10
 			local cols = if availableW >= 620 then 4 else 3
 			local cardW = math.max(120, math.floor((availableW - (gap * (cols - 1))) / cols))
-			HubGridLayout.CellSize = UDim2.new(0, cardW, 0, 195)
+			HubGridLayout.CellSize = UDim2.new(0, cardW, 0, 180)
 		end
 	end
 	HubScroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateHubGrid)
@@ -7667,96 +7667,34 @@ function NightSystem:CreateWindow(config: {
 		titleLbl.TextTruncate = Enum.TextTruncate.AtEnd
 		titleLbl.Parent = card
 
-		-- Loadstring Preview Code Box (Directly in front of the user)
-		local codeBoxHolder = Instance.new("Frame")
-		codeBoxHolder.Size = UDim2.new(1, -16, 0, 32)
-		codeBoxHolder.Position = UDim2.new(0, 8, 0, 110)
-		codeBoxHolder.BackgroundColor3 = Color3.fromHex("#0F1113")
-		codeBoxHolder.BorderSizePixel = 0
-		codeBoxHolder.ClipsDescendants = true
-		codeBoxHolder.Parent = card
-		createCorner(codeBoxHolder, 6)
-		local codeBoxStroke = createStroke(codeBoxHolder, Color3.fromHex("#22252A"), 1, 0.2)
+		-- Script Description (No Loadstring shown or copyable)
+		local descLbl = Instance.new("TextLabel")
+		descLbl.Name = "ScriptDescription"
+		descLbl.Size = UDim2.new(1, -16, 0, 26)
+		descLbl.Position = UDim2.new(0, 8, 0, 109)
+		descLbl.BackgroundTransparency = 1
+		descLbl.Font = Enum.Font.GothamMedium
+		descLbl.Text = sDesc
+		descLbl.TextColor3 = THEME.TextSecondary
+		descLbl.TextSize = 9
+		descLbl.TextWrapped = true
+		descLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		descLbl.TextXAlignment = Enum.TextXAlignment.Left
+		descLbl.TextYAlignment = Enum.TextYAlignment.Top
+		descLbl.Parent = card
 
-		local codeBox = Instance.new("TextBox")
-		codeBox.Size = UDim2.new(1, -10, 1, 0)
-		codeBox.Position = UDim2.new(0, 5, 0, 0)
-		codeBox.BackgroundTransparency = 1
-		codeBox.ClipsDescendants = true
-		codeBox.Font = Enum.Font.Code
-		codeBox.Text = rawLoadstring
-		codeBox.TextColor3 = Color3.fromHex("#9EABB8")
-		codeBox.TextSize = 8
-		codeBox.TextWrapped = true
-		codeBox.TextXAlignment = Enum.TextXAlignment.Left
-		codeBox.TextYAlignment = Enum.TextYAlignment.Center
-		codeBox.ClearTextOnFocus = false
-		codeBox.Parent = codeBoxHolder
-
-		-- Buttons Bar at the bottom
+		-- Buttons Bar at the bottom (Execute Only)
 		local btnBar = Instance.new("Frame")
 		btnBar.Size = UDim2.new(1, -16, 0, 28)
-		btnBar.Position = UDim2.new(0, 8, 0, 150)
+		btnBar.Position = UDim2.new(0, 8, 0, 142)
 		btnBar.BackgroundTransparency = 1
 		btnBar.Parent = card
 
-		-- Copy Button
-		local copyBtn = Instance.new("TextButton")
-		copyBtn.Name = "CopyButton"
-		copyBtn.Size = UDim2.new(0.48, -4, 1, 0)
-		copyBtn.Position = UDim2.new(0, 0, 0, 0)
-		copyBtn.BackgroundColor3 = Color3.fromHex("#17191C")
-		copyBtn.BorderSizePixel = 0
-		copyBtn.AutoButtonColor = false
-		copyBtn.Font = Enum.Font.GothamBold
-		copyBtn.Text = "Copy"
-		copyBtn.TextColor3 = THEME.TextSecondary
-		copyBtn.TextSize = 11
-		copyBtn.Parent = btnBar
-		createCorner(copyBtn, 6)
-		local copyStroke = createStroke(copyBtn, THEME.Stroke, 1, 0.2)
-
-		copyBtn.MouseEnter:Connect(function()
-			tween(copyBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#202429"), TextColor3 = THEME.TextPrimary })
-			tween(copyStroke, TWEEN_FAST, { Color = THEME.Accent, Transparency = 0.2 })
-		end)
-		copyBtn.MouseLeave:Connect(function()
-			tween(copyBtn, TWEEN_FAST, { BackgroundColor3 = Color3.fromHex("#17191C"), TextColor3 = THEME.TextSecondary })
-			tween(copyStroke, TWEEN_FAST, { Color = THEME.Stroke, Transparency = 0.2 })
-		end)
-
-		copyBtn.MouseButton1Click:Connect(function()
-			local gEnv = (type(getgenv) == "function" and getgenv()) or getfenv()
-			local clipFn = gEnv.setclipboard or gEnv.toclipboard or (setclipboard :: any)
-			if type(clipFn) == "function" and rawLoadstring ~= "" then
-				pcall(clipFn, rawLoadstring)
-				copyBtn.Text = "Copied ✓"
-				tween(copyBtn, TWEEN_FAST, { TextColor3 = Color3.fromHex("#4ADE80") })
-				task.delay(1.5, function()
-					if copyBtn.Parent then
-						copyBtn.Text = "Copy"
-						tween(copyBtn, TWEEN_FAST, { TextColor3 = THEME.TextSecondary })
-					end
-				end)
-				NightSystem:Notify({
-					Title = "Loadstring Copied",
-					Content = sName .. " copied to clipboard!",
-					Duration = 2.5,
-				})
-			else
-				NightSystem:Notify({
-					Title = "Night System Hub",
-					Content = rawLoadstring,
-					Duration = 3,
-				})
-			end
-		end)
-
-		-- Execute Button
+		-- Full-Width Execute Button
 		local execBtn = Instance.new("TextButton")
 		execBtn.Name = "ExecuteButton"
-		execBtn.Size = UDim2.new(0.52, 0, 1, 0)
-		execBtn.Position = UDim2.new(0.48, 4, 0, 0)
+		execBtn.Size = UDim2.new(1, 0, 1, 0)
+		execBtn.Position = UDim2.new(0, 0, 0, 0)
 		execBtn.BackgroundColor3 = Color3.fromHex("#1E2227")
 		execBtn.BorderSizePixel = 0
 		execBtn.AutoButtonColor = false
@@ -7856,7 +7794,7 @@ function NightSystem:CreateWindow(config: {
 							})
 						end
 					else
-						warn("[Night System] Failed to download script (" .. sName .. ") from:", sUrl)
+						warn("[Night System] Failed to download script (" .. sName .. ").")
 						NightSystem:Notify({
 							Title = "Download Failed",
 							Content = "Could not reach " .. sName .. " server",
@@ -7886,7 +7824,7 @@ function NightSystem:CreateWindow(config: {
 
 		table.insert(hubSearchEntries, {
 			Card = card,
-			Query = string.lower(sName .. " " .. sDesc .. " " .. sSlug .. " " .. sUrl),
+			Query = string.lower(sName .. " " .. sDesc .. " " .. sSlug),
 		})
 
 		return card
