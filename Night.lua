@@ -3,7 +3,7 @@ local isWritableG = pcall(function()
 	(_G :: any)._test = 1
 end)
 local gEnv = (type(getgenv) == "function" and getgenv()) or (isWritableG and _G) or {}
-local NIGHT_BUILD_ID = "2026.11.10-b3"
+local NIGHT_BUILD_ID = "2026.11.18-b1"
 
 -- Schutz vor mehrfacher Ausfuehrung (Single-Instance Guard mit automatischem Update-Replace)
 if gEnv and (gEnv._NightLoaded or gEnv._NightSystem or gEnv._NightActiveWindow) then
@@ -7546,7 +7546,7 @@ function NightSystem:CreateWindow(config: {
 		-- Grid Card for side-by-side layout
 		local card = Instance.new("Frame")
 		card.Name = "HubScript_" .. sName
-		card.Size = UDim2.new(1, 0, 0, 226)
+		card.Size = UDim2.new(1, 0, 0, 180)
 		card.BackgroundColor3 = THEME.CardBackground
 		card.BorderSizePixel = 0
 		card.LayoutOrder = hubScriptCount
